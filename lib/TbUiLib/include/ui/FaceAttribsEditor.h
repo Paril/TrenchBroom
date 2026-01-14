@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <QScrollArea>
 #include <QWidget>
 
 #include "NotifierConnection.h"
@@ -41,7 +42,17 @@ class FlagsPopupEditor;
 class MapDocument;
 class SignalDelayer;
 class SpinControl;
+class Splitter;
 class UVEditor;
+
+class FaceAttribsScrollArea : public QScrollArea
+{
+  Q_OBJECT
+public:
+  using QScrollArea::QScrollArea;
+
+  void resizeEvent(QResizeEvent* event) override;
+};
 
 class FaceAttribsEditor : public QWidget
 {
@@ -49,6 +60,7 @@ class FaceAttribsEditor : public QWidget
 private:
   MapDocument& m_document;
 
+  Splitter* m_splitter = nullptr;
   UVEditor* m_uvEditor = nullptr;
   QLabel* m_materialName = nullptr;
   QLabel* m_textureSize = nullptr;
