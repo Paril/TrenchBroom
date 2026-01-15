@@ -21,6 +21,7 @@
 
 #include <QLabel>
 #include <QLineEdit>
+#include <QScrollArea>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QtGlobal>
@@ -39,18 +40,17 @@
 #include "mdl/UpdateBrushFaceAttributes.h"
 #include "mdl/WorldNode.h"
 #include "ui/BitmapButton.h"
-#include "ui/BorderLine.h"
 #include "ui/FlagsPopupEditor.h"
 #include "ui/MapDocument.h"
 #include "ui/QStyleUtils.h"
 #include "ui/SignalDelayer.h"
 #include "ui/SpinControl.h"
+#include "ui/Splitter.h"
 #include "ui/UVEditor.h"
 #include "ui/ViewConstants.h"
 #include "ui/ViewUtils.h"
 
 #include "kd/string_format.h"
-#include "kd/string_utils.h"
 
 #include "vm/vec_io.h" // IWYU pragma: keep
 
@@ -58,6 +58,12 @@
 
 namespace tb::ui
 {
+
+void FaceAttribsScrollArea::resizeEvent(QResizeEvent*)
+{
+  widget()->setFixedWidth(viewport()->width());
+  widget()->layout()->update();
+}
 
 FaceAttribsEditor::FaceAttribsEditor(
   MapDocument& document, gl::ContextManager& contextManager, QWidget* parent)
@@ -1344,12 +1350,23 @@ void FaceAttribsEditor::createGui(gl::ContextManager& contextManager)
   faceAttribsLayout->setColumnStretch(1, 1);
   faceAttribsLayout->setColumnStretch(3, 1);
 
+  auto* faceAttribsWidget = new QWidget{};
+  faceAttribsWidget->setLayout(faceAttribsLayout);
+
+  auto* faceAttribsScrollArea = new FaceAttribsScrollArea{};
+  faceAttribsScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  faceAttribsScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  faceAttribsScrollArea->setWidget(faceAttribsWidget);
+
+  m_splitter = new Splitter{Qt::Vertical};
+  m_splitter->setObjectName("UVEditor_Splitter");
+
+  m_splitter->addWidget(m_uvEditor);
+  m_splitter->addWidget(faceAttribsScrollArea);
+
   auto* outerLayout = new QVBoxLayout{};
   outerLayout->setContentsMargins(0, 0, 0, 0);
-  outerLayout->setSpacing(LayoutConstants::NarrowVMargin);
-  outerLayout->addWidget(m_uvEditor, 1);
-  outerLayout->addWidget(new BorderLine{});
-  outerLayout->addLayout(faceAttribsLayout);
+  outerLayout->addWidget(m_splitter);
 
   setLayout(outerLayout);
 }
