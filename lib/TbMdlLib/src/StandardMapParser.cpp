@@ -697,6 +697,9 @@ void StandardMapParser::parseSiNData(ParserStatus&, mdl::BrushFaceAttributes& at
     } else if (lhs.data() == "directstyle") {
         auto rhs = m_tokenizer.nextToken(QuakeMapToken::String);
         attribs.setSiNDirectStyle(rhs.data());
+    } else if (lhs.data() == "anim") {
+        auto rhs = m_tokenizer.nextToken(QuakeMapToken::String);
+        attribs.setSiNAnimation(rhs.data());
     } else if (lhs.data() == "ext_directscale") {
         attribs.setSiNExtDirectScale(parseFloat());
     } else if (lhs.data() == "ext_patchscale") {
@@ -709,6 +712,8 @@ void StandardMapParser::parseSiNData(ParserStatus&, mdl::BrushFaceAttributes& at
         attribs.setSiNExtLuxelScale(parseFloat());
     } else if (lhs.data() == "ext_mottle") {
         attribs.setSiNExtMottle(parseFloat());
+    } else if (lhs.data() == "ext_phong_group") {
+        attribs.setSiNExtPhongGroup(parseInteger());
     } else {
         throw ParserException(m_tokenizer.location(), fmt::format("unknown SiN named face attribute \"{}\"", lhs.data()));
     }

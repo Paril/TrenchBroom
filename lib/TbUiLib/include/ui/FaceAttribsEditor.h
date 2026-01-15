@@ -111,6 +111,11 @@ private:
   QWidget* m_surfaceSiNDirectStyleEditorLayout = nullptr;
   QLineEdit* m_surfaceSiNDirectStyleEditor = nullptr;
   QAbstractButton* m_surfaceSiNDirectStyleUnsetButton = nullptr;
+
+  QLabel* m_surfaceSiNAnimationLabel = nullptr;
+  QWidget* m_surfaceSiNAnimationEditorLayout = nullptr;
+  QLineEdit* m_surfaceSiNAnimationEditor = nullptr;
+  QAbstractButton* m_surfaceSiNAnimationUnsetButton = nullptr;
   
   QLabel* m_surfaceSiNDirectLabel = nullptr;
   QWidget* m_surfaceSiNDirectEditorLayout = nullptr;
@@ -157,7 +162,11 @@ private:
   QWidget* m_sinExtFlagsEditorLayout = nullptr;
   FlagsPopupEditor* m_sinExtFlagsEditor = nullptr;
   QAbstractButton* m_sinExtFlagsUnsetButton = nullptr;
-
+  
+  QLabel* m_surfaceSiNExtPhongGroupLabel = nullptr;
+  QWidget* m_surfaceSiNExtPhongGroupEditorLayout = nullptr;
+  SpinControl* m_surfaceSiNExtPhongGroupEditor = nullptr;
+  QAbstractButton* m_surfaceSiNExtPhongGroupUnsetButton = nullptr;
 
   QLabel* m_colorLabel = nullptr;
   QWidget* m_colorEditorLayout = nullptr;
@@ -207,6 +216,8 @@ private:
   void sinAnimTimeUnset();
   void sinDirectStyleValueChanged(const QString& text);
   void sinDirectStyleValueUnset();
+  void sinAnimationChanged(const QString& text);
+  void sinAnimationUnset();
   void sinDirectChanged(double value);
   void sinDirectUnset();
   void sinDirectAngleChanged(double value);
@@ -225,6 +236,8 @@ private:
   void sinExtLuxelScaleUnset();
   void sinExtMottleChanged(double value);
   void sinExtMottleUnset();
+  void sinExtPhongGroupChanged(double value);
+  void sinExtPhongGroupUnset();
 
   void sinExtFlagChanged(size_t index, int value, int setFlag, int mixedFlag);
   void sinExtFlagsUnset();

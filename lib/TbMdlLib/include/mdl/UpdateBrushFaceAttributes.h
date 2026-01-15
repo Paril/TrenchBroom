@@ -125,6 +125,7 @@ struct UpdateBrushFaceAttributes
   std::optional<std::optional<float>> sinFriction = std::nullopt;
   std::optional<std::optional<float>> sinAnimTime = std::nullopt;
   std::optional<std::optional<std::string>> sinDirectStyle = std::nullopt;
+  std::optional<std::optional<std::string>> sinAnimation = std::nullopt;
   std::optional<std::optional<float>> sinDirect = std::nullopt;
   std::optional<std::optional<float>> sinDirectAngle = std::nullopt;
   
@@ -135,6 +136,7 @@ struct UpdateBrushFaceAttributes
   std::optional<std::optional<float>> sinExtLuxelScale = std::nullopt;
   std::optional<std::optional<float>> sinExtMottle = std::nullopt;
   std::optional<FlagOp> extendedFlags = std::nullopt;
+  std::optional<std::optional<int>> sinExtPhongGroup = std::nullopt;
 
   kdl_reflect_decl(
     UpdateBrushFaceAttributes,
@@ -158,15 +160,17 @@ struct UpdateBrushFaceAttributes
     sinFriction,
     sinAnimTime,
     sinDirectStyle,
+    sinAnimation,
     sinDirect,
     sinDirectAngle,
-      sinExtDirectScale,
-      sinExtPatchScale,
-      sinExtMinLight,
-      sinExtMaxLight,
-      sinExtLuxelScale,
-      sinExtMottle,
-      extendedFlags);
+    sinExtDirectScale,
+    sinExtPatchScale,
+    sinExtMinLight,
+    sinExtMaxLight,
+    sinExtLuxelScale,
+    sinExtMottle,
+    extendedFlags,
+    sinExtPhongGroup);
 };
 
 UpdateBrushFaceAttributes copyAll(const BrushFaceAttributes& attributes);

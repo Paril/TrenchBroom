@@ -74,6 +74,7 @@ private:
   std::optional<float> m_animtime;// = 0.2f;
   
   std::optional<std::string> m_directstyle;
+  std::optional<std::string> m_animation;
   std::optional<float> m_direct;
   std::optional<float> m_directangle;
 
@@ -85,6 +86,7 @@ private:
   std::optional<float> m_ext_luxel_scale;// = 1.0f;
   std::optional<float> m_ext_mottle;// = 1.0f;
   std::optional<int>  m_ext_flags;
+  std::optional<int>  m_ext_phong_group;
 
 public:
   explicit BrushFaceAttributes(std::string_view materialName);
@@ -109,6 +111,7 @@ public:
     m_friction,
     m_animtime,
     m_directstyle,
+    m_animation,
     m_direct,
     m_directangle,
     m_ext_directscale,
@@ -117,7 +120,8 @@ public:
     m_ext_maxlight,
     m_ext_luxel_scale,
     m_ext_mottle,
-    m_ext_flags
+    m_ext_flags,
+    m_ext_phong_group
   );
 
   const std::string& materialName() const;
@@ -181,6 +185,9 @@ public:
   bool hasSiNDirectStyle() const;
   const std::optional<std::string>& sinDirectStyle() const;
 
+  bool hasSiNAnimation() const;
+  const std::optional<std::string>& sinAnimation() const;
+
   bool hasSiNDirect() const;
   const std::optional<float>& sinDirect() const;
 
@@ -195,12 +202,16 @@ public:
   bool setSiNFriction(const std::optional<float>& value);
   bool setSiNAnimTime(const std::optional<float>& value);
   bool setSiNDirectStyle(const std::optional<std::string>& value);
+  bool setSiNAnimation(const std::optional<std::string>& value);
   bool setSiNDirect(const std::optional<float>& value);
   bool setSiNDirectAngle(const std::optional<float>& value);
 
   // extended
   bool hasSiNExtDirectScale() const;
   const std::optional<float>& sinExtDirectScale() const;
+
+  bool hasSiNExtPhongGroup() const;
+  const std::optional<int>& sinExtPhongGroup() const;
 
   bool hasSiNExtPatchScale() const;
   const std::optional<float>& sinExtPatchScale() const;
@@ -218,6 +229,7 @@ public:
   const std::optional<float>& sinExtMottle() const;
   
   bool setSiNExtDirectScale(const std::optional<float>& value);
+  bool setSiNExtPhongGroup(const std::optional<int>& value);
   bool setSiNExtPatchScale(const std::optional<float>& value);
   bool setSiNExtMinLight(const std::optional<float>& value);
   bool setSiNExtMaxLight(const std::optional<float>& value);

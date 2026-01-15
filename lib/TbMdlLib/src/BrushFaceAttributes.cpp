@@ -333,6 +333,16 @@ const std::optional<std::string>& BrushFaceAttributes::sinDirectStyle() const
   return m_directstyle;
 }
 
+bool BrushFaceAttributes::hasSiNAnimation() const
+{
+  return m_animation.has_value();
+}
+
+const std::optional<std::string>& BrushFaceAttributes::sinAnimation() const
+{
+  return m_animation;
+}
+
 bool BrushFaceAttributes::hasSiNDirect() const
 {
   return m_direct.has_value();
@@ -433,6 +443,16 @@ bool BrushFaceAttributes::setSiNDirectStyle(const std::optional<std::string>& va
   return false;
 }
 
+bool BrushFaceAttributes::setSiNAnimation(const std::optional<std::string>& value)
+{
+  if (value != m_animation)
+  {
+    m_animation = value;
+    return true;
+  }
+  return false;
+}
+
 bool BrushFaceAttributes::setSiNDirect(const std::optional<float>& value)
 {
   if (value != m_direct)
@@ -462,6 +482,16 @@ bool BrushFaceAttributes::hasSiNExtDirectScale() const
 const std::optional<float>& BrushFaceAttributes::sinExtDirectScale() const
 {
   return m_ext_directscale;
+}
+
+bool BrushFaceAttributes::hasSiNExtPhongGroup() const
+{
+  return m_ext_phong_group.has_value();
+}
+
+const std::optional<int>& BrushFaceAttributes::sinExtPhongGroup() const
+{
+  return m_ext_phong_group;
 }
 
 bool BrushFaceAttributes::hasSiNExtPatchScale() const
@@ -519,6 +549,16 @@ bool BrushFaceAttributes::setSiNExtDirectScale(const std::optional<float>& value
   if (value != m_ext_directscale)
   {
     m_ext_directscale = value;
+    return true;
+  }
+  return false;
+}
+
+bool BrushFaceAttributes::setSiNExtPhongGroup(const std::optional<int>& value)
+{
+  if (value != m_ext_phong_group)
+  {
+    m_ext_phong_group = value;
     return true;
   }
   return false;

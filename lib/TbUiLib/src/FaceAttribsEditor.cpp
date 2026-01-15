@@ -515,6 +515,45 @@ void FaceAttribsEditor::sinDirectStyleValueUnset()
   }
 }
 
+void FaceAttribsEditor::sinAnimationChanged(const QString& /* text */)
+{
+  auto& map = m_document.map();
+  if (!map.selection().hasAnyBrushFaces())
+  {
+    return;
+  }
+
+  const std::string str = m_surfaceSiNAnimationEditor->text().toStdString();
+  if (!kdl::str_is_blank(str))
+  {
+    if (!setBrushFaceAttributes(map, {.sinAnimation = {str}}))
+    {
+      updateControls();
+    }
+  }
+  else
+  {
+    if (!setBrushFaceAttributes(map, {.sinAnimation = std::optional<std::string>{std::nullopt}}))
+    {
+      updateControls();
+    }
+  }
+}
+
+void FaceAttribsEditor::sinAnimationUnset()
+{
+  auto& map = m_document.map();
+  if (!map.selection().hasAnyBrushFaces())
+  {
+    return;
+  }
+
+  if (!setBrushFaceAttributes(map, {.sinAnimation = std::optional<std::string>(std::nullopt)}))
+  {
+    updateControls();
+  }
+}
+
 void FaceAttribsEditor::sinDirectChanged(const double value)
 {
   auto& map = m_document.map();
@@ -595,6 +634,34 @@ void FaceAttribsEditor::sinExtDirectScaleUnset()
   }
 
   if (!setBrushFaceAttributes(map, {.sinExtDirectScale = std::optional<float>(std::nullopt)}))
+  {
+    updateControls();
+  }
+}
+
+void FaceAttribsEditor::sinExtPhongGroupChanged(const double value)
+{
+  auto& map = m_document.map();
+  if (!map.selection().hasAnyBrushFaces())
+  {
+    return;
+  }
+
+  if (!setBrushFaceAttributes(map, {.sinExtPhongGroup = int(value)}))
+  {
+    updateControls();
+  }
+}
+
+void FaceAttribsEditor::sinExtPhongGroupUnset()
+{
+  auto& map = m_document.map();
+  if (!map.selection().hasAnyBrushFaces())
+  {
+    return;
+  }
+
+  if (!setBrushFaceAttributes(map, {.sinExtPhongGroup = std::optional<int>(std::nullopt)}))
   {
     updateControls();
   }
@@ -942,6 +1009,12 @@ void FaceAttribsEditor::createGui(gl::ContextManager& contextManager)
   m_surfaceSiNDirectStyleUnsetButton = createBitmapButton("ResetUV.svg", tr("Unset surface direct style"));
   m_surfaceSiNDirectStyleEditorLayout = createUnsetButtonLayout(m_surfaceSiNDirectStyleEditor, m_surfaceSiNDirectStyleUnsetButton);
   
+  m_surfaceSiNAnimationLabel = new QLabel { "Animation" };
+  setEmphasizedStyle(m_surfaceSiNAnimationLabel);
+  m_surfaceSiNAnimationEditor = new QLineEdit{};
+  m_surfaceSiNAnimationUnsetButton = createBitmapButton("ResetUV.svg", tr("Unset animation"));
+  m_surfaceSiNAnimationEditorLayout = createUnsetButtonLayout(m_surfaceSiNAnimationEditor, m_surfaceSiNAnimationUnsetButton);
+  
   setupSiNNumericControl("Direct",
                          m_surfaceSiNDirectLabel,
                          m_surfaceSiNDirectEditor,
@@ -963,6 +1036,13 @@ void FaceAttribsEditor::createGui(gl::ContextManager& contextManager)
                          m_surfaceSiNExtDirectScaleUnsetButton,
                          m_surfaceSiNExtDirectScaleEditorLayout,
                          0.0f, max, 0.01f, 0.1f, 0.5f);
+
+  setupSiNNumericControl("(Ext) Phong Group",
+                         m_surfaceSiNExtPhongGroupLabel,
+                         m_surfaceSiNExtPhongGroupEditor,
+                         m_surfaceSiNExtPhongGroupUnsetButton,
+                         m_surfaceSiNExtPhongGroupEditorLayout,
+                         0.0f, max, 1, 10, 100);
 
   setupSiNNumericControl("(Ext) Patch Scale",
                          m_surfaceSiNExtPatchScaleLabel,
@@ -1098,6 +1178,11 @@ void FaceAttribsEditor::createGui(gl::ContextManager& contextManager)
   ++r;
   c = 0;
 
+  faceAttribsLayout->addWidget(m_surfaceSiNAnimationLabel, r, c++, LabelFlags);
+  faceAttribsLayout->addWidget(m_surfaceSiNAnimationEditorLayout, r, c++, 1, 3);
+  ++r;
+  c = 0;
+
   faceAttribsLayout->addWidget(m_surfaceSiNDirectLabel, r, c++, LabelFlags);
   faceAttribsLayout->addWidget(m_surfaceSiNDirectEditorLayout, r, c++);
   faceAttribsLayout->addWidget(m_surfaceSiNDirectAngleLabel, r, c++, LabelFlags);
@@ -1128,6 +1213,11 @@ void FaceAttribsEditor::createGui(gl::ContextManager& contextManager)
 
   faceAttribsLayout->addWidget(m_sinExtFlagsLabel, r, c++, LabelFlags);
   faceAttribsLayout->addWidget(m_sinExtFlagsEditorLayout, r, c++, 1, 3);
+  ++r;
+  c = 0;
+
+  faceAttribsLayout->addWidget(m_surfaceSiNExtPhongGroupLabel, r, c++, LabelFlags);
+  faceAttribsLayout->addWidget(m_surfaceSiNExtPhongGroupEditorLayout, r, c++, 1, 3);
   ++r;
   c = 0;
   
@@ -1294,6 +1384,13 @@ void FaceAttribsEditor::bindEvents()
     this,
     &FaceAttribsEditor::sinDirectStyleValueUnset);
   connect(
+    m_surfaceSiNAnimationEditor, &QLineEdit::textEdited, this, &FaceAttribsEditor::sinAnimationChanged);
+  connect(
+    m_surfaceSiNAnimationUnsetButton,
+    &QAbstractButton::clicked,
+    this,
+    &FaceAttribsEditor::sinAnimationUnset);
+  connect(
     m_surfaceSiNDirectEditor,
     QOverload<double>::of(&QDoubleSpinBox::valueChanged),
     this,
@@ -1355,6 +1452,11 @@ void FaceAttribsEditor::bindEvents()
     &FlagsPopupEditor::flagChanged,
     this,
     &FaceAttribsEditor::sinExtFlagChanged);
+  connect(
+    m_surfaceSiNExtPhongGroupEditor,
+    QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+    this,
+    &FaceAttribsEditor::sinExtPhongGroupChanged);
 }
 
 void FaceAttribsEditor::connectObservers()
@@ -1417,6 +1519,7 @@ void FaceAttribsEditor::updateControls()
   const auto blockSiNFrictionEditor = QSignalBlocker{m_surfaceSiNFrictionEditor};
   const auto blockSiNAnimTimeEditor = QSignalBlocker{m_surfaceSiNAnimTimeEditor};
   const auto blockSiNDirectStyleEditor = QSignalBlocker{m_surfaceSiNDirectStyleEditor};
+  const auto blockSiNAnimationEditor = QSignalBlocker{m_surfaceSiNAnimationEditor};
   const auto blockSiNDirectEditor = QSignalBlocker{m_surfaceSiNDirectEditor};
   const auto blockSiNDirectAngleEditor = QSignalBlocker{m_surfaceSiNDirectAngleEditor};
 
@@ -1428,6 +1531,7 @@ void FaceAttribsEditor::updateControls()
   const auto blockSiNExtLuxelScaleEditor = QSignalBlocker{m_surfaceSiNExtLuxelScaleEditor};
   const auto blockSiNExtMottleEditor = QSignalBlocker{m_surfaceSiNExtMottleEditor};
   const auto blockSiNExtFlagsEditor = QSignalBlocker{m_sinExtFlagsEditor};
+  const auto blockSiNExtPhongGroupEditor = QSignalBlocker{m_surfaceSiNExtPhongGroupEditor};
 
   if (hasSurfaceFlags())
   {
@@ -1536,6 +1640,10 @@ void FaceAttribsEditor::updateControls()
     const auto &sinDirectStyleValue =    firstFace.attributes().sinDirectStyle();
     auto     hasSiNDirectStyleValue = firstFace.attributes().hasSiNDirectStyle();
 
+    auto        sinAnimationValueMulti = false;
+    const auto &sinAnimationValue =    firstFace.attributes().sinAnimation();
+    auto     hasSiNAnimationValue = firstFace.attributes().hasSiNAnimation();
+
     auto        sinDirectMulti = false;
     const auto &sinDirect =    firstFace.attributes().sinDirect();
     auto     hasSiNDirect = firstFace.attributes().hasSiNDirect();
@@ -1572,6 +1680,10 @@ void FaceAttribsEditor::updateControls()
     auto setExtFlags = firstFace.attributes().extendedFlags().value_or(0);
     auto hasExtFlags = firstFace.attributes().extendedFlags().has_value();
     auto mixedExtFlags = 0;
+    
+    auto        sinExtPhongGroupMulti = false;
+    const auto &sinExtPhongGroup =    firstFace.attributes().sinExtPhongGroup();
+    auto     hasSiNExtPhongGroup = firstFace.attributes().hasSiNExtPhongGroup();
 
     for (size_t i = 1; i < faceHandles.size(); i++)
     {
@@ -1614,6 +1726,8 @@ void FaceAttribsEditor::updateControls()
       hasSiNAnimTime |= face.attributes().hasSiNAnimTime();
       sinDirectStyleValueMulti |= (sinDirectStyleValue != face.attributes().sinDirectStyle());
       hasSiNDirectStyleValue |= face.attributes().hasSiNDirectStyle();
+      sinAnimationValueMulti |= (sinAnimationValue != face.attributes().sinAnimation());
+      hasSiNAnimationValue |= face.attributes().hasSiNAnimation();
       sinDirectMulti |= (sinDirect != face.attributes().sinDirect());
       hasSiNDirect |= face.attributes().hasSiNDirect();
       sinDirectAngleMulti |= (sinDirectAngle != face.attributes().sinDirectAngle());
@@ -1637,6 +1751,9 @@ void FaceAttribsEditor::updateControls()
 
       combineFlags(
         sizeof(int) * 8, face.attributes().extendedFlags().value_or(0), setExtFlags, mixedExtFlags);
+
+      sinExtPhongGroupMulti |= (sinExtPhongGroup != face.attributes().sinExtPhongGroup());
+      hasSiNExtPhongGroup |= face.attributes().hasSiNExtPhongGroup();
     }
 
     m_xOffsetEditor->setEnabled(true);
@@ -1749,6 +1866,25 @@ void FaceAttribsEditor::updateControls()
       m_surfaceSiNDirectStyleEditor->setText("");
     }
     m_surfaceSiNDirectStyleUnsetButton->setEnabled(hasSiNDirectStyleValue);
+    if (hasSiNAnimationValue)
+    {
+      if (sinAnimationValueMulti)
+      {
+        m_surfaceSiNAnimationEditor->setPlaceholderText("multi");
+        m_surfaceSiNAnimationEditor->setText("");
+      }
+      else
+      {
+        m_surfaceSiNAnimationEditor->setPlaceholderText("");
+        m_surfaceSiNAnimationEditor->setText(QString::fromStdString(*sinAnimationValue));
+      }
+    }
+    else
+    {
+      m_surfaceSiNAnimationEditor->setPlaceholderText("");
+      m_surfaceSiNAnimationEditor->setText("");
+    }
+    m_surfaceSiNAnimationUnsetButton->setEnabled(hasSiNAnimationValue);
     setValueOrMulti(m_surfaceSiNDirectEditor, sinDirectMulti, double(sinDirect.value_or(0)));
     m_surfaceSiNDirectUnsetButton->setEnabled(hasSiNDirect);
     setValueOrMulti(m_surfaceSiNDirectAngleEditor, sinDirectAngleMulti, double(sinDirectAngle.value_or(0)));
@@ -1762,6 +1898,7 @@ void FaceAttribsEditor::updateControls()
     m_surfaceSiNFrictionEditor->setEnabled(true);
     m_surfaceSiNAnimTimeEditor->setEnabled(true);
     m_surfaceSiNDirectStyleEditor->setEnabled(true);
+    m_surfaceSiNAnimationEditor->setEnabled(true);
     m_surfaceSiNDirectEditor->setEnabled(true);
     m_surfaceSiNDirectAngleEditor->setEnabled(true);
 
@@ -1778,6 +1915,8 @@ void FaceAttribsEditor::updateControls()
     m_surfaceSiNExtLuxelScaleUnsetButton->setEnabled(hasSiNExtLuxelScale);
     setValueOrMulti(m_surfaceSiNExtMottleEditor, sinExtMottleMulti, double(sinExtMottle.value_or(mdl::BrushFaceAttributes::SiNDefaultExtMottle)));
     m_surfaceSiNExtMottleUnsetButton->setEnabled(hasSiNExtMottle);
+    setValueOrMulti(m_surfaceSiNExtPhongGroupEditor, sinExtPhongGroupMulti, double(sinExtPhongGroup.value_or(0)));
+    m_surfaceSiNExtPhongGroupUnsetButton->setEnabled(hasSiNExtPhongGroup);
     
     m_surfaceSiNExtDirectScaleEditor->setEnabled(true);
     m_surfaceSiNExtPatchScaleEditor->setEnabled(true);
@@ -1785,6 +1924,7 @@ void FaceAttribsEditor::updateControls()
     m_surfaceSiNExtMaxLightEditor->setEnabled(true);
     m_surfaceSiNExtLuxelScaleEditor->setEnabled(true);
     m_surfaceSiNExtMottleEditor->setEnabled(true);
+    m_surfaceSiNExtPhongGroupEditor->setEnabled(true);
 
     m_sinExtFlagsEditor->setEnabled(true);
     m_sinExtFlagsEditor->setFlagValue(setExtFlags, mixedExtFlags);
@@ -1821,6 +1961,10 @@ void FaceAttribsEditor::updateControls()
     m_surfaceSiNDirectStyleEditor->setPlaceholderText("n/a");
     m_surfaceSiNDirectStyleEditor->setEnabled(false);
     m_surfaceSiNDirectStyleUnsetButton->setEnabled(false);
+    m_surfaceSiNAnimationEditor->setText("");
+    m_surfaceSiNAnimationEditor->setPlaceholderText("n/a");
+    m_surfaceSiNAnimationEditor->setEnabled(false);
+    m_surfaceSiNAnimationUnsetButton->setEnabled(false);
     disableAndSetPlaceholder(m_surfaceSiNDirectEditor, "n/a");
     disableAndSetPlaceholder(m_surfaceSiNDirectAngleEditor, "n/a");
     
@@ -1831,6 +1975,7 @@ void FaceAttribsEditor::updateControls()
     disableAndSetPlaceholder(m_surfaceSiNExtMaxLightEditor, "n/a");
     disableAndSetPlaceholder(m_surfaceSiNExtLuxelScaleEditor, "n/a");
     disableAndSetPlaceholder(m_surfaceSiNExtMottleEditor, "n/a");
+    disableAndSetPlaceholder(m_surfaceSiNExtPhongGroupEditor, "n/a");
     m_sinExtFlagsEditor->setEnabled(false);
     m_sinExtFlagsUnsetButton->setEnabled(false);
   }
@@ -1924,6 +2069,8 @@ void FaceAttribsEditor::showSiNAttribEditor()
     m_surfaceSiNAnimTimeEditorLayout->show();
     m_surfaceSiNDirectStyleLabel->show();
     m_surfaceSiNDirectStyleEditorLayout->show();
+    m_surfaceSiNAnimationLabel->show();
+    m_surfaceSiNAnimationEditorLayout->show();
     m_surfaceSiNDirectLabel->show();
     m_surfaceSiNDirectEditorLayout->show();
     m_surfaceSiNDirectAngleLabel->show();
@@ -1941,6 +2088,8 @@ void FaceAttribsEditor::showSiNAttribEditor()
     m_surfaceSiNExtLuxelScaleEditorLayout->show();
     m_surfaceSiNExtMottleLabel->show();
     m_surfaceSiNExtMottleEditorLayout->show();
+    m_surfaceSiNExtPhongGroupLabel->show();
+    m_surfaceSiNExtPhongGroupEditorLayout->show();
     m_sinExtFlagsLabel->show();
     m_sinExtFlagsEditorLayout->show();
 }
@@ -1963,6 +2112,8 @@ void FaceAttribsEditor::hideSiNAttribEditor()
     m_surfaceSiNAnimTimeEditorLayout->hide();
     m_surfaceSiNDirectStyleLabel->hide();
     m_surfaceSiNDirectStyleEditorLayout->hide();
+    m_surfaceSiNAnimationLabel->hide();
+    m_surfaceSiNAnimationEditorLayout->hide();
     m_surfaceSiNDirectLabel->hide();
     m_surfaceSiNDirectEditorLayout->hide();
     m_surfaceSiNDirectAngleLabel->hide();
@@ -1980,6 +2131,8 @@ void FaceAttribsEditor::hideSiNAttribEditor()
     m_surfaceSiNExtLuxelScaleEditorLayout->hide();
     m_surfaceSiNExtMottleLabel->hide();
     m_surfaceSiNExtMottleEditorLayout->hide();
+    m_surfaceSiNExtPhongGroupLabel->hide();
+    m_surfaceSiNExtPhongGroupEditorLayout->hide();
     m_sinExtFlagsLabel->hide();
     m_sinExtFlagsEditorLayout->hide();
 }

@@ -108,6 +108,7 @@ UpdateBrushFaceAttributes copyAllExceptContentFlags(const BrushFaceAttributes& a
     .sinFriction = attributes.sinFriction(),
     .sinAnimTime = attributes.sinAnimTime(),
     .sinDirectStyle = attributes.sinDirectStyle(),
+    .sinAnimation = attributes.sinAnimation(),
     .sinDirect = attributes.sinDirect(),
     .sinDirectAngle = attributes.sinDirectAngle(),
     
@@ -117,7 +118,8 @@ UpdateBrushFaceAttributes copyAllExceptContentFlags(const BrushFaceAttributes& a
     .sinExtMaxLight = attributes.sinExtMaxLight(),
     .sinExtLuxelScale = attributes.sinExtLuxelScale(),
     .sinExtMottle = attributes.sinExtMottle(),
-    .extendedFlags = replaceFlagsIfSet(attributes.extendedFlags())
+    .extendedFlags = replaceFlagsIfSet(attributes.extendedFlags()),
+    .sinExtPhongGroup = attributes.sinExtPhongGroup()
   };
 }
 
@@ -276,6 +278,11 @@ void evaluate(const UpdateBrushFaceAttributes& update, BrushFace& brushFace)
     attributes.setSiNDirectStyle(
       *update.sinDirectStyle);
   }
+  if (update.sinAnimation)
+  {
+    attributes.setSiNAnimation(
+      *update.sinAnimation);
+  }
   if (update.sinDirect)
   {
     attributes.setSiNDirect(
@@ -323,6 +330,12 @@ void evaluate(const UpdateBrushFaceAttributes& update, BrushFace& brushFace)
   {
     attributes.setExtendedFlags(
       evaluate(update.extendedFlags, brushFace.attributes().extendedFlags().value_or(0)));
+  }
+
+  if (update.sinExtPhongGroup)
+  {
+    attributes.setSiNExtPhongGroup(
+      *update.sinExtPhongGroup);
   }
 
   brushFace.setAttributes(attributes);

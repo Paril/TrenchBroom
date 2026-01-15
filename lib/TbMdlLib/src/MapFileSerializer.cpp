@@ -317,6 +317,7 @@ namespace SiNWriter
       writeSiNKeyValue(stream, "lightvalue", attribs.surfaceValue());
       writeSiNKeyValue(stream, "nonlitvalue", attribs.sinNonlitValue(), BrushFaceAttributes::SiNDefaultNonLitValue);
       writeSiNKeyValue(stream, "directstyle", attribs.sinDirectStyle());
+      writeSiNKeyValue(stream, "anim", attribs.sinAnimation());
 
       // extended flags super last
       if (attribs.extendedFlags().has_value()) {
@@ -337,6 +338,7 @@ namespace SiNWriter
       writeSiNKeyValue(stream, "ext_maxlight", attribs.sinExtMaxLight(), BrushFaceAttributes::SiNDefaultExtMaxLight);
       writeSiNKeyValue(stream, "ext_luxel_scale", attribs.sinExtLuxelScale(), BrushFaceAttributes::SiNDefaultExtLuxelScale);
       writeSiNKeyValue(stream, "ext_mottle", attribs.sinExtMottle(), BrushFaceAttributes::SiNDefaultExtMottle);
+      writeSiNKeyValue(stream, "ext_phong_group", attribs.sinExtPhongGroup());
   }
 }
 
