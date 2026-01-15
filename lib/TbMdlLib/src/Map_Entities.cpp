@@ -19,10 +19,13 @@
 
 #include "mdl/Map_Entities.h"
 
+#include "el/Value.h"
+#include "el/VariableStore.h"
 #include "mdl/ApplyAndSwap.h"
 #include "mdl/Entity.h"
 #include "mdl/EntityColorPropertyValue.h"
 #include "mdl/EntityDefinition.h"
+#include "mdl/EntityDefinitionManager.h"
 #include "mdl/EntityNode.h"
 #include "mdl/GameInfo.h"
 #include "mdl/LinkedGroupUtils.h"
@@ -103,6 +106,20 @@ EntityNode* createPointEntity(
   if (map.worldNode().entityPropertyConfig().setDefaultProperties)
   {
     mdl::setDefaultProperties(definition, entity, SetDefaultPropertyMode::SetAll);
+  }
+
+  // SiN: copy over FGD model path if specified
+  if (auto spec = definition.pointEntityDefinition)
+  {
+    auto modelSpec =
+      spec.value()
+        .modelDefinition.modelSpecification(tb::el::NullVariableStore{}, nullptr)
+        .value();
+
+    if (!modelSpec.path.empty())
+    {
+      entity.addOrUpdateProperty("model", modelSpec.path.generic_string());
+    }
   }
 
   auto* entityNode = new EntityNode{std::move(entity)};
