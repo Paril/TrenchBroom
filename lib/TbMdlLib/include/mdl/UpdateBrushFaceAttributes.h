@@ -128,7 +128,7 @@ struct UpdateBrushFaceAttributes
   std::optional<std::optional<std::string>> sinAnimation = std::nullopt;
   std::optional<std::optional<float>> sinDirect = std::nullopt;
   std::optional<std::optional<float>> sinDirectAngle = std::nullopt;
-  
+
   std::optional<std::optional<float>> sinExtDirectScale = std::nullopt;
   std::optional<std::optional<float>> sinExtPatchScale = std::nullopt;
   std::optional<std::optional<float>> sinExtMinLight = std::nullopt;
