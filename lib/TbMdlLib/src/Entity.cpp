@@ -187,7 +187,7 @@ Result<ModelSpecification> Entity::modelSpecification() const
   if (const auto* pointEntityDefinition = getPointEntityDefinition(definition()))
   {
     const auto variableStore = EntityPropertiesVariableStore{*this};
-    return pointEntityDefinition->modelDefinition.modelSpecification(variableStore);
+    return pointEntityDefinition->modelDefinition.modelSpecification(variableStore, m_model);
   }
   return ModelSpecification{};
 }

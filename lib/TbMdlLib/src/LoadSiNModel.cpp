@@ -200,199 +200,10 @@ struct SinGroup_t
   int ofs_end;
 };
 
-#if 0
-struct Md2Vertex
+struct SinSkin_t
 {
-  unsigned char x, y, z;
-  unsigned char normalIndex;
+  std::string   name, filename;
 };
-
-struct Md2Frame
-{
-  vm::vec3f scale;
-  vm::vec3f offset;
-  std::string name;
-  std::vector<Md2Vertex> vertices;
-
-  vm::vec3f vertex(size_t index) const
-  {
-    const auto& vertex = vertices[index];
-    const auto position = vm::vec3f{float(vertex.x), float(vertex.y), float(vertex.z)};
-    return position * scale + offset;
-  }
-
-  const vm::vec3f& normal(size_t index) const
-  {
-    const auto& vertex = vertices[index];
-    return Normals[vertex.normalIndex];
-  }
-};
-
-struct Md2MeshVertex
-{
-  size_t vertexIndex;
-  vm::vec2f uv;
-};
-
-struct Md2Mesh
-{
-  gl::PrimType type;
-  std::vector<Md2MeshVertex> vertices;
-};
-
-
-std::vector<std::string> parseSkins(fs::Reader reader, const size_t count)
-{
-  auto skins = std::vector<std::string>{};
-  skins.reserve(count);
-
-  for (size_t i = 0; i < count; ++i)
-  {
-    skins.push_back(reader.readString(Md2Layout::SkinNameLength));
-  }
-
-  return skins;
-}
-
-auto parseVertices(fs::Reader& reader, const size_t vertexCount)
-{
-  auto vertices = std::vector<Md2Vertex>{};
-  vertices.reserve(vertexCount);
-
-  for (size_t i = 0; i < vertexCount; ++i)
-  {
-    const auto x = reader.readUnsignedChar<char>();
-    const auto y = reader.readUnsignedChar<char>();
-    const auto z = reader.readUnsignedChar<char>();
-    const auto normalIndex = reader.readUnsignedChar<char>();
-    vertices.push_back({x, y, z, normalIndex});
-  }
-
-  return vertices;
-}
-
-auto parseFrame(
-  fs::Reader reader, const size_t /* frameIndex */, const size_t vertexCount)
-{
-  const auto scale = reader.readVec<float, 3>();
-  const auto offset = reader.readVec<float, 3>();
-  auto name = reader.readString(Md2Layout::FrameNameLength);
-  auto vertices = parseVertices(reader, vertexCount);
-
-  return Md2Frame{scale, offset, std::move(name), std::move(vertices)};
-}
-
-auto parseMeshVertices(fs::Reader& reader, const size_t count)
-{
-  auto vertices = std::vector<Md2MeshVertex>{};
-  vertices.reserve(count);
-
-  for (size_t i = 0; i < count; ++i)
-  {
-    const auto u = reader.readFloat<float>();
-    const auto v = reader.readFloat<float>();
-    const auto vertexIndex = reader.readSize<int32_t>();
-    vertices.push_back({vertexIndex, {u, v}});
-  }
-
-  return vertices;
-}
-
-auto parseMeshes(fs::Reader reader, const size_t /* commandCount */)
-{
-  auto meshes = std::vector<Md2Mesh>{};
-
-  // vertex count is signed, where < 0 indicates a triangle fan and > 0 indicates a
-  // triangle strip
-  while (!reader.eof())
-  {
-    const auto vertexCount = reader.readInt<int32_t>();
-
-    const auto type =
-      vertexCount < 0 ? gl::PrimType::TriangleFan : gl::PrimType::TriangleStrip;
-    auto vertices = parseMeshVertices(reader, size_t(std::abs(vertexCount)));
-    meshes.push_back({type, std::move(vertices)});
-  }
-
-  return meshes;
-}
-
-void loadSkins(
-  EntityModelSurface& surface,
-  const std::vector<std::string>& skins,
-  const Palette& palette,
-  const fs::FileSystem& fs,
-  Logger& logger)
-{
-  auto materials = std::vector<gl::Material>{};
-  materials.reserve(skins.size());
-
-  for (const auto& skin : skins)
-  {
-    materials.push_back(loadSkin(skin, fs, palette, logger));
-  }
-
-  surface.setSkins(std::move(materials));
-}
-
-auto getVertices(const Md2Frame& frame, const std::vector<Md2MeshVertex>& meshVertices)
-{
-  auto vertices = std::vector<EntityModelVertex>{};
-  vertices.reserve(meshVertices.size());
-
-  for (const auto& md2MeshVertex : meshVertices)
-  {
-    const auto position = frame.vertex(md2MeshVertex.vertexIndex);
-    const auto& uv = md2MeshVertex.uv;
-
-    vertices.emplace_back(position, uv);
-  }
-
-  return vertices;
-}
-
-void buildFrame(
-  EntityModelData& model,
-  EntityModelSurface& surface,
-  const Md2Frame& frame,
-  const std::vector<Md2Mesh>& meshes)
-{
-  size_t vertexCount = 0;
-  auto size = gl::IndexRangeMap::Size{};
-  for (const auto& md2Mesh : meshes)
-  {
-    vertexCount += md2Mesh.vertices.size();
-    size.inc(md2Mesh.type);
-  }
-
-  auto bounds = vm::bbox3f::builder{};
-
-  auto builder = gl::IndexRangeMapBuilder<EntityModelVertex::Type>{vertexCount, size};
-  for (const auto& md2Mesh : meshes)
-  {
-    if (!md2Mesh.vertices.empty())
-    {
-      vertexCount += md2Mesh.vertices.size();
-      const auto vertices = getVertices(frame, md2Mesh.vertices);
-
-      bounds.add(std::begin(vertices), std::end(vertices), gl::GetVertexComponent<0>());
-
-      if (md2Mesh.type == gl::PrimType::TriangleFan)
-      {
-        builder.addTriangleFan(vertices);
-      }
-      else if (md2Mesh.type == gl::PrimType::TriangleStrip)
-      {
-        builder.addTriangleStrip(vertices);
-      }
-    }
-  }
-
-  auto& modelFrame = model.addFrame(frame.name, bounds.bounds());
-  surface.addMesh(
-    modelFrame, std::move(builder.vertices()), std::move(builder.indices()));
-}
-#endif
 
 } // namespace
 
@@ -549,7 +360,7 @@ Result<EntityModelData> loadSiNModel(
     // stuff parsed from DEF
     std::string path;
     std::string model;
-    std::string skin;
+    std::vector<SinSkin_t> skins;
     std::string anim;
     vm::vec3f origin{0.0f, 0.0f, 0.0f};
     float scale{1.0f};
@@ -634,9 +445,13 @@ Result<EntityModelData> loadSiNModel(
 
           if (kdl::ci::str_is_suffix(tokens.back(), ".tga"))
           {
-            if (skin.empty())
+            if (tokens.size() == 1)
             {
-              skin = tokens.back();
+              skins.emplace_back(std::filesystem::path{tokens.back()}.stem().generic_string(), tokens.back());
+            }
+            else
+            {
+              skins.emplace_back(tokens.front(), tokens.back());
             }
           }
           else if (kdl::ci::str_is_suffix(tokens.back(), ".sam"))
@@ -800,9 +615,11 @@ Result<EntityModelData> loadSiNModel(
       // skin
       {
         auto materials = std::vector<gl::Material>{};
-        auto loadedSkin =
-          loadSkin((std::filesystem::path{path} / skin), fs, std::nullopt, logger);
-        materials.push_back(std::move(loadedSkin));
+        for (auto &skin : skins) {
+            auto loadedSkin =
+              loadSkin((std::filesystem::path{path} / skin.filename), skin.name, fs, std::nullopt, logger);
+            materials.push_back(std::move(loadedSkin));
+        }
         surface.setSkins(std::move(materials));
       }
 

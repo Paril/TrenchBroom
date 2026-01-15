@@ -18,6 +18,7 @@
  */
 
 #include "mdl/ModelDefinition.h"
+#include "mdl/EntityModel.h"
 
 #include "el/EvaluationContext.h"
 #include "el/Exceptions.h"
@@ -62,16 +63,34 @@ size_t index(el::EvaluationContext& context, const el::Value& value)
   return static_cast<size_t>(vm::max(0l, intValue));
 }
 
-ModelSpecification convertToModel(el::EvaluationContext& context, const el::Value& value)
+ModelSpecification convertToModel(el::EvaluationContext& context, const el::Value& value, const tb::mdl::EntityModel* m_model)
 {
   switch (value.type())
   {
-  case el::ValueType::Map:
+  case el::ValueType::Map: {
+    auto skin = value.atOrDefault(context, ModelSpecificationKeys::Skin);
+    int skinIndex = 0;
+
+    if (m_model && m_model->data() && skin.type() == tb::el::ValueType::String)
+    {
+      auto &surf = m_model->data()->surface(0);
+      
+      for (size_t i = 0; i < surf.skinCount(); i++)
+      {
+          if (surf.skin(i)->name() == skin.stringValue(context))
+          {
+              skinIndex = i;
+              break;
+          }
+      }
+    }
+
     return ModelSpecification{
       path(context, value.atOrDefault(context, ModelSpecificationKeys::Path)),
-      index(context, value.atOrDefault(context, ModelSpecificationKeys::Skin)),
+      index(context, tb::el::Value(skinIndex)),
       index(context, value.atOrDefault(context, ModelSpecificationKeys::Frame)),
     };
+  }
   case el::ValueType::String:
     return ModelSpecification{path(context, value), 0, 0};
   case el::ValueType::Boolean:
@@ -165,11 +184,12 @@ void ModelDefinition::append(ModelDefinition other)
 }
 
 Result<ModelSpecification> ModelDefinition::modelSpecification(
-  const el::VariableStore& variableStore) const
+  const el::VariableStore& variableStore,
+  const tb::mdl::EntityModel* m_model) const
 {
   return el::withEvaluationContext(
     [&](auto& context) {
-      return convertToModel(context, m_expression.evaluate(context));
+      return convertToModel(context, m_expression.evaluate(context), m_model);
     },
     variableStore);
 }
@@ -177,7 +197,7 @@ Result<ModelSpecification> ModelDefinition::modelSpecification(
 Result<ModelSpecification> ModelDefinition::defaultModelSpecification() const
 {
   return el::withEvaluationContext([&](auto& context) {
-    return convertToModel(context, m_expression.tryEvaluate(context));
+    return convertToModel(context, m_expression.tryEvaluate(context), nullptr);
   });
 }
 

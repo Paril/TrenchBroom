@@ -43,6 +43,13 @@ gl::Material loadSkin(
 
 gl::Material loadSkin(
   const std::filesystem::path& path,
+  const std::string& name,
+  const fs::FileSystem& fs,
+  const std::optional<Palette>& palette,
+  Logger& logger);
+
+gl::Material loadSkin(
+  const std::filesystem::path& path,
   const fs::FileSystem& fs,
   const std::optional<Palette>& palette,
   Logger& logger);

@@ -31,7 +31,8 @@ namespace tb::mdl
 gl::Material loadSkin(
   const std::filesystem::path& path, const fs::FileSystem& fs, Logger& logger)
 {
-  return loadSkin(path, fs, std::nullopt, logger);
+  auto name = path.stem().string();
+  return loadSkin(path, name, fs, std::nullopt, logger);
 }
 
 gl::Material loadSkin(
@@ -41,7 +42,16 @@ gl::Material loadSkin(
   Logger& logger)
 {
   auto name = path.stem().string();
+  return loadSkin(path, name, fs, palette, logger);
+}
 
+gl::Material loadSkin(
+  const std::filesystem::path& path,
+  const std::string& name,
+  const fs::FileSystem& fs,
+  const std::optional<Palette>& palette,
+  Logger& logger)
+{
   return loadTexture(path, name, fs, palette) | kdl::transform([&](auto texture) {
            auto textureResource = createTextureResource(std::move(texture));
            return gl::Material{std::move(name), std::move(textureResource)};

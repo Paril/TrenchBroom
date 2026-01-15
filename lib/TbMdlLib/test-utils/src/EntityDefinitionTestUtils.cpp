@@ -69,7 +69,7 @@ ModelSpecification getModelSpecification(
                                               .evaluate(context)
                                               .mapValue(context);
            const auto variableStore = el::VariableTable{entityPropertiesMap};
-           return modelDefinition.modelSpecification(variableStore);
+           return modelDefinition.modelSpecification(variableStore, nullptr);
          })
          | kdl::value();
 }

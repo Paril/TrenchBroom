@@ -36,6 +36,8 @@ struct FileLocation;
 namespace mdl
 {
 
+class EntityModel;
+
 namespace ModelSpecificationKeys
 {
 constexpr auto Path = "path";
@@ -65,7 +67,8 @@ public:
    * @return the model specification or an error if evaluation failed
    */
   Result<ModelSpecification> modelSpecification(
-    const el::VariableStore& variableStore) const;
+    const el::VariableStore& variableStore,
+    const tb::mdl::EntityModel* m_model) const;
 
   /**
    * Evaluates the model expresion.
