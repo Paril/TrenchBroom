@@ -204,11 +204,6 @@ ResourceState<T> drop(ResourceDropping<T> state, const bool glContextAvailable)
 
 } // namespace detail
 
-struct ResourceStat
-{
-    static inline int count = 0;
-};
-
 /**
  * A resource that can be loaded, uploaded, and dropped.
  *
@@ -246,10 +241,6 @@ public:
 
   moveOnly(Resource);
 
-  virtual ~Resource()
-  {
-  }
-
   const ResourceId& id() const { return m_id; }
 
   const ResourceState<T>& state() const { return m_state; }
@@ -284,7 +275,6 @@ public:
 
   bool process(TaskRunner taskRunner, const ProcessContext& context)
   {
-      ResourceStat::count++;
     const auto previousStateIndex = m_state.index();
     m_state = std::visit(
       kdl::overload(
@@ -317,7 +307,6 @@ public:
 
   void drop()
   {
-      ResourceStat::count--;
     m_state = std::visit(
       kdl::overload(
         [](ResourceLoaded<T>) -> ResourceState<T> { return ResourceDropped{}; },
