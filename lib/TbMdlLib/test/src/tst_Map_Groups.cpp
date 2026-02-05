@@ -30,12 +30,14 @@
 #include "mdl/Map.h"
 #include "mdl/MapFixture.h"
 #include "mdl/Map_Entities.h"
+#include "mdl/Map_Geometry.h"
 #include "mdl/Map_Groups.h"
 #include "mdl/Map_Layers.h"
 #include "mdl/Map_Nodes.h"
 #include "mdl/Map_Selection.h"
 #include "mdl/Matchers.h"
 #include "mdl/ModelUtils.h"
+#include "mdl/NodeQueries.h"
 #include "mdl/PatchNode.h"
 #include "mdl/TestFactory.h"
 #include "mdl/TestUtils.h"
@@ -118,13 +120,13 @@ TEST_CASE("Map_Groups")
 
     SECTION("Opens group and notifies observers")
     {
-      auto groupWasOpened = Observer<void>{map.groupWasOpenedNotifier};
+      auto groupWasOpened = Observer<>{map.groupWasOpenedNotifier};
 
       openGroup(map, *outerGroupNode);
       CHECK(outerGroupNode->opened());
       CHECK(innerGroupNode->closed());
 
-      CHECK(groupWasOpened.called);
+      CHECK(groupWasOpened.notifications == std::vector<std::tuple<>>{{}});
     }
 
     SECTION("Locks world but keeps group unlocked")
@@ -162,13 +164,13 @@ TEST_CASE("Map_Groups")
 
     SECTION("Closes group and notifies observers")
     {
-      auto groupWasClosed = Observer<void>{map.groupWasClosedNotifier};
+      auto groupWasClosed = Observer<>{map.groupWasClosedNotifier};
 
       closeGroup(map);
       CHECK(outerGroupNode->closed());
       CHECK(innerGroupNode->closed());
 
-      CHECK(groupWasClosed.called);
+      CHECK(groupWasClosed.notifications == std::vector<std::tuple<>>{{}});
     }
 
     SECTION("Resets locking state and unlocks world when closing outer")
@@ -836,6 +838,263 @@ TEST_CASE("Map_Groups")
 
         // the change was propagated to linkedGroupNode:
         CHECK_THAT(*linkedGroupNode, MatchesNode(*groupNode));
+      }
+    }
+  }
+
+  SECTION("extractLinkedGroups")
+  {
+    auto* ungroupedNode = new EntityNode{Entity{}};
+    auto* groupedBrushNode = createBrushNode(map);
+    auto* groupedEntityNode = new EntityNode{Entity{{{"some key", "some value"}}}};
+    auto* groupedBrushEntityBrushNode1 = createBrushNode(map);
+    auto* groupedBrushEntityBrushNode2 = createBrushNode(map);
+    auto* groupedBrushEntityNode =
+      new EntityNode{Entity{{{"some other key", "some other value"}}}};
+
+    addNodes(
+      map,
+      {{parentForNodes(map),
+        {groupedBrushNode, groupedEntityNode, groupedBrushEntityNode, ungroupedNode}}});
+    addNodes(
+      map,
+      {{groupedBrushEntityNode,
+        {groupedBrushEntityBrushNode1, groupedBrushEntityBrushNode2}}});
+    selectNodes(map, {groupedBrushNode, groupedEntityNode, groupedBrushEntityNode});
+
+    auto* groupNode = groupSelectedNodes(map, "original group");
+    REQUIRE(groupNode != nullptr);
+
+    const auto originalGroupLinkId = groupNode->linkId();
+    const auto originalBrushLinkId = groupedBrushNode->linkId();
+    const auto originalEntityLinkId = groupedEntityNode->linkId();
+    const auto originalBrushEntityBrush1LinkId = groupedBrushEntityBrushNode1->linkId();
+    const auto originalBrushEntityBrush2LinkId = groupedBrushEntityBrushNode2->linkId();
+    const auto originalBrushEntityLinkId = groupedBrushEntityNode->linkId();
+
+    deselectAll(map);
+
+    SECTION("When nothing is selected")
+    {
+      CHECK_FALSE(canExtractLinkedGroups(map));
+    }
+
+    SECTION("When the selection isn't grouped")
+    {
+      selectNodes(map, {ungroupedNode});
+      CHECK_FALSE(canExtractLinkedGroups(map));
+    }
+
+    SECTION("Extracting from a group that isn't linked")
+    {
+      openGroup(map, *groupNode);
+      selectNodes(map, {groupedBrushNode});
+
+      CHECK_FALSE(canExtractLinkedGroups(map));
+    }
+
+    SECTION("When the group is linked")
+    {
+      selectNodes(map, {groupNode});
+
+      auto* linkedGroupNode = createLinkedDuplicate(map);
+      REQUIRE(linkedGroupNode != nullptr);
+      REQUIRE_THAT(*linkedGroupNode, MatchesNode(*groupNode));
+
+      auto* linkedBrushNode = dynamic_cast<BrushNode*>(linkedGroupNode->children()[0]);
+      REQUIRE(linkedBrushNode != nullptr);
+      REQUIRE(linkedBrushNode->linkId() == groupedBrushNode->linkId());
+
+      auto* linkedEntityNode = dynamic_cast<EntityNode*>(linkedGroupNode->children()[1]);
+      REQUIRE(linkedEntityNode != nullptr);
+      REQUIRE(linkedEntityNode->linkId() == groupedEntityNode->linkId());
+
+      deselectAll(map);
+
+      SECTION("Extracting all nodes in a group")
+      {
+        openGroup(map, *groupNode);
+        selectNodes(
+          map,
+          {groupedBrushNode,
+           groupedEntityNode,
+           groupedBrushEntityBrushNode1,
+           groupedBrushEntityBrushNode2});
+
+        CHECK_FALSE(canExtractLinkedGroups(map));
+      }
+
+      SECTION("Extracting a subset of nodes in a group")
+      {
+        openGroup(map, *groupNode);
+        selectNodes(map, {groupedEntityNode});
+
+        REQUIRE(canExtractLinkedGroups(map));
+
+        const auto newGroupNodes = extractLinkedGroups(map);
+        REQUIRE(newGroupNodes.size() == 2);
+        CHECK_THAT(*newGroupNodes[0], MatchesNode(*newGroupNodes[1]));
+        CHECK_THAT(*linkedGroupNode, MatchesNode(*groupNode));
+
+        REQUIRE(newGroupNodes[0]->childCount() == 1);
+        const auto* newGroupedEntityNode =
+          dynamic_cast<const EntityNode*>(newGroupNodes[0]->children().front());
+        REQUIRE(newGroupedEntityNode);
+        CHECK(newGroupedEntityNode->entity() == Entity{{{"some key", "some value"}}});
+      }
+
+      SECTION("Extracting an entity preserves its protected properties")
+      {
+        openGroup(map, *linkedGroupNode);
+        selectNodes(map, {linkedEntityNode});
+        setProtectedEntityProperty(map, "some key", true);
+        setEntityProperty(map, "some key", "yet another value");
+        deselectAll(map);
+        closeGroup(map);
+
+        // Replicating the changes to the linked group has changed the original group
+        auto iUpdatedEntityNode =
+          std::ranges::find_if(groupNode->children(), [](const auto* node) {
+            return dynamic_cast<const EntityNode*>(node) && !node->hasChildren();
+          });
+        REQUIRE(iUpdatedEntityNode != groupNode->children().end());
+        auto* updatedEntityNode = dynamic_cast<EntityNode*>(*iUpdatedEntityNode);
+
+        REQUIRE(
+          updatedEntityNode->entity().properties()
+          == std::vector<EntityProperty>{{{"some key", "some value"}}});
+
+        openGroup(map, *groupNode);
+        selectNodes(map, {updatedEntityNode});
+
+        REQUIRE(canExtractLinkedGroups(map));
+
+        const auto newGroupNodes = extractLinkedGroups(map);
+        REQUIRE(newGroupNodes.size() == 2);
+        REQUIRE_THAT(*linkedGroupNode, MatchesNode(*groupNode));
+        // the new groups don't match because of the protected properties
+        REQUIRE_THAT(*newGroupNodes[0], !MatchesNode(*newGroupNodes[1]));
+        REQUIRE(newGroupNodes[0]->childCount() == 1);
+        REQUIRE(newGroupNodes[1]->childCount() == 1);
+
+        const auto [newProtectedGroupNode, newUnprotectedGroupNode] =
+          findNodeOrDescendant<EntityNode>(
+            {newGroupNodes[0]->children()},
+            [](const auto* entityNode) {
+              return !entityNode->entity().protectedProperties().empty();
+            })
+            ? std::tuple{newGroupNodes[0], newGroupNodes[1]}
+            : std::tuple{newGroupNodes[1], newGroupNodes[0]};
+
+        const auto* newProtectedEntityNode =
+          dynamic_cast<EntityNode*>(newProtectedGroupNode->children().front());
+        REQUIRE(newProtectedEntityNode);
+        CHECK(
+          newProtectedEntityNode->entity().protectedProperties()
+          == std::vector<std::string>{"some key"});
+        CHECK(
+          newProtectedEntityNode->entity().properties()
+          == std::vector<EntityProperty>{{"some key", "yet another value"}});
+
+        const auto* newUnprotectedEntityNode =
+          dynamic_cast<EntityNode*>(newUnprotectedGroupNode->children().front());
+        REQUIRE(newUnprotectedEntityNode);
+        CHECK(newUnprotectedEntityNode->entity().protectedProperties().empty());
+        CHECK(
+          newUnprotectedEntityNode->entity().properties()
+          == std::vector<EntityProperty>{{"some key", "some value"}});
+      }
+
+      SECTION("Extracting a brush entity fully")
+      {
+        openGroup(map, *groupNode);
+        selectNodes(map, {groupedBrushEntityBrushNode1, groupedBrushEntityBrushNode2});
+
+        REQUIRE(canExtractLinkedGroups(map));
+
+        const auto newGroupNodes = extractLinkedGroups(map);
+        REQUIRE(newGroupNodes.size() == 2);
+        CHECK_THAT(*newGroupNodes[0], MatchesNode(*newGroupNodes[1]));
+        CHECK_THAT(*linkedGroupNode, MatchesNode(*groupNode));
+
+        REQUIRE(newGroupNodes[0]->childCount() == 1);
+        const auto* newGroupedBrushEntityNode =
+          dynamic_cast<EntityNode*>(newGroupNodes[0]->children().front());
+        REQUIRE(newGroupedBrushEntityNode);
+        CHECK(newGroupedBrushEntityNode->childCount() == 2);
+
+        CHECK_THAT(
+          groupNode->children(),
+          UnorderedEquals(std::vector<Node*>{groupedBrushNode, groupedEntityNode}));
+      }
+
+      SECTION("Extracting a brush entity partially")
+      {
+        openGroup(map, *groupNode);
+        selectNodes(map, {groupedBrushEntityBrushNode1});
+
+        REQUIRE(canExtractLinkedGroups(map));
+
+        const auto newGroupNodes = extractLinkedGroups(map);
+        REQUIRE(newGroupNodes.size() == 2);
+        CHECK_THAT(*newGroupNodes[0], MatchesNode(*newGroupNodes[1]));
+        CHECK_THAT(*linkedGroupNode, MatchesNode(*groupNode));
+
+        REQUIRE(newGroupNodes[0]->childCount() == 1);
+
+        const auto* newBrushEntityNode =
+          dynamic_cast<EntityNode*>(newGroupNodes[0]->children().front());
+        REQUIRE(newBrushEntityNode);
+
+        REQUIRE(newBrushEntityNode->childCount() == 1);
+        const auto* newBrushEntityBrushNode =
+          dynamic_cast<BrushNode*>(newBrushEntityNode->children().front());
+        REQUIRE(newBrushEntityBrushNode);
+
+        CHECK_THAT(
+          groupNode->children(),
+          UnorderedEquals(std::vector<Node*>{
+            groupedBrushNode, groupedEntityNode, groupedBrushEntityNode}));
+      }
+
+      SECTION("Objects are transformed correctly")
+      {
+        selectNodes(map, {groupNode});
+        translateSelection(map, {16, 0, 0});
+        deselectAll(map);
+
+        selectNodes(map, {linkedGroupNode});
+        translateSelection(map, {0, 16, 0});
+        deselectAll(map);
+
+        openGroup(map, *groupNode);
+        selectNodes(map, {groupedEntityNode});
+
+        const auto originalEntityPosition = groupedEntityNode->entity().origin();
+        const auto originalLinkedEntityPosition = linkedEntityNode->entity().origin();
+
+        REQUIRE(canExtractLinkedGroups(map));
+
+        const auto newGroupNodes = extractLinkedGroups(map);
+        REQUIRE(newGroupNodes.size() == 2);
+        // the new groups don't match because of the different origins
+        REQUIRE_THAT(*newGroupNodes[0], !MatchesNode(*newGroupNodes[1]));
+        REQUIRE(newGroupNodes[0]->childCount() == 1);
+        REQUIRE(newGroupNodes[1]->childCount() == 1);
+
+        const auto newEntityNode =
+          findNodeOrDescendant<EntityNode>(newGroupNodes, [&](const auto* entityNode) {
+            return entityNode->entity().origin() == originalEntityPosition;
+          });
+
+        const auto newTranslatedEntityNode =
+          findNodeOrDescendant<EntityNode>(newGroupNodes, [&](const auto* entityNode) {
+            return entityNode->entity().origin() == originalLinkedEntityPosition;
+          });
+
+        CHECK(newEntityNode);
+        CHECK(newTranslatedEntityNode);
+        CHECK(newEntityNode != newTranslatedEntityNode);
       }
     }
   }

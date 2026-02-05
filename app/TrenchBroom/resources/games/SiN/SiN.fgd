@@ -198,10 +198,6 @@
 	thread(string) : "a thread label that will be fired when the camera is looked through"
 ]
 
-@PointClass base(func_camera) = func_securitycamera : "Security camera"
-[
-]
-
 @PointClass base(Trigger) = play_sound_triggered : "DO NOT USE, USE TRIGGER_SPEAKER INSTEAD. play a sound when it is used. Normal sounds play each time the target is used. Ambient Looped sounds have an attenuation of 2 by default, volume 1, and the use function toggles it on/off. Multiple identical ambient looping sounds will just increase volume without any speed cost. The attenuation factor can be over-ridden by specifying an attenuation factor."
 [
     spawnflags(Flags) =
@@ -408,7 +404,7 @@
 	damage(integer) : "amount of damage the hurt field should do" : 1
 ]
 
-@PointClass base(Trigger, GetMovedir) = fx_sprite : "Spawnable sprite, kinda like with the sprite gun but older"
+@PointClass base(Trigger, GetMovedir) = fx_sprite : "'sprite' Sets the sprite file ( Default none )\n'angles' Sets the orientation ( Default none )\n'frame'  Frame of the sprite to dispay ( Default is 0 )\n'scale'  Scale of the sprite ( Default is 1.0 )\n'alpha'  Alpha of the sprite ( Default is 1.0 )\n'color'  Color to modulate ( Default is none )\nAUTOANIM    - Auto animate this sprite\nTRACETOSURF - Trace to surface and apply sprite on surface"
 [
     spawnflags(Flags) =
     [
@@ -441,6 +437,10 @@
     [
 		1 : "Start Off" : 0
     ]
+]
+
+@PointClass base(light) = fx_fire : "This creates a fire sprite. If you want flickering, set style to the identifier contained in groupname in the surfaces to control."
+[
 ]
 
 @PointClass base(light) = trigger_SetLightStyle : "Used for controlling light sources. Set style to the identifier contained in groupname in the surfaces to control."
@@ -731,7 +731,7 @@
 [
 ]
 
-@PointClass base(Entity) model({"path":"xyz.def"}) = info_splinepath : "Mostly used for camera paths"
+@PointClass base(Entity) model({"path":"spline.def"}) = info_splinepath : "Mostly used for camera paths"
 [
 	loop_name(target_destination) : "Camera loop point"
 	angles(string) : "Pitch yaw roll angles"
@@ -1343,7 +1343,7 @@
 ]
 @PointClass base(object) model({"path":"calendar3.def","skin":skin,"scale":scale,"alpha":alpha}) = deskitems_calendar3 : "Calendar #3" [
 ]
-@PointClass base(object) model({"path":"camera.def","skin":skin,"scale":scale,"alpha":alpha}) = func_securitycamera : "Camera used for security etc.\nHas visible model.\n\n'target' points to the target to orbit or follow.  If it points to a path, the camera will follow the path.\n'distance' the distance to follow or orbit if the target is not a path. (default 128).\n'speed' specifies how fast to move on the path or orbit.  (default 1).\n'fov' specifies fov of camera, default 90.\n'yaw' specifies yaw of camera, default 0.\n'height' specifies height of camera from origin, default 128.\n'panspeed' speed at which to pan ( 7 degrees per second )\n'panmax' maximum angle offset for panning ( 45 degrees )\n'nextcamera' a link to the next camera in a chain of cameras\n'overlay' an overlay to use while looking through the camera\n'thread' a thread label that will be fired when the camera is looked through\n\nORBIT tells the camera to create a circular path around the object it points to.  It the camera points to a path, it will loop when it gets to the end of the path.\nSTART_ON causes the camera to be moving as soon as it is spawned.\nPAN camera should pan from right to left" [
+@PointClass base(func_camera) model({"path":"camera.def","skin":skin,"scale":scale,"alpha":alpha}) = func_securitycamera : "Camera used for security etc.\nHas visible model.\n\n'target' points to the target to orbit or follow.  If it points to a path, the camera will follow the path.\n'distance' the distance to follow or orbit if the target is not a path. (default 128).\n'speed' specifies how fast to move on the path or orbit.  (default 1).\n'fov' specifies fov of camera, default 90.\n'yaw' specifies yaw of camera, default 0.\n'height' specifies height of camera from origin, default 128.\n'panspeed' speed at which to pan ( 7 degrees per second )\n'panmax' maximum angle offset for panning ( 45 degrees )\n'nextcamera' a link to the next camera in a chain of cameras\n'overlay' an overlay to use while looking through the camera\n'thread' a thread label that will be fired when the camera is looked through\n\nORBIT tells the camera to create a circular path around the object it points to.  It the camera points to a path, it will loop when it gets to the end of the path.\nSTART_ON causes the camera to be moving as soon as it is spawned.\nPAN camera should pan from right to left" [
 ]
 @PointClass base(object) model({"path":"can.def","skin":skin,"scale":scale,"alpha":alpha}) = world_barrel : "Large Metal Trash Container" [
 ]
@@ -1676,8 +1676,6 @@
 @PointClass size(-56 -56 0, 56 56 112) base(actor) model({"path":"forklift_attack.def","skin":skin,"scale":scale,"alpha":alpha}) = vehicles_forkliftAttack : "Forklift" [
 ]
 @PointClass size(-19 -19 0, 19 19 50) base(actor) model({"path":"fungus_dog.def","skin":skin,"scale":scale,"alpha":alpha}) = Monster_Grogg : "Fungus Dog" [
-]
-@PointClass base(Sprite) model({"path":"fxsprite.def","skin":skin,"scale":scale,"alpha":alpha}) = fx_sprite : "'sprite' Sets the sprite file ( Default none )\n'angles' Sets the orientation ( Default none )\n'frame'  Frame of the sprite to dispay ( Default is 0 )\n'scale'  Scale of the sprite ( Default is 1.0 )\n'alpha'  Alpha of the sprite ( Default is 1.0 )\n'color'  Color to modulate ( Default is none )\nAUTOANIM    - Auto animate this sprite\nTRACETOSURF - Trace to surface and apply sprite on surface" [
 ]
 @PointClass base(object) model({"path":"gib1.def","skin":skin,"scale":scale,"alpha":alpha}) = gib_gib1 : "Gib1" [
 ]
@@ -2164,8 +2162,6 @@
 @PointClass base(Spears) model({"path":"spear_ammo.def","skin":skin,"scale":scale,"alpha":alpha}) = Ammo_SpearGun : "Ammo Spear Gun - Pack" [
 ]
 @PointClass size(-8 -8 -8, 8 8 8) base(actor) model({"path":"spidermine_modelonly.def","skin":skin,"scale":scale,"alpha":alpha}) = trap_SpiderMine : "Spider Mines Trap" [
-]
-@PointClass base(object) model({"path":"spline.def","skin":skin,"scale":scale,"alpha":alpha}) = info_splinepath : "Script Object Spline Path Node\n'angles' camera will use that orientation\n'loop' set a loop node\n'speed' speed multiplier for this segment, normally each\\nsegment will take 1 second to traverse, use 2 for double speed\\nand 0.5 for half speed" [
 ]
 @PointClass size(-22 -22 0, 22 22 85) base(Splitter) model({"path":"splitter.def","skin":skin,"scale":scale,"alpha":alpha}) = Monster_Splitter : "Splitter host mutant" [
 ]

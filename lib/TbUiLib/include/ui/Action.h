@@ -44,7 +44,7 @@ namespace ui
 {
 class ActionExecutionContext;
 class MapDocument;
-class MapFrame;
+class MapWindow;
 class MapViewBase;
 
 using ExecuteFn = std::function<void(ActionExecutionContext&)>;
@@ -65,7 +65,7 @@ private:
   std::optional<std::filesystem::path> m_iconPath;
   std::optional<QString> m_statusTip;
 
-  bool m_isMenuAction;
+  bool m_isMenuAction = false;
 
 public:
   Action(

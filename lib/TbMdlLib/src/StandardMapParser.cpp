@@ -729,7 +729,7 @@ void StandardMapParser::parseSiNData(ParserStatus&, mdl::BrushFaceAttributes& at
     }
     else if (lhs.data() == "directstyle")
     {
-      auto rhs = m_tokenizer.nextToken(QuakeMapToken::String);
+      auto rhs = m_tokenizer.nextToken();
       attribs.setSiNDirectStyle(rhs.data());
     }
     else if (lhs.data() == "anim")

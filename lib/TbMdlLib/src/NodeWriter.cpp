@@ -79,7 +79,7 @@ void doWriteNodes(
                                            })
                                          | kdl::ranges::to<std::vector>();
           extraProperties.emplace_back(
-            EntityPropertyKeys::ProtectedEntityProperties,
+            EntityPropertyKeys::TbProtectedEntityProperties,
             kdl::str_join(escapedProperties, ";"));
         }
         serializer.entity(
@@ -114,6 +114,11 @@ NodeWriter::~NodeWriter() = default;
 void NodeWriter::setExporting(const bool exporting)
 {
   m_serializer->setExporting(exporting);
+}
+
+void NodeWriter::setStripTbProperties(const bool stripTbProperties)
+{
+  m_serializer->setStripTbProperties(stripTbProperties);
 }
 
 void NodeWriter::writeMap(kdl::task_manager& taskManager)
