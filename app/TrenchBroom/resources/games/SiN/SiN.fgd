@@ -879,6 +879,11 @@
 
 @baseclass base(Mover) = ScriptSlave
 [
+    spawnflags(Flags) =
+    [
+        1 : "Not Solid" : 0
+    ]
+
 	speed(float) : "Movement speed" : "100"
 	angle(float) : "The forward direction of this script slave; -1 is up, -2 is down, any other value is yaw"
 	dmg(integer) : "Damage when smunched" : 2
@@ -1144,6 +1149,12 @@
 
 	target(target_destination) : "Jump target"
 	targetname(target_source) : "Jump targetname"
+]
+
+@SolidClass = ewt_lightgrid : "Lightgrid for rad compiler"
+[
+	_dist(float) : "distance between grid points"
+	_priority(integer) : "priority; higher priorities are used if multiple are intersecting" : 0
 ]
 
 // base classes

@@ -26,6 +26,16 @@
 namespace tb::mdl
 {
 
+std::strong_ordering operator<=>(const EntityDefinitionGroup& lhs, const EntityDefinitionGroup& rhs)
+{
+  return lhs.name <=> rhs.name;
+}
+
+bool operator==(const EntityDefinitionGroup& lhs, const EntityDefinitionGroup& rhs)
+{
+  return lhs <=> rhs == 0;
+}
+
 std::string displayName(const EntityDefinitionGroup& group)
 {
   return !group.name.empty() ? kdl::str_capitalize(group.name) : "Misc";

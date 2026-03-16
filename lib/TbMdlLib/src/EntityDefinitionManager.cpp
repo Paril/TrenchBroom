@@ -91,7 +91,7 @@ const std::vector<EntityDefinition>& EntityDefinitionManager::definitions() cons
   return m_definitions;
 }
 
-const std::vector<EntityDefinitionGroup>& EntityDefinitionManager::groups() const
+const std::set<EntityDefinitionGroup>& EntityDefinitionManager::groups() const
 {
   return m_groups;
 }
@@ -119,7 +119,7 @@ void EntityDefinitionManager::updateGroups()
 
   for (auto& [groupName, definitions] : groupMap)
   {
-    m_groups.push_back(
+    m_groups.insert(
       EntityDefinitionGroup{std::string{groupName}, std::move(definitions)});
   }
 }

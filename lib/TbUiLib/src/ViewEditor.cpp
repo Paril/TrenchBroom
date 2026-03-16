@@ -85,9 +85,10 @@ void EntityDefinitionCheckBoxList::refresh()
 {
   size_t defIndex = 0;
   const auto& groups = m_entityDefinitionManager.groups();
+  auto groupIt = groups.begin();
   for (size_t i = 0; i < groups.size(); ++i)
   {
-    const auto& group = groups[i];
+    const auto& group = *groupIt++;
     if (!group.definitions.empty())
     {
       const auto firstHidden =
@@ -121,7 +122,9 @@ void EntityDefinitionCheckBoxList::refresh()
 void EntityDefinitionCheckBoxList::groupCheckBoxChanged(size_t groupIndex, bool checked)
 {
   const auto& groups = m_entityDefinitionManager.groups();
-  const auto& group = groups.at(groupIndex);
+  auto groupIt = groups.begin();
+  std::advance(groupIt, groupIndex);
+  const auto& group = *groupIt;
 
   for (const auto* definition : group.definitions)
   {
@@ -167,9 +170,10 @@ void EntityDefinitionCheckBoxList::createGui()
   scrollWidgetLayout->addSpacing(1);
 
   const auto& groups = m_entityDefinitionManager.groups();
+  auto groupIt = groups.begin();
   for (size_t i = 0; i < groups.size(); ++i)
   {
-    const auto& group = groups[i];
+    const auto& group = *groupIt++;
     const auto& groupName = displayName(group);
 
     // Checkbox for the prefix, e.g. "func"

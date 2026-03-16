@@ -24,6 +24,7 @@
 
 #include <string_view>
 #include <vector>
+#include <set>
 
 namespace tb::mdl
 {
@@ -35,7 +36,7 @@ class EntityDefinitionManager
 {
 private:
   std::vector<EntityDefinition> m_definitions;
-  std::vector<EntityDefinitionGroup> m_groups;
+  std::set<EntityDefinitionGroup> m_groups;
 
 public:
   ~EntityDefinitionManager();
@@ -49,7 +50,7 @@ public:
     EntityDefinitionType type, EntityDefinitionSortOrder order) const;
   const std::vector<EntityDefinition>& definitions() const;
 
-  const std::vector<EntityDefinitionGroup>& groups() const;
+  const std::set<EntityDefinitionGroup>& groups() const;
 
 private:
   void updateIndices();

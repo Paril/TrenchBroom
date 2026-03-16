@@ -32,6 +32,9 @@ struct EntityDefinitionGroup
   std::vector<const EntityDefinition*> definitions;
 };
 
+std::strong_ordering operator<=>(const EntityDefinitionGroup& lhs, const EntityDefinitionGroup& rhs);
+bool operator==(const EntityDefinitionGroup& lhs, const EntityDefinitionGroup& rhs);
+
 std::string displayName(const EntityDefinitionGroup& group);
 
 } // namespace tb::mdl
