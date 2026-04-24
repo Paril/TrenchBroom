@@ -42,7 +42,7 @@ Result<void> SiNPakFileSystem::doReadDirectory()
 {
   try
   {
-    char magic[SiNPakLayout::HeaderMagicLength];
+    char magic[SiNPakLayout::HeaderMagicLength + 1] {};
 
     auto reader = m_file->reader();
     reader.seekForward(SiNPakLayout::HeaderAddress);
