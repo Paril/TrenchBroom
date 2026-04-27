@@ -21,6 +21,7 @@
 
 #include "fs/Reader.h"
 #include "fs/ReaderException.h"
+#include "gl/Texture.h"
 #include "mdl/MaterialUtils.h"
 #include "mdl/Palette.h"
 
@@ -63,22 +64,24 @@ Result<gl::Texture> loadSwlTexture(fs::Reader& reader)
 
     reader.seekForward(SwlLayout::AnimNameLength);
 
-    reader.seekForward(4); // flags
-    reader.seekForward(4); // contents
-    reader.seekForward(2); // value
-    reader.seekForward(2); // direct
-    reader.seekForward(4); // animtime
-    reader.seekForward(4); // nonlit
-    reader.seekForward(2); // directangle
-    reader.seekForward(2); // trans_angle
-    reader.seekForward(4); // directstyle
-    reader.seekForward(4); // translucence
-    reader.seekForward(4); // friction
-    reader.seekForward(4); // restitution
-    reader.seekForward(4); // trans_mag
-    reader.seekForward(4); // color[0]
-    reader.seekForward(4); // color[1]
-    reader.seekForward(4); // color[2]
+    // Read SiN surface defaults embedded in the .swl header (sinmiptex_t layout).
+    gl::SinEmbeddedDefaults sinDefaults;
+    sinDefaults.flags        = reader.readInt<int32_t>();
+    sinDefaults.contents     = reader.readInt<int32_t>();
+    sinDefaults.value        = int(reader.readInt<uint16_t>());
+    sinDefaults.direct       = int(reader.readInt<uint16_t>());
+    sinDefaults.animtime     = reader.readFloat<float>();
+    sinDefaults.nonlit       = reader.readFloat<float>();
+    sinDefaults.directangle  = int(reader.readInt<uint16_t>());
+    sinDefaults.trans_angle  = int(reader.readInt<uint16_t>());
+    sinDefaults.directstyle  = reader.readFloat<float>();
+    sinDefaults.translucence = reader.readFloat<float>();
+    sinDefaults.friction     = reader.readFloat<float>();
+    sinDefaults.restitution  = reader.readFloat<float>();
+    sinDefaults.trans_mag    = reader.readFloat<float>();
+    sinDefaults.color[0]     = reader.readFloat<float>();
+    sinDefaults.color[1]     = reader.readFloat<float>();
+    sinDefaults.color[2]     = reader.readFloat<float>();
 
     return mdl::loadPalette(paletteReader, mdl::PaletteColorFormat::Rgbx)
            | kdl::transform([&](const auto& palette) {
@@ -129,7 +132,7 @@ Result<gl::Texture> loadSwlTexture(fs::Reader& reader)
                  mip0AverageColor,
                  GL_RGBA,
                  has_transparency ? gl::TextureMask::On : gl::TextureMask::Off,
-                 gl::NoEmbeddedDefaults{},
+                 sinDefaults,
                  std::move(buffers)};
              });
   }

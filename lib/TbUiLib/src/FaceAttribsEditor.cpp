@@ -19,8 +19,10 @@
 
 #include "ui/FaceAttribsEditor.h"
 
+#include <QColorDialog>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QScrollArea>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -54,10 +56,60 @@
 
 #include "vm/vec_io.h" // IWYU pragma: keep
 
+#include <algorithm>
+#include <cmath>
 #include <string>
 
 namespace tb::ui
 {
+
+namespace
+{
+
+// Returns the SiN .swl embedded defaults for a face's material, or nullptr if
+// the face has no SWL-backed texture (e.g. the material is missing or is a
+// plain Q2 WAL). Used to show per-texture default values in the inspector
+// when a face carries no per-face override for a given token.
+const gl::SinEmbeddedDefaults* materialSinEmbeddedDefaults(const mdl::BrushFace& face)
+{
+  if (const auto* texture = gl::getTexture(face.material()))
+  {
+    const auto& defaults = texture->embeddedDefaults();
+    return std::get_if<gl::SinEmbeddedDefaults>(&defaults);
+  }
+  return nullptr;
+}
+
+// Returns true if the face's color constitutes a real per-face override, i.e.
+// the color option has a value AND that value differs from the SWL default.
+// A color that matches the SWL default (within tolerance) is not an override.
+bool isColorSwlOverride(const std::optional<Color>& color, const gl::SinEmbeddedDefaults* swl)
+{
+  if (!color.has_value())
+    return false;
+  if (!swl)
+    return true; // no SWL reference — any explicit color is an override
+
+  // Compare in 0-255 byte space with a 4-unit threshold per channel. Round-
+  // tripping a colour through (typed bytes → float → map file → float → bytes)
+  // has been observed to drift by up to 3 bytes per channel, so a difference
+  // of <4 is treated as the SWL default. 4 stays below the ~5-byte threshold
+  // where colour differences become visually perceptible, so genuine
+  // intentional edits aren't masked.
+  constexpr int kEpsilonBytes = 4;
+  const auto faceBytes = color->to<RgbB>().values();
+  const auto round255 = [](float x) {
+    return int(std::round(std::clamp(x, 0.0f, 1.0f) * 255.0f));
+  };
+  const auto swlR = round255(swl->color[0]);
+  const auto swlG = round255(swl->color[1]);
+  const auto swlB = round255(swl->color[2]);
+  return std::abs(int(std::get<0>(faceBytes)) - swlR) >= kEpsilonBytes
+      || std::abs(int(std::get<1>(faceBytes)) - swlG) >= kEpsilonBytes
+      || std::abs(int(std::get<2>(faceBytes)) - swlB) >= kEpsilonBytes;
+}
+
+} // namespace
 
 void FaceAttribsScrollArea::resizeEvent(QResizeEvent*)
 {
@@ -210,22 +262,77 @@ void FaceAttribsEditor::colorValueChanged(const QString& /* text */)
     return;
   }
 
-  const std::string str = m_colorEditor->text().toStdString();
-  if (!kdl::str_is_blank(str))
-  {
-    Color::parse(str) | kdl::transform([&](const auto& color) {
-      if (!setBrushFaceAttributes(map, {.color = {color}}))
-      {
-        updateControls();
-      }
-    }) | kdl::ignore();
-  }
-  else
+  const auto rStr = m_colorEditorR->text();
+  const auto gStr = m_colorEditorG->text();
+  const auto bStr = m_colorEditorB->text();
+
+  // All fields blank -> remove override (same as X button)
+  if (
+    kdl::str_is_blank(rStr.toStdString()) && kdl::str_is_blank(gStr.toStdString())
+    && kdl::str_is_blank(bStr.toStdString()))
   {
     if (!setBrushFaceAttributes(map, {.color = {std::nullopt}}))
     {
       updateControls();
     }
+    return;
+  }
+
+  // Resolve each channel independently:
+  //  - empty field -> use placeholder (SWL default / engine default shown as hint text)
+  //  - value > 1.0 -> treat that channel alone as a 0-255 byte and normalise it
+  auto resolveChannel = [](const QLineEdit* field) -> float {
+    const QString text =
+      field->text().isEmpty() ? field->placeholderText() : field->text();
+    bool ok = false;
+    float v = text.toFloat(&ok);
+    if (!ok)
+      return 0.0f;
+    if (v > 1.0f)
+      v /= 255.0f;
+    return std::clamp(v, 0.0f, 1.0f);
+  };
+
+  const auto r = resolveChannel(m_colorEditorR);
+  const auto g = resolveChannel(m_colorEditorG);
+  const auto b = resolveChannel(m_colorEditorB);
+  const auto normalizedStr = QString{"%1 %2 %3"}
+                               .arg(double(r), 0, 'g', 8)
+                               .arg(double(g), 0, 'g', 8)
+                               .arg(double(b), 0, 'g', 8)
+                               .toStdString();
+  Color::parse(normalizedStr)
+    | kdl::transform([&](const auto& color) {
+        if (!setBrushFaceAttributes(map, {.color = {color}}))
+        {
+          updateControls();
+        }
+      })
+    | kdl::ignore();
+}
+
+void FaceAttribsEditor::openColorPicker()
+{
+  // Seed the picker from the current field values (or placeholders as fallback).
+  auto getChannel = [](const QLineEdit* field) -> float {
+    const QString text =
+      field->text().isEmpty() ? field->placeholderText() : field->text();
+    bool ok = false;
+    const float v = text.toFloat(&ok);
+    return ok ? std::clamp(v, 0.0f, 1.0f) : 1.0f;
+  };
+
+  const QColor initial = QColor::fromRgbF(
+    static_cast<float>(getChannel(m_colorEditorR)),
+    static_cast<float>(getChannel(m_colorEditorG)),
+    static_cast<float>(getChannel(m_colorEditorB)));
+  const QColor chosen = QColorDialog::getColor(initial, this, tr("Pick Color"));
+  if (chosen.isValid())
+  {
+    m_colorEditorR->setText(QString::number(chosen.redF(), 'g', 8));
+    m_colorEditorG->setText(QString::number(chosen.greenF(), 'g', 8));
+    m_colorEditorB->setText(QString::number(chosen.blueF(), 'g', 8));
+    colorValueChanged({});
   }
 }
 
@@ -958,9 +1065,48 @@ void FaceAttribsEditor::createGui(gl::ContextManager& contextManager)
 
   m_colorLabel = new QLabel{"Color"};
   setEmphasizedStyle(m_colorLabel);
-  m_colorEditor = new QLineEdit{};
+
+  // Three tinted QLineEdits, one per channel, so R/G/B are visually distinct at a glance even if they have different amounts of decimal places.
+  m_colorEditorR = new QLineEdit{};
+  m_colorEditorR->setStyleSheet("QLineEdit { color: #ff8080; }");
+  m_colorEditorG = new QLineEdit{};
+  m_colorEditorG->setStyleSheet("QLineEdit { color: #80ff80; }");
+  m_colorEditorB = new QLineEdit{};
+  m_colorEditorB->setStyleSheet("QLineEdit { color: #9d9dff; }");
+
+  // Flat color-preview square & click to open the system color picker.
+  {
+    auto* btn = new QPushButton{};
+    btn->setFixedSize(20, 20);
+    btn->setFlat(true);
+    btn->setStyleSheet(
+      "QPushButton { background-color: white; border: 1px solid gray; }"
+      "QPushButton:hover { border: 1px solid palette(highlight); }");
+    m_colorSquare = btn;
+  }
+
+  // Grey italic label that shows the 0-255 byte equivalent of the current color.
+  m_colorRgbLabel = new QLabel{};
+  m_colorRgbLabel->setVisible(false);
+  m_colorRgbLabel->setStyleSheet("QLabel { color: gray; font-style: italic; }");
+
   m_colorUnsetButton = createBitmapButton("ResetUV.svg", tr("Unset color"));
-  m_colorEditorLayout = createUnsetButtonLayout(m_colorEditor, m_colorUnsetButton);
+
+  // Row: [R (flex)][G (flex)][B (flex)][square][RGB info label][X button]
+  {
+    auto* wrapper = new QWidget{};
+    auto* rowLayout = new QHBoxLayout{};
+    rowLayout->setContentsMargins(0, 0, 0, 0);
+    rowLayout->setSpacing(LayoutConstants::NarrowHMargin);
+    rowLayout->addWidget(m_colorEditorR, 1);
+    rowLayout->addWidget(m_colorEditorG, 1);
+    rowLayout->addWidget(m_colorEditorB, 1);
+    rowLayout->addWidget(m_colorSquare);
+    rowLayout->addWidget(m_colorRgbLabel);
+    rowLayout->addWidget(m_colorUnsetButton);
+    wrapper->setLayout(rowLayout);
+    m_colorEditorLayout = wrapper;
+  }
 
   // SiN stuff
   auto setupSiNNumericControl = [](
@@ -1414,7 +1560,12 @@ void FaceAttribsEditor::bindEvents()
     this,
     &FaceAttribsEditor::contentFlagChanged);
   connect(
-    m_colorEditor, &QLineEdit::textEdited, this, &FaceAttribsEditor::colorValueChanged);
+    m_colorEditorR, &QLineEdit::editingFinished, this, [this]() { colorValueChanged({}); });  //uses editingFinished instead of textEdited so it doesn't submit early
+  connect(
+    m_colorEditorG, &QLineEdit::editingFinished, this, [this]() { colorValueChanged({}); });  //uses editingFinished instead of textEdited so it doesn't submit early
+  connect(
+    m_colorEditorB, &QLineEdit::editingFinished, this, [this]() { colorValueChanged({}); });  //uses editingFinished instead of textEdited so it doesn't submit early
+  connect(m_colorSquare, &QAbstractButton::clicked, this, &FaceAttribsEditor::openColorPicker);
   connect(
     m_surfaceValueUnsetButton,
     &QAbstractButton::clicked,
@@ -1652,7 +1803,9 @@ void FaceAttribsEditor::updateControls()
   const auto blockSurfaceValueEditor = QSignalBlocker{m_surfaceValueEditor};
   const auto blockSurfaceFlagsEditor = QSignalBlocker{m_surfaceFlagsEditor};
   const auto blockContentFlagsEditor = QSignalBlocker{m_contentFlagsEditor};
-  const auto blockColorEditor = QSignalBlocker{m_colorEditor};
+  const auto blockColorEditorR = QSignalBlocker{m_colorEditorR};
+  const auto blockColorEditorG = QSignalBlocker{m_colorEditorG};
+  const auto blockColorEditorB = QSignalBlocker{m_colorEditorB};
 
   // SiN
   const auto blockSiNNonlitValueEditor = QSignalBlocker{m_surfaceSiNNonlitValueEditor};
@@ -1750,56 +1903,75 @@ void FaceAttribsEditor::updateControls()
     auto mixedSurfaceContents = 0;
     const auto surfaceValue = firstFace.resolvedSurfaceValue();
     const auto& colorValue = firstFace.attributes().color();
-    auto hasSurfaceValue = firstFace.attributes().surfaceValue().has_value();
-    auto hasSurfaceFlags = firstFace.attributes().surfaceFlags().has_value();
-    auto hasSurfaceContents = firstFace.attributes().surfaceContents().has_value();
-    auto hasColorValue = firstFace.attributes().hasColor();
 
-    // SiN
+    // SWL texture defaults for the first selected face. Used to populate the
+    // inspector's display values AND to decide whether a stored attribute is a
+    // genuine per-face override. A stored value that exactly matches the SWL
+    // default is not an override, so the inspector X buttons stay dark for it.
+    const auto* swl = materialSinEmbeddedDefaults(firstFace);
+
+    auto hasSurfaceValue = firstFace.attributes().surfaceValue().has_value()
+        && (!swl || *firstFace.attributes().surfaceValue() != float(swl->value));
+    auto hasSurfaceFlags = firstFace.attributes().surfaceFlags().has_value()
+        && (!swl || *firstFace.attributes().surfaceFlags() != swl->flags);
+    auto hasSurfaceContents = firstFace.attributes().surfaceContents().has_value()
+        && (!swl || *firstFace.attributes().surfaceContents() != swl->contents);
+    auto hasColorValue = isColorSwlOverride(firstFace.attributes().color(), swl);
+
+    // Each hasSiN* is true only when the stored value differs from the SWL default.
     auto sinNonlitValueMulti = false;
     const auto& sinNonlitValue = firstFace.attributes().sinNonlitValue();
-    auto hasSiNNonlitValue = firstFace.attributes().hasSiNNonlitValue();
+    auto hasSiNNonlitValue = sinNonlitValue.has_value()
+        && (!swl || *sinNonlitValue != swl->nonlit);
 
     auto sinTransAngleMulti = false;
     const auto& sinTransAngle = firstFace.attributes().sinTransAngle();
-    auto hasSiNTransAngle = firstFace.attributes().hasSiNTransAngle();
+    auto hasSiNTransAngle = sinTransAngle.has_value()
+        && (!swl || *sinTransAngle != swl->trans_angle);
 
     auto sinTransMagMulti = false;
     const auto& sinTransMag = firstFace.attributes().sinTransMag();
-    auto hasSiNTransMag = firstFace.attributes().hasSiNTransMag();
+    auto hasSiNTransMag = sinTransMag.has_value()
+        && (!swl || *sinTransMag != swl->trans_mag);
 
     auto sinTranslucenceMulti = false;
     const auto& sinTranslucence = firstFace.attributes().sinTranslucence();
-    auto hasSiNTranslucence = firstFace.attributes().hasSiNTranslucence();
+    auto hasSiNTranslucence = sinTranslucence.has_value()
+        && (!swl || *sinTranslucence != swl->translucence);
 
     auto sinRestitutionMulti = false;
     const auto& sinRestitution = firstFace.attributes().sinRestitution();
-    auto hasSiNRestitution = firstFace.attributes().hasSiNRestitution();
+    auto hasSiNRestitution = sinRestitution.has_value()
+        && (!swl || *sinRestitution != swl->restitution);
 
     auto sinFrictionMulti = false;
     const auto& sinFriction = firstFace.attributes().sinFriction();
-    auto hasSiNFriction = firstFace.attributes().hasSiNFriction();
+    auto hasSiNFriction = sinFriction.has_value()
+        && (!swl || *sinFriction != swl->friction);
 
     auto sinAnimTimeMulti = false;
     const auto& sinAnimTime = firstFace.attributes().sinAnimTime();
-    auto hasSiNAnimTime = firstFace.attributes().hasSiNAnimTime();
+    auto hasSiNAnimTime = sinAnimTime.has_value()
+        && (!swl || *sinAnimTime != swl->animtime);
 
     auto sinDirectStyleValueMulti = false;
     const auto& sinDirectStyleValue = firstFace.attributes().sinDirectStyle();
-    auto hasSiNDirectStyleValue = firstFace.attributes().hasSiNDirectStyle();
+    auto hasSiNDirectStyleValue = firstFace.attributes().hasSiNDirectStyle(); // string vs float: no SWL cmp
 
     auto sinDirectMulti = false;
     const auto& sinDirect = firstFace.attributes().sinDirect();
-    auto hasSiNDirect = firstFace.attributes().hasSiNDirect();
+    auto hasSiNDirect = sinDirect.has_value()
+        && (!swl || *sinDirect != float(swl->direct));
 
     auto sinAnimationValueMulti = false;
     const auto& sinAnimationValue = firstFace.attributes().sinAnimation();
-    auto hasSiNAnimationValue = firstFace.attributes().hasSiNAnimation();
+    auto hasSiNAnimationValue = firstFace.attributes().hasSiNAnimation(); // no SWL backing
     auto sinDirectAngleMulti = false;
     const auto& sinDirectAngle = firstFace.attributes().sinDirectAngle();
-    auto hasSiNDirectAngle = firstFace.attributes().hasSiNDirectAngle();
+    auto hasSiNDirectAngle = sinDirectAngle.has_value()
+        && (!swl || *sinDirectAngle != float(swl->directangle));
 
-    // SiN extended
+    // SiN extended has no SWL backing; keep plain has_value() checks.
     auto sinExtDirectScaleMulti = false;
     const auto& sinExtDirectScale = firstFace.attributes().sinExtDirectScale();
     auto hasSiNExtDirectScale = firstFace.attributes().hasSiNExtDirectScale();
@@ -1843,10 +2015,16 @@ void FaceAttribsEditor::updateControls()
       yScaleMulti |= (yScale != face.attributes().yScale());
       surfaceValueMulti |= (surfaceValue != face.resolvedSurfaceValue());
       colorValueMulti |= (colorValue != face.attributes().color());
-      hasSurfaceValue |= face.attributes().surfaceValue().has_value();
-      hasSurfaceFlags |= face.attributes().surfaceFlags().has_value();
-      hasSurfaceContents |= face.attributes().surfaceContents().has_value();
-      hasColorValue |= face.attributes().hasColor();
+      // Per-face SWL defaults (may differ from firstFace if different texture).
+      const auto* faceSWL = materialSinEmbeddedDefaults(face);
+
+      hasSurfaceValue |= face.attributes().surfaceValue().has_value()
+          && (!faceSWL || *face.attributes().surfaceValue() != float(faceSWL->value));
+      hasSurfaceFlags |= face.attributes().surfaceFlags().has_value()
+          && (!faceSWL || *face.attributes().surfaceFlags() != faceSWL->flags);
+      hasSurfaceContents |= face.attributes().surfaceContents().has_value()
+          && (!faceSWL || *face.attributes().surfaceContents() != faceSWL->contents);
+      hasColorValue |= isColorSwlOverride(face.attributes().color(), faceSWL);
 
       combineFlags(
         sizeof(int) * 8, face.resolvedSurfaceFlags(), setSurfaceFlags, mixedSurfaceFlags);
@@ -1858,28 +2036,37 @@ void FaceAttribsEditor::updateControls()
 
       // SiN
       sinNonlitValueMulti |= (sinNonlitValue != face.attributes().sinNonlitValue());
-      hasSiNNonlitValue |= face.attributes().hasSiNNonlitValue();
+      hasSiNNonlitValue |= face.attributes().sinNonlitValue().has_value()
+          && (!faceSWL || *face.attributes().sinNonlitValue() != faceSWL->nonlit);
       sinTransAngleMulti |= (sinTransAngle != face.attributes().sinTransAngle());
-      hasSiNTransAngle |= face.attributes().hasSiNTransAngle();
+      hasSiNTransAngle |= face.attributes().sinTransAngle().has_value()
+          && (!faceSWL || *face.attributes().sinTransAngle() != faceSWL->trans_angle);
       sinTransMagMulti |= (sinTransMag != face.attributes().sinTransMag());
-      hasSiNTransMag |= face.attributes().hasSiNTransMag();
+      hasSiNTransMag |= face.attributes().sinTransMag().has_value()
+          && (!faceSWL || *face.attributes().sinTransMag() != faceSWL->trans_mag);
       sinTranslucenceMulti |= (sinTranslucence != face.attributes().sinTranslucence());
-      hasSiNTranslucence |= face.attributes().hasSiNTranslucence();
+      hasSiNTranslucence |= face.attributes().sinTranslucence().has_value()
+          && (!faceSWL || *face.attributes().sinTranslucence() != faceSWL->translucence);
       sinRestitutionMulti |= (sinRestitution != face.attributes().sinRestitution());
-      hasSiNRestitution |= face.attributes().hasSiNRestitution();
+      hasSiNRestitution |= face.attributes().sinRestitution().has_value()
+          && (!faceSWL || *face.attributes().sinRestitution() != faceSWL->restitution);
       sinFrictionMulti |= (sinFriction != face.attributes().sinFriction());
-      hasSiNFriction |= face.attributes().hasSiNFriction();
+      hasSiNFriction |= face.attributes().sinFriction().has_value()
+          && (!faceSWL || *face.attributes().sinFriction() != faceSWL->friction);
       sinAnimTimeMulti |= (sinAnimTime != face.attributes().sinAnimTime());
-      hasSiNAnimTime |= face.attributes().hasSiNAnimTime();
+      hasSiNAnimTime |= face.attributes().sinAnimTime().has_value()
+          && (!faceSWL || *face.attributes().sinAnimTime() != faceSWL->animtime);
       sinDirectStyleValueMulti |=
         (sinDirectStyleValue != face.attributes().sinDirectStyle());
-      hasSiNDirectStyleValue |= face.attributes().hasSiNDirectStyle();
+      hasSiNDirectStyleValue |= face.attributes().hasSiNDirectStyle(); // string vs float: no SWL cmp
       sinAnimationValueMulti |= (sinAnimationValue != face.attributes().sinAnimation());
-      hasSiNAnimationValue |= face.attributes().hasSiNAnimation();
+      hasSiNAnimationValue |= face.attributes().hasSiNAnimation(); // no SWL backing
       sinDirectMulti |= (sinDirect != face.attributes().sinDirect());
-      hasSiNDirect |= face.attributes().hasSiNDirect();
+      hasSiNDirect |= face.attributes().sinDirect().has_value()
+          && (!faceSWL || *face.attributes().sinDirect() != float(faceSWL->direct));
       sinDirectAngleMulti |= (sinDirectAngle != face.attributes().sinDirectAngle());
-      hasSiNDirectAngle |= face.attributes().hasSiNDirectAngle();
+      hasSiNDirectAngle |= face.attributes().sinDirectAngle().has_value()
+          && (!faceSWL || *face.attributes().sinDirectAngle() != float(faceSWL->directangle));
 
       // SiN extended
       hasExtFlags |= face.attributes().extendedFlags().has_value();
@@ -1916,7 +2103,10 @@ void FaceAttribsEditor::updateControls()
     m_surfaceValueEditor->setEnabled(true);
     m_surfaceFlagsEditor->setEnabled(true);
     m_contentFlagsEditor->setEnabled(true);
-    m_colorEditor->setEnabled(true);
+    m_colorEditorR->setEnabled(true);
+    m_colorEditorG->setEnabled(true);
+    m_colorEditorB->setEnabled(true);
+    m_colorSquare->setEnabled(true);
 
     if (materialMulti)
     {
@@ -1958,23 +2148,88 @@ void FaceAttribsEditor::updateControls()
     setValueOrMulti(m_xScaleEditor, xScaleMulti, double(xScale));
     setValueOrMulti(m_yScaleEditor, yScaleMulti, double(yScale));
     setValueOrMulti(m_surfaceValueEditor, surfaceValueMulti, double(surfaceValue));
+    // Helper: update the color preview square with byte-range RGB.
+    auto setColorSquare = [this](float r, float g, float b) {
+      m_colorSquare->setStyleSheet(QString{
+        "QAbstractButton { background-color: rgb(%1,%2,%3); border: 1px solid gray; }"
+        "QAbstractButton:hover { border: 1px solid palette(highlight); }"}
+                                     .arg(int(r * 255.0f + 0.5f))
+                                     .arg(int(g * 255.0f + 0.5f))
+                                     .arg(int(b * 255.0f + 0.5f)));
+    };
+
     if (hasColorValue)
     {
       if (colorValueMulti)
       {
-        m_colorEditor->setPlaceholderText("multi");
-        m_colorEditor->setText("");
+        m_colorEditorR->setPlaceholderText("multi");
+        m_colorEditorG->setPlaceholderText("multi");
+        m_colorEditorB->setPlaceholderText("multi");
+        m_colorEditorR->setText("");
+        m_colorEditorG->setText("");
+        m_colorEditorB->setText("");
+        m_colorSquare->setStyleSheet(
+          "QAbstractButton { background-color: #808080; border: 1px solid gray; }");
+        m_colorRgbLabel->setVisible(false);
       }
       else
       {
-        m_colorEditor->setPlaceholderText("");
-        m_colorEditor->setText(QString::fromStdString(colorValue->to<RgbB>().toString()));
+        const auto rgbf = colorValue->to<RgbF>();
+        const auto fv = rgbf.values();
+        const auto fr = std::get<0>(fv);
+        const auto fg = std::get<1>(fv);
+        const auto fb = std::get<2>(fv);
+        m_colorEditorR->setPlaceholderText("");
+        m_colorEditorG->setPlaceholderText("");
+        m_colorEditorB->setPlaceholderText("");
+        m_colorEditorR->setText(QString::number(double(fr), 'g', 8));
+        m_colorEditorG->setText(QString::number(double(fg), 'g', 8));
+        m_colorEditorB->setText(QString::number(double(fb), 'g', 8));
+        setColorSquare(fr, fg, fb);
+
+        // Companion label: 0-255 byte equivalent, grey italic.
+        const auto rgbb = colorValue->to<RgbB>();
+        const auto bv = rgbb.values();
+        m_colorRgbLabel->setText(
+          QString{"(%1 %2 %3) RGB"}
+            .arg(int(std::get<0>(bv)))
+            .arg(int(std::get<1>(bv)))
+            .arg(int(std::get<2>(bv))));
+        m_colorRgbLabel->setVisible(true);
       }
     }
     else
     {
-      m_colorEditor->setPlaceholderText("");
-      m_colorEditor->setText("");
+      // No per-face color override: show SWL default or engine default as placeholder.
+      if (swl)
+      {
+        const auto sr = swl->color[0];
+        const auto sg = swl->color[1];
+        const auto sb = swl->color[2];
+        m_colorEditorR->setPlaceholderText(QString::number(double(sr), 'g', 8));
+        m_colorEditorG->setPlaceholderText(QString::number(double(sg), 'g', 8));
+        m_colorEditorB->setPlaceholderText(QString::number(double(sb), 'g', 8));
+        setColorSquare(sr, sg, sb);
+        m_colorRgbLabel->setText(
+          QString{"(%1 %2 %3) RGB"}
+            .arg(int(std::round(sr * 255.0f)))
+            .arg(int(std::round(sg * 255.0f)))
+            .arg(int(std::round(sb * 255.0f))));
+        m_colorRgbLabel->setVisible(true);
+      }
+      else
+      {
+        // No SWL texture: engine default is white.
+        m_colorEditorR->setPlaceholderText("1");
+        m_colorEditorG->setPlaceholderText("1");
+        m_colorEditorB->setPlaceholderText("1");
+        setColorSquare(1.0f, 1.0f, 1.0f);
+        m_colorRgbLabel->setText("(255 255 255) RGB");
+        m_colorRgbLabel->setVisible(true);
+      }
+      m_colorEditorR->setText("");
+      m_colorEditorG->setText("");
+      m_colorEditorB->setText("");
     }
     m_surfaceFlagsEditor->setFlagValue(setSurfaceFlags, mixedSurfaceFlags);
     m_contentFlagsEditor->setFlagValue(setSurfaceContents, mixedSurfaceContents);
@@ -1984,39 +2239,41 @@ void FaceAttribsEditor::updateControls()
     m_contentFlagsUnsetButton->setEnabled(hasSurfaceContents);
     m_colorUnsetButton->setEnabled(hasColorValue);
 
-    // SiN
+    // SiN - show SWL texture defaults for unoverridden fields when available.
     setValueOrMulti(
       m_surfaceSiNNonlitValueEditor,
       sinNonlitValueMulti,
-      double(sinNonlitValue.value_or(mdl::BrushFaceAttributes::SiNDefaultNonLitValue)));
+      double(sinNonlitValue.value_or(swl ? swl->nonlit : mdl::BrushFaceAttributes::SiNDefaultNonLitValue)));
     m_surfaceSiNNonlitValueUnsetButton->setEnabled(hasSiNNonlitValue);
     setValueOrMulti(
       m_surfaceSiNTransAngleEditor,
       sinTransAngleMulti,
-      double(sinTransAngle.value_or(0)));
+      double(sinTransAngle.value_or(swl ? swl->trans_angle : 0)));
     m_surfaceSiNTransAngleUnsetButton->setEnabled(hasSiNTransAngle);
     setValueOrMulti(
-      m_surfaceSiNTransMagEditor, sinTransMagMulti, double(sinTransMag.value_or(0)));
+      m_surfaceSiNTransMagEditor,
+      sinTransMagMulti,
+      double(sinTransMag.value_or(swl ? swl->trans_mag : 0.0f)));
     m_surfaceSiNTransMagUnsetButton->setEnabled(hasSiNTransMag);
     setValueOrMulti(
       m_surfaceSiNTranslucenceEditor,
       sinTranslucenceMulti,
-      double(sinTranslucence.value_or(0)));
+      double(sinTranslucence.value_or(swl ? swl->translucence : 0.0f)));
     m_surfaceSiNTranslucenceUnsetButton->setEnabled(hasSiNTranslucence);
     setValueOrMulti(
       m_surfaceSiNRestitutionEditor,
       sinRestitutionMulti,
-      double(sinRestitution.value_or(0)));
+      double(sinRestitution.value_or(swl ? swl->restitution : 0.0f)));
     m_surfaceSiNRestitutionUnsetButton->setEnabled(hasSiNRestitution);
     setValueOrMulti(
       m_surfaceSiNFrictionEditor,
       sinFrictionMulti,
-      double(sinFriction.value_or(mdl::BrushFaceAttributes::SiNDefaultFriction)));
+      double(sinFriction.value_or(swl ? swl->friction : mdl::BrushFaceAttributes::SiNDefaultFriction)));
     m_surfaceSiNFrictionUnsetButton->setEnabled(hasSiNFriction);
     setValueOrMulti(
       m_surfaceSiNAnimTimeEditor,
       sinAnimTimeMulti,
-      double(sinAnimTime.value_or(mdl::BrushFaceAttributes::SiNDefaultAnimTime)));
+      double(sinAnimTime.value_or(swl ? swl->animtime : mdl::BrushFaceAttributes::SiNDefaultAnimTime)));
     m_surfaceSiNAnimTimeUnsetButton->setEnabled(hasSiNAnimTime);
     if (hasSiNDirectStyleValue)
     {
@@ -2039,7 +2296,9 @@ void FaceAttribsEditor::updateControls()
     }
     m_surfaceSiNDirectStyleUnsetButton->setEnabled(hasSiNDirectStyleValue);
     setValueOrMulti(
-      m_surfaceSiNDirectEditor, sinDirectMulti, double(sinDirect.value_or(0)));
+      m_surfaceSiNDirectEditor,
+      sinDirectMulti,
+      double(sinDirect.value_or(swl ? float(swl->direct) : 0.0f)));
     if (hasSiNAnimationValue)
     {
       if (sinAnimationValueMulti)
@@ -2063,7 +2322,7 @@ void FaceAttribsEditor::updateControls()
     setValueOrMulti(
       m_surfaceSiNDirectAngleEditor,
       sinDirectAngleMulti,
-      double(sinDirectAngle.value_or(0)));
+      double(sinDirectAngle.value_or(swl ? float(swl->directangle) : 0.0f)));
     m_surfaceSiNDirectAngleUnsetButton->setEnabled(hasSiNDirectAngle);
 
     m_surfaceSiNNonlitValueEditor->setEnabled(true);
@@ -2140,9 +2399,17 @@ void FaceAttribsEditor::updateControls()
 
     m_surfaceFlagsEditor->setEnabled(false);
     m_contentFlagsEditor->setEnabled(false);
-    m_colorEditor->setText("");
-    m_colorEditor->setPlaceholderText("n/a");
-    m_colorEditor->setEnabled(false);
+    m_colorEditorR->setText("");
+    m_colorEditorR->setPlaceholderText("n/a");
+    m_colorEditorR->setEnabled(false);
+    m_colorEditorG->setText("");
+    m_colorEditorG->setPlaceholderText("n/a");
+    m_colorEditorG->setEnabled(false);
+    m_colorEditorB->setText("");
+    m_colorEditorB->setPlaceholderText("n/a");
+    m_colorEditorB->setEnabled(false);
+    m_colorSquare->setEnabled(false);
+    m_colorRgbLabel->setVisible(false);
 
     m_surfaceValueUnsetButton->setEnabled(false);
     m_surfaceFlagsUnsetButton->setEnabled(false);
