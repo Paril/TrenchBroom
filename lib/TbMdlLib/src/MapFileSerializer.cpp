@@ -20,6 +20,8 @@
 #include "mdl/MapFileSerializer.h"
 
 #include "Macros.h"
+#include "gl/Material.h"
+#include "gl/Texture.h"
 #include "mdl/BezierPatch.h"
 #include "mdl/BrushFace.h"
 #include "mdl/BrushNode.h"
@@ -290,23 +292,47 @@ static void writeSiNKeyValues(
   // can't be constexpr sadly
   const auto& attribs = face.attributes();
 
+  // SiN compilers do not read SWL defaults at compile time, so any attribute
+  // that the SWL provides but the face does not explicitly override must still
+  // be written to the map file. Look up the embedded SWL defaults so we can
+  // fall back to them for unset face attributes.
+  const gl::SinEmbeddedDefaults* swl = nullptr;
+  if (const auto* tex = gl::getTexture(face.material()))
+  {
+    swl = std::get_if<gl::SinEmbeddedDefaults>(&tex->embeddedDefaults());
+  }
+
+  // Resolve a float optional: face override takes priority, then SWL default.
+  auto resolveF = [swl](const std::optional<float>& v, float swlVal) -> std::optional<float> {
+    if (v.has_value()) return v;
+    return swl ? std::optional<float>{swlVal} : std::nullopt;
+  };
+  auto resolveI = [swl](const std::optional<int>& v, int swlVal) -> std::optional<int> {
+    if (v.has_value()) return v;
+    return swl ? std::optional<int>{swlVal} : std::nullopt;
+  };
+
+  // Effective flag integers: face override if set, otherwise SWL bits.
+  const auto effectiveContents = attribs.surfaceContents().value_or(swl ? swl->contents : 0);
+  const auto effectiveSurfFlags = attribs.surfaceFlags().value_or(swl ? swl->flags : 0);
+
   // contents, then surf flags
-  if (attribs.surfaceContents().has_value())
+  if (effectiveContents)
   {
     for (auto& contentflag : config.faceAttribsConfig.contentFlags.flags)
     {
-      if (contentflag.value & attribs.surfaceContents().value())
+      if (contentflag.value & effectiveContents)
       {
         fmt::format_to(std::ostreambuf_iterator<char>{stream}, " +{}", contentflag.name);
       }
     }
   }
 
-  if (attribs.surfaceFlags().has_value())
+  if (effectiveSurfFlags)
   {
     for (auto& surfaceflag : config.faceAttribsConfig.surfaceFlags.flags)
     {
-      if (surfaceflag.value & attribs.surfaceFlags().value())
+      if (surfaceflag.value & effectiveSurfFlags)
       {
         fmt::format_to(std::ostreambuf_iterator<char>{stream}, " +{}", surfaceflag.name);
       }
@@ -317,25 +343,77 @@ static void writeSiNKeyValues(
   writeSiNKeyValue(stream, "anim", attribs.sinAnimation());
 
   writeSiNKeyValue(
-    stream, "animtime", attribs.sinAnimTime(), BrushFaceAttributes::SiNDefaultAnimTime);
+    stream,
+    "animtime",
+    resolveF(attribs.sinAnimTime(), swl ? swl->animtime : 0.0f),
+    BrushFaceAttributes::SiNDefaultAnimTime);
   writeSiNKeyValue(
-    stream, "friction", attribs.sinFriction(), BrushFaceAttributes::SiNDefaultFriction);
-  writeSiNKeyValue(stream, "restitution", attribs.sinRestitution());
-  writeSiNKeyValue(stream, "direct", attribs.sinDirect());
-  writeSiNKeyValue(stream, "directangle", attribs.sinDirectAngle());
-  writeSiNKeyValue(stream, "translucence", attribs.sinTranslucence());
-  writeSiNKeyValue(stream, "trans_mag", attribs.sinTransMag());
-  writeSiNKeyValue(stream, "trans_angle", attribs.sinTransAngle());
-  writeSiNKeyValue(stream, "color", attribs.color());
-  writeSiNKeyValue(stream, "lightvalue", attribs.surfaceValue());
+    stream,
+    "friction",
+    resolveF(attribs.sinFriction(), swl ? swl->friction : 0.0f),
+    BrushFaceAttributes::SiNDefaultFriction);
+  writeSiNKeyValue(
+    stream, "restitution", resolveF(attribs.sinRestitution(), swl ? swl->restitution : 0.0f));
+  writeSiNKeyValue(
+    stream, "direct", resolveF(attribs.sinDirect(), swl ? float(swl->direct) : 0.0f));
+  writeSiNKeyValue(
+    stream,
+    "directangle",
+    resolveF(attribs.sinDirectAngle(), swl ? float(swl->directangle) : 0.0f));
+  writeSiNKeyValue(
+    stream,
+    "translucence",
+    resolveF(attribs.sinTranslucence(), swl ? swl->translucence : 0.0f));
+  writeSiNKeyValue(
+    stream, "trans_mag", resolveF(attribs.sinTransMag(), swl ? swl->trans_mag : 0.0f));
+  writeSiNKeyValue(
+    stream, "trans_angle", resolveI(attribs.sinTransAngle(), swl ? swl->trans_angle : 0));
+
+  // lightvalue: face surfaceValue override, else SWL 'value' field if nonzero
+  writeSiNKeyValue(
+    stream,
+    "lightvalue",
+    attribs.surfaceValue().has_value()
+      ? attribs.surfaceValue()
+      : (swl && swl->value ? std::optional<float>{float(swl->value)} : std::nullopt));
+
   writeSiNKeyValue(
     stream,
     "nonlitvalue",
-    attribs.sinNonlitValue(),
+    resolveF(attribs.sinNonlitValue(), swl ? swl->nonlit : 0.0f),
     BrushFaceAttributes::SiNDefaultNonLitValue);
-  writeSiNKeyValue(stream, "directstyle", attribs.sinDirectStyle());
 
-  // extended flags super last
+  // directstyle: face stores as string; SWL stores as float. Format the SWL
+  // float as a string and route through the string writer so the output is
+  // quoted, matching Paril's existing format on the face-override path.
+  if (attribs.sinDirectStyle().has_value())
+  {
+    writeSiNKeyValue(stream, "directstyle", attribs.sinDirectStyle());
+  }
+  else if (swl && swl->directstyle != 0.0f)
+  {
+    writeSiNKeyValue(
+      stream,
+      "directstyle",
+      std::optional<std::string>{fmt::format("{}", swl->directstyle)});
+  }
+
+  // color: face stores as Color; SWL stores as float[3]. Wrap the SWL floats
+  // in a Color and reuse the same writer so the output format is identical to
+  // the face-override path.
+  if (attribs.color().has_value())
+  {
+    writeSiNKeyValue(stream, "color", attribs.color());
+  }
+  else if (swl && (swl->color[0] != 0.0f || swl->color[1] != 0.0f || swl->color[2] != 0.0f))
+  {
+    writeSiNKeyValue(
+      stream,
+      "color",
+      std::optional<Color>{Color{RgbF{swl->color[0], swl->color[1], swl->color[2]}}});
+  }
+
+  // extended flags super last -- no SWL backing for extended flags
   if (attribs.extendedFlags().has_value())
   {
     for (auto& extflag : config.faceAttribsConfig.extendedFlags.flags)
@@ -347,7 +425,7 @@ static void writeSiNKeyValues(
     }
   }
 
-  // extended attributes super duper last
+  // extended attributes super duper last -- no SWL backing for extended attribs
   writeSiNKeyValue(
     stream,
     "ext_directscale",

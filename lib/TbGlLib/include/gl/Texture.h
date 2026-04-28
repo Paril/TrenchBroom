@@ -25,6 +25,7 @@
 
 #include "kd/reflection_decl.h"
 
+#include <array>
 #include <variant>
 #include <vector>
 
@@ -56,7 +57,45 @@ struct Q2EmbeddedDefaults
   kdl_reflect_decl(Q2EmbeddedDefaults, flags, contents, value);
 };
 
-using EmbeddedDefaults = std::variant<NoEmbeddedDefaults, Q2EmbeddedDefaults>;
+// SiN .swl surface defaults embedded in the texture header. Fields match the
+// sinmiptex_t layout published in the SinEd help docs. A face that carries no
+// per-face override for a given token inherits the value stored here.
+struct SinEmbeddedDefaults
+{
+  int flags = 0;
+  int contents = 0;
+  int value = 0;
+  int direct = 0;
+  float animtime = 0.0f;
+  float nonlit = 0.0f;
+  int directangle = 0;
+  int trans_angle = 0;
+  float directstyle = 0.0f;
+  float translucence = 0.0f;
+  float friction = 0.0f;
+  float restitution = 0.0f;
+  float trans_mag = 0.0f;
+  std::array<float, 3> color = {0.0f, 0.0f, 0.0f};
+
+  kdl_reflect_decl(
+    SinEmbeddedDefaults,
+    flags,
+    contents,
+    value,
+    direct,
+    animtime,
+    nonlit,
+    directangle,
+    trans_angle,
+    directstyle,
+    translucence,
+    friction,
+    restitution,
+    trans_mag,
+    color);
+};
+
+using EmbeddedDefaults = std::variant<NoEmbeddedDefaults, Q2EmbeddedDefaults, SinEmbeddedDefaults>;
 
 std::ostream& operator<<(std::ostream& lhs, const EmbeddedDefaults& rhs);
 
