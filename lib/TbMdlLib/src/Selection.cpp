@@ -55,14 +55,13 @@ std::vector<EntityNodeBase*> computeAllEntities(
   for (auto* node : selection.nodes)
   {
     node->accept(kdl::overload(
-      [](WorldNode*) {},
-      [](LayerNode*) {},
-      [](auto&& thisLambda, GroupNode* groupNode) {
-        groupNode->visitChildren(thisLambda);
-      },
-      [&](EntityNode* entityNode) { result.push_back(entityNode); },
-      [&](BrushNode* brushNode) { result.push_back(brushNode->entity()); },
-      [&](PatchNode* patchNode) { result.push_back(patchNode->entity()); }));
+      [](WorldNode&) {},
+      [](LayerNode&) {},
+      [](
+        auto&& thisLambda, GroupNode& groupNode) { groupNode.visitChildren(thisLambda); },
+      [&](EntityNode& entityNode) { result.push_back(&entityNode); },
+      [&](BrushNode& brushNode) { result.push_back(brushNode.entity()); },
+      [&](PatchNode& patchNode) { result.push_back(patchNode.entity()); }));
   }
 
   if (result.empty())
@@ -91,16 +90,15 @@ std::vector<BrushNode*> computeAllBrushes(const Selection& selection)
   for (auto* node : selection.nodes)
   {
     node->accept(kdl::overload(
-      [](WorldNode*) {},
-      [](LayerNode*) {},
-      [](auto&& thisLambda, GroupNode* groupNode) {
-        groupNode->visitChildren(thisLambda);
+      [](WorldNode&) {},
+      [](LayerNode&) {},
+      [](
+        auto&& thisLambda, GroupNode& groupNode) { groupNode.visitChildren(thisLambda); },
+      [](auto&& thisLambda, EntityNode& entityNode) {
+        entityNode.visitChildren(thisLambda);
       },
-      [](auto&& thisLambda, EntityNode* entityNode) {
-        entityNode->visitChildren(thisLambda);
-      },
-      [&](BrushNode* brushNode) { result.push_back(brushNode); },
-      [&](PatchNode*) {}));
+      [&](BrushNode& brushNode) { result.push_back(&brushNode); },
+      [&](PatchNode&) {}));
   }
 
   return result;

@@ -311,19 +311,23 @@ const EntityNodeBase* PatchNode::entity() const
 {
   return visitParent(
            kdl::overload(
-             [](const WorldNode* world) -> const EntityNodeBase* { return world; },
-             [](const EntityNode* entity) -> const EntityNodeBase* { return entity; },
-             [](auto&& thisLambda, const LayerNode* layer) -> const EntityNodeBase* {
-               return layer->visitParent(thisLambda).value_or(nullptr);
+             [](const WorldNode& worldNode) -> const EntityNodeBase* {
+               return &worldNode;
              },
-             [](auto&& thisLambda, const GroupNode* group) -> const EntityNodeBase* {
-               return group->visitParent(thisLambda).value_or(nullptr);
+             [](const EntityNode& entityNode) -> const EntityNodeBase* {
+               return &entityNode;
              },
-             [](auto&& thisLambda, const BrushNode* brush) -> const EntityNodeBase* {
-               return brush->visitParent(thisLambda).value_or(nullptr);
+             [](auto&& thisLambda, const LayerNode& layerNode) -> const EntityNodeBase* {
+               return layerNode.visitParent(thisLambda).value_or(nullptr);
              },
-             [](auto&& thisLambda, const PatchNode* patch) -> const EntityNodeBase* {
-               return patch->visitParent(thisLambda).value_or(nullptr);
+             [](auto&& thisLambda, const GroupNode& groupNode) -> const EntityNodeBase* {
+               return groupNode.visitParent(thisLambda).value_or(nullptr);
+             },
+             [](auto&& thisLambda, const BrushNode& brushNode) -> const EntityNodeBase* {
+               return brushNode.visitParent(thisLambda).value_or(nullptr);
+             },
+             [](auto&& thisLambda, const PatchNode& patchNode) -> const EntityNodeBase* {
+               return patchNode.visitParent(thisLambda).value_or(nullptr);
              }))
     .value_or(nullptr);
 }
@@ -398,12 +402,12 @@ Node* PatchNode::doClone(const vm::bbox3d&) const
   return result.release();
 }
 
-bool PatchNode::doCanAddChild(const Node*) const
+bool PatchNode::doCanAddChild(const Node&) const
 {
   return false;
 }
 
-bool PatchNode::doCanRemoveChild(const Node*) const
+bool PatchNode::doCanRemoveChild(const Node&) const
 {
   return false;
 }
@@ -461,12 +465,12 @@ void PatchNode::doFindNodesContaining(const vm::vec3d&, std::vector<Node*>&) {}
 
 void PatchNode::doAccept(NodeVisitor& visitor)
 {
-  visitor.visit(this);
+  visitor.visit(*this);
 }
 
 void PatchNode::doAccept(ConstNodeVisitor& visitor) const
 {
-  visitor.visit(this);
+  visitor.visit(*this);
 }
 
 Node* PatchNode::doGetContainer()

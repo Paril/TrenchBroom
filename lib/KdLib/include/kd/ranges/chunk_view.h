@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include "detail/integer_like.h"
 #include "detail/non_propagating_cache.h"
 #include "detail/range_utils.h"
 
@@ -58,7 +59,7 @@ public:
       {
         const auto s = std::ranges::min(
           parent_->remainder_, std::ranges::end(parent_->base_) - *parent_->current_);
-        return std::make_unsigned_t<decltype(s)>(s);
+        return to_unsigned_like(s);
       }
 
       constexpr explicit value_type(chunk_view& parent)
@@ -96,10 +97,10 @@ public:
       requires std::
         sized_sentinel_for<std::ranges::sentinel_t<V>, std::ranges::iterator_t<V>>
     {
-      const auto dist = std::ranges::end(i->parent_->base_) - *i.parent->current_;
-      return dist < i.parent_->remainder
+      const auto dist = std::ranges::end(i.parent_->base_) - *i.parent_->current_;
+      return dist < i.parent_->remainder_
                ? dist == 0 ? 0 : 1
-               : detail::div_ceil(dist - i.parent_->remainder_, i.parent->n_) + 1;
+               : detail::div_ceil(dist - i.parent_->remainder_, i.parent_->n_) + 1;
     }
 
     friend constexpr difference_type operator-(
@@ -228,14 +229,14 @@ public:
     requires std::ranges::sized_range<V>
   {
     const auto s = detail::div_ceil(std::ranges::distance(base_), n_);
-    return std::make_unsigned_t<decltype(s)>(s);
+    return to_unsigned_like(s);
   }
 
   constexpr auto size() const
     requires std::ranges::sized_range<const V>
   {
     const auto s = detail::div_ceil(std::ranges::distance(base_), n_);
-    return std::make_unsigned_t<decltype(s)>(s);
+    return to_unsigned_like(s);
   }
 
   V base_{};
@@ -516,14 +517,14 @@ public:
     requires std::ranges::sized_range<V>
   {
     const auto s = detail::div_ceil(std::ranges::distance(base_), n_);
-    return std::make_unsigned_t<decltype(s)>(s);
+    return to_unsigned_like(s);
   }
 
   constexpr auto size() const
     requires std::ranges::sized_range<const V>
   {
     const auto s = detail::div_ceil(std::ranges::distance(base_), n_);
-    return std::make_unsigned_t<decltype(s)>(s);
+    return to_unsigned_like(s);
   }
 
 private:
@@ -541,7 +542,7 @@ template <std::ranges::viewable_range R>
 constexpr auto chunk(R&& r, std::ranges::range_difference_t<R> n)
 {
   return ranges::chunk_view{std::forward<R>(r), n};
-};
+}
 
 namespace detail
 {
@@ -556,7 +557,7 @@ template <typename DifferenceType>
 chunk_view_helper(DifferenceType) -> chunk_view_helper<DifferenceType>;
 
 template <std::ranges::viewable_range R, typename DifferenceType>
-auto operator|(R&& r, const chunk_view_helper<DifferenceType>& h)
+constexpr auto operator|(R&& r, const chunk_view_helper<DifferenceType>& h)
 {
   return chunk(std::forward<R>(r), static_cast<std::ranges::range_difference_t<R>>(h.n));
 }
@@ -567,7 +568,7 @@ template <typename DifferenceType>
 constexpr auto chunk(const DifferenceType n)
 {
   return detail::chunk_view_helper{n};
-};
+}
 
 } // namespace views
 } // namespace ranges
@@ -579,13 +580,13 @@ template <std::ranges::viewable_range R>
 constexpr auto chunk(R&& r, std::ranges::range_difference_t<R> n)
 {
   return ranges::views::chunk(std::forward<R>(r), n);
-};
+}
 
 template <typename DifferenceType>
 constexpr auto chunk(const DifferenceType n)
 {
   return ranges::views::chunk(n);
-};
+}
 
 } // namespace views
 } // namespace kdl

@@ -52,10 +52,10 @@ template <typename N>
 std::vector<N*> collectLinkedNodes(const std::vector<Node*>& nodes, const N& node)
 {
   return kdl::vec_static_cast<N*>(node.accept(kdl::overload(
-    [](const WorldNode*) { return std::vector<Node*>{}; },
-    [](const LayerNode*) { return std::vector<Node*>{}; },
-    [&](const Object* object) {
-      return collectNodesWithLinkId(nodes, object->linkId());
+    [](const WorldNode&) { return std::vector<Node*>{}; },
+    [](const LayerNode&) { return std::vector<Node*>{}; },
+    [&](const Object& object) {
+      return collectNodesWithLinkId(nodes, object.linkId());
     })));
 }
 

@@ -20,11 +20,14 @@
 #pragma once
 
 #include <QObject>
-#include <QString>
-#include <QTemporaryFile>
-#include <QUrl>
 
 #include <functional>
+#include <optional>
+
+class QByteArray;
+class QFile;
+class QString;
+class QUrl;
 
 namespace upd
 {

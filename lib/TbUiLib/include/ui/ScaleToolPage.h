@@ -27,11 +27,10 @@
 
 #include <optional>
 
-class QComboBox;
-class QStackedLayout;
-class QLineEdit;
-class QComboBox;
 class QAbstractButton;
+class QComboBox;
+class QLineEdit;
+class QStackedLayout;
 
 namespace tb::ui
 {

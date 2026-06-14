@@ -55,7 +55,7 @@ TEST_CASE("to")
       == std::unordered_map<int, std::string>{{1, "1"}, {2, "2"}, {3, "3"}});
   }
 
-  SECTION("with deduced collecion type")
+  SECTION("with deduced collection type")
   {
     CHECK(ranges::to<std::list>(std::vector{1, 2, 3, 3}) == std::list{1, 2, 3, 3});
     CHECK(ranges::to<std::vector>(std::vector{1, 2, 3, 3}) == std::vector{1, 2, 3, 3});
@@ -72,6 +72,23 @@ TEST_CASE("to")
       ranges::to<std::unordered_map>(
         std::vector<std::pair<int, std::string>>{{1, "1"}, {2, "2"}, {3, "3"}, {3, "4"}})
       == std::unordered_map<int, std::string>{{1, "1"}, {2, "2"}, {3, "3"}});
+  }
+
+  SECTION("nested ranges")
+  {
+    CHECK(
+      ranges::to<std::vector<std::vector<int>>>(
+        std::vector<std::vector<int>>{{1, 2}, {3}, {4, 5}})
+      == std::vector<std::vector<int>>{{1, 2}, {3}, {4, 5}});
+
+    CHECK(
+      ranges::to<std::vector>(std::vector<std::vector<int>>{{1, 2}, {3}, {4, 5}})
+      == std::vector<std::vector<int>>{{1, 2}, {3}, {4, 5}});
+
+    CHECK(
+      ranges::to<std::vector>(
+        std::vector<std::vector<std::vector<int>>>{{{1, 2}, {3}}, {{4, 5}}})
+      == std::vector<std::vector<std::vector<int>>>{{{1, 2}, {3}}, {{4, 5}}});
   }
 
   SECTION("call wrapper with specified collection type")
@@ -111,6 +128,21 @@ TEST_CASE("to")
   {
     auto v = std::vector{1, 2, 3};
     CHECK((v | ranges::to<std::vector>()) == std::vector{1, 2, 3});
+  }
+
+  SECTION("call wrapper forwards extra constructor arguments")
+  {
+    const auto alloc = std::allocator<int>{};
+
+    auto t1 = ranges::to<std::vector<int>>(alloc);
+    CHECK(t1(std::vector{1, 2, 3}) == std::vector{1, 2, 3});
+
+    const auto t2 = ranges::to<std::vector<int>>(alloc);
+    CHECK(t2(std::vector{1, 2, 3}) == std::vector{1, 2, 3});
+
+    CHECK(
+      (std::vector{1, 2, 3} | ranges::to<std::vector<int>>(alloc))
+      == std::vector{1, 2, 3});
   }
 }
 

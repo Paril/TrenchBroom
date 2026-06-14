@@ -99,12 +99,12 @@ static bool shouldUpdateModificationCount(const std::vector<Node*>& nodes)
 {
   return std::ranges::any_of(nodes, [](const auto* node) {
     return node->accept(kdl::overload(
-      [](const WorldNode*) { return false; },
-      [](const LayerNode*) { return true; },
-      [](const GroupNode*) { return false; },
-      [](const EntityNode*) { return false; },
-      [](const BrushNode*) { return false; },
-      [](const PatchNode*) { return false; }));
+      [](const WorldNode&) { return false; },
+      [](const LayerNode&) { return true; },
+      [](const GroupNode&) { return false; },
+      [](const EntityNode&) { return false; },
+      [](const BrushNode&) { return false; },
+      [](const PatchNode&) { return false; }));
   });
 }
 

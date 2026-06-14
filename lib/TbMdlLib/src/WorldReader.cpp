@@ -188,6 +188,7 @@ Node* WorldReader::onWorldNode(std::unique_ptr<WorldNode> worldNode, ParserStatu
   // we transfer the properties and the configuration of the default layer, but don't
   // use the given node
   m_worldNode->setEntity(worldNode->entity());
+  m_worldNode->setFilePosition(worldNode->lineNumber(), worldNode->lineCount());
 
   auto* myDefaultLayerNode = m_worldNode->defaultLayer();
   const auto* theirDefaultLayerNode = worldNode->defaultLayer();

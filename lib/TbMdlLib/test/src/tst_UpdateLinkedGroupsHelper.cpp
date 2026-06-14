@@ -73,8 +73,8 @@ void setGroupName(GroupNode& groupNode, const std::string& name)
 
 GroupNode* findGroupByName(Node& node, const std::string& name)
 {
-  const auto visitChildren = [&](auto&& lambda, Node* n) -> GroupNode* {
-    for (auto* child : n->children())
+  const auto visitChildren = [&](auto&& lambda, Node& n) -> GroupNode* {
+    for (auto* child : n.children())
     {
       if (auto* result = child->accept(lambda))
       {
@@ -84,22 +84,22 @@ GroupNode* findGroupByName(Node& node, const std::string& name)
     return nullptr;
   };
   return node.accept(kdl::overload(
-    [&](auto&& thisLambda, WorldNode* worldNode) -> GroupNode* {
+    [&](auto&& thisLambda, WorldNode& worldNode) -> GroupNode* {
       return visitChildren(thisLambda, worldNode);
     },
-    [&](auto&& thisLambda, LayerNode* layerNode) -> GroupNode* {
+    [&](auto&& thisLambda, LayerNode& layerNode) -> GroupNode* {
       return visitChildren(thisLambda, layerNode);
     },
-    [&](auto&& thisLambda, GroupNode* groupNode) -> GroupNode* {
-      if (groupNode->name() == name)
+    [&](auto&& thisLambda, GroupNode& groupNode) -> GroupNode* {
+      if (groupNode.name() == name)
       {
-        return groupNode;
+        return &groupNode;
       }
       return visitChildren(thisLambda, groupNode);
     },
-    [](EntityNode*) -> GroupNode* { return nullptr; },
-    [](BrushNode*) -> GroupNode* { return nullptr; },
-    [](PatchNode*) -> GroupNode* { return nullptr; }));
+    [](EntityNode&) -> GroupNode* { return nullptr; },
+    [](BrushNode&) -> GroupNode* { return nullptr; },
+    [](PatchNode&) -> GroupNode* { return nullptr; }));
 }
 
 } // namespace
@@ -123,6 +123,7 @@ TEST_CASE("checkLinkedGroupsToUpdate")
 
 TEST_CASE("UpdateLinkedGroupsHelper")
 {
+  // NOLINTNEXTLINE(misc-const-correctness)
   bool deleted = false;
 
   auto fixture = MapFixture{};

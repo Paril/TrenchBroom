@@ -23,6 +23,7 @@
 #include "gl/Texture.h"
 #include "mdl/LoadDdsTexture.h"
 #include "mdl/LoadFreeImageTexture.h"
+#include "mdl/LoadM32Texture.h"
 #include "mdl/LoadM8Texture.h"
 #include "mdl/LoadMipTexture.h"
 #include "mdl/LoadShaders.h"
@@ -89,6 +90,13 @@ Result<gl::Texture> loadTexture(
     return fs.openFile(path) | kdl::and_then([&](auto file) {
              auto reader = file->reader().buffer();
              return loadM8Texture(reader);
+           });
+  }
+  else if (extension == ".m32")
+  {
+    return fs.openFile(path) | kdl::and_then([&](auto file) {
+             auto reader = file->reader().buffer();
+             return loadM32Texture(reader);
            });
   }
   else if (extension == ".dds")

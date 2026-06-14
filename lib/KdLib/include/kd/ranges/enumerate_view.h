@@ -25,6 +25,9 @@
 
 #include <ranges>
 
+// This file can only be used with C++20 or later.
+static_assert(__cplusplus >= 202002L);
+
 namespace kdl
 {
 namespace ranges
@@ -71,7 +74,7 @@ public:
                    std::ranges::iterator_t<V>,
                    std::ranges::iterator_t<Base>>
       : current_{std::move(i.current_)}
-      , pos_{i.pos}
+      , pos_{i.pos_}
     {
     }
 
@@ -185,7 +188,7 @@ public:
     }
 
     friend constexpr auto iter_move(const iterator& i) noexcept(
-      noexcept(std::ranges::iter_move(std::declval<iterator const&>().current_))
+      noexcept(std::ranges::iter_move(i.current_))
       and std::is_nothrow_move_constructible_v<
         std::ranges::range_rvalue_reference_t<Base>>)
     {
@@ -195,6 +198,8 @@ public:
 
   private:
     friend class enumerate_view;
+    template <bool>
+    friend class iterator;
 
     constexpr explicit iterator(
       std::ranges::iterator_t<Base> current, const difference_type pos)
@@ -237,7 +242,7 @@ public:
     friend constexpr std::ranges::range_difference_t<detail::maybe_const<OtherConst, V>>
     operator-(const iterator<OtherConst>& x, const sentinel& y)
     {
-      x.base() - y.base();
+      return x.base() - y.base();
     }
 
     template <bool OtherConst>
@@ -252,6 +257,8 @@ public:
 
   private:
     friend class enumerate_view;
+    template <bool>
+    friend class sentinel;
 
     constexpr explicit sentinel(std::ranges::sentinel_t<Base> end)
       : end_{std::move(end)}

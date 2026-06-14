@@ -27,6 +27,7 @@
 
 #include "PreferenceManager.h"
 #include "mdl/GameManager.h"
+#include "mdl/MapFormat.h"
 #include "ui/AppController.h"
 #include "ui/BorderLine.h"
 #include "ui/DialogButtonLayout.h"

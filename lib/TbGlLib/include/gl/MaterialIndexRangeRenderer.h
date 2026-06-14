@@ -27,8 +27,10 @@
 
 namespace tb::gl
 {
+class Gl;
 class Material;
 class MaterialRenderFunc;
+class ShaderProgram;
 class VboManager;
 
 class MaterialRenderer
@@ -38,8 +40,9 @@ public:
 
   virtual bool empty() const = 0;
 
-  virtual void prepare(VboManager& vboManager) = 0;
-  virtual void render(MaterialRenderFunc& func) = 0;
+  virtual void prepare(Gl& gl, VboManager& vboManager) = 0;
+  virtual void render(
+    Gl& gl, ShaderProgram& currentProgram, MaterialRenderFunc& func) = 0;
 };
 
 class MaterialIndexRangeRenderer : public MaterialRenderer
@@ -57,8 +60,8 @@ public:
 
   bool empty() const override;
 
-  void prepare(VboManager& vboManager) override;
-  void render(MaterialRenderFunc& func) override;
+  void prepare(Gl& gl, VboManager& vboManager) override;
+  void render(Gl& gl, ShaderProgram& currentProgram, MaterialRenderFunc& func) override;
 };
 
 class MultiMaterialIndexRangeRenderer : public MaterialRenderer
@@ -73,8 +76,8 @@ public:
 
   bool empty() const override;
 
-  void prepare(VboManager& vboManager) override;
-  void render(MaterialRenderFunc& func) override;
+  void prepare(Gl& gl, VboManager& vboManager) override;
+  void render(Gl& gl, ShaderProgram& currentProgram, MaterialRenderFunc& func) override;
 };
 
 } // namespace tb::gl

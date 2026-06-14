@@ -49,6 +49,9 @@ public:
 
   constexpr non_propagating_cache(non_propagating_cache&& other) noexcept
   {
+    // The base optional is default-constructed (empty); the explicit reset on
+    // `other` matches the C++23 [range.nonprop.cache] specification, which
+    // empties the source so a cached iterator never propagates across moves.
     other.reset();
   }
 

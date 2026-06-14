@@ -28,8 +28,6 @@
 #include "ui/ToolBoxConnector.h"
 #include "ui/UVViewHelper.h"
 
-#include <filesystem>
-
 class QWidget;
 
 namespace tb
@@ -43,6 +41,7 @@ class RenderContext;
 
 namespace ui
 {
+class AppController;
 class MapDocument;
 class UVRotateTool;
 class UVOriginTool;
@@ -73,7 +72,7 @@ private:
   NotifierConnection m_notifierConnection;
 
 public:
-  UVView(MapDocument& document, gl::ContextManager& contextManager);
+  UVView(AppController& appController, MapDocument& document);
 
   void setSubDivisions(const vm::vec2i& subDivisions);
 
@@ -87,7 +86,7 @@ private:
   void reload();
 
   void updateViewport(int x, int y, int width, int height) override;
-  void renderContents() override;
+  void renderContents(gl::Gl& gl) override;
   bool shouldRenderFocusIndicator() const override;
   const Color& getBackgroundColor() override;
 

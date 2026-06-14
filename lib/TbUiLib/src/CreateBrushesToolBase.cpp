@@ -106,7 +106,7 @@ void CreateBrushesToolBase::render(
     auto boundsBuilder = vm::bbox3d::builder{};
     for (const auto& brushNode : m_brushNodes)
     {
-      m_brushRenderer->addBrush(brushNode.get());
+      m_brushRenderer->addBrush(*brushNode);
       boundsBuilder.add(brushNode->logicalBounds());
     }
     m_brushRenderer->render(renderContext, renderBatch);

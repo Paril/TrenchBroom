@@ -23,22 +23,76 @@
 #include <QFileInfo>
 #include <QProcess>
 
-#include "update/FileUtils.h"
 #include "update/Logging.h"
 
 namespace upd
 {
 
-bool unzip(
+namespace
+{
+
+constexpr int UNZIP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+constexpr int PROCESS_START_TIMEOUT_MS = 5000;  // 5 seconds
+
+void logProcessStart(
+  const std::optional<QString>& logFilePath,
+  const QString& program,
+  const QStringList& arguments)
+{
+  logToFile(
+    logFilePath, QString{"Extraction command: %1 %2"}.arg(program, arguments.join(" ")));
+  logToFile(
+    logFilePath,
+    QString{"Starting extraction (timeout: %1 seconds)..."}.arg(UNZIP_TIMEOUT_MS / 1000));
+}
+
+void logProcessResult(
+  const std::optional<QString>& logFilePath,
+  int exitCode,
+  const QString& standardOutput,
+  const QString& errorOutput)
+{
+  if (exitCode == 0)
+  {
+    logToFile(logFilePath, QString{"Extraction completed successfully"});
+  }
+  else
+  {
+    logToFile(
+      logFilePath,
+      QString{"Extraction failed: command exited with code %1"}.arg(exitCode));
+  }
+
+  if (!standardOutput.isEmpty())
+  {
+    logToFile(logFilePath, QString{"Standard output: %1"}.arg(standardOutput));
+  }
+
+  if (!errorOutput.isEmpty())
+  {
+    logToFile(logFilePath, QString{"Error output: %1"}.arg(errorOutput));
+  }
+}
+
+bool unzipWithCommand(
   const QString& zipPath,
   const QString& destFolderPath,
+  const QString& program,
+  const QStringList& arguments,
   const std::optional<QString>& logFilePath)
 {
+  if (!QFileInfo{zipPath}.exists())
+  {
+    logToFile(
+      logFilePath, QString{"Failed to unzip: archive file not found: %1"}.arg(zipPath));
+    return false;
+  }
+
   if (!QFileInfo{destFolderPath}.exists() && !QDir{destFolderPath}.mkpath("."))
   {
     logToFile(
       logFilePath,
-      QString{"Failed to unzip the archive: %1 could not be created"}.arg(
+      QString{"Failed to unzip: could not create destination directory: %1"}.arg(
         destFolderPath));
     return false;
   }
@@ -47,49 +101,103 @@ bool unzip(
   {
     logToFile(
       logFilePath,
-      QString{"Failed to unzip the archive: %1 is not a folder"}.arg(destFolderPath));
+      QString{"Failed to unzip: destination is not a directory: %1"}.arg(destFolderPath));
     return false;
   }
 
+  logProcessStart(logFilePath, program, arguments);
+
   auto process = QProcess{};
-#if defined(_WIN32)
-  auto arguments = QStringList{};
-  arguments
-    << "-Command"
-    << QString{"Expand-Archive -Path '%1' -DestinationPath '%2'"}.arg(zipPath).arg(
-         destFolderPath);
-
-  process.setProgram("powershell");
+  process.setProgram(program);
   process.setArguments(arguments);
-#elif defined(__APPLE__) || defined(__linux__)
-  auto arguments = QStringList{};
-  arguments << zipPath << "-d" << destFolderPath;
-
-  process.setProgram("unzip");
-  process.setArguments(arguments);
-#else
-  logToFile(logFilePath, "Failed to unzip the archive: Unsupported platform");
-  return false;
-#endif
-
-  if (logFilePath)
-  {
-    process.setStandardOutputFile(*logFilePath, QIODevice::Append);
-    process.setStandardErrorFile(*logFilePath, QIODevice::Append);
-  }
 
   process.start();
-  process.waitForFinished(60000);
-
-  if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0)
+  if (!process.waitForStarted(PROCESS_START_TIMEOUT_MS))
   {
     logToFile(
       logFilePath,
-      QString{"Failed to unzip the archive: Exit code %1"}.arg(process.exitCode()));
+      QString{"Failed to unzip: could not start extraction command (%1)"}.arg(
+        process.errorString()));
+    return false;
+  }
+
+  if (!process.waitForFinished(UNZIP_TIMEOUT_MS))
+  {
+    process.kill();
+    process.waitForFinished(3000); // Give it 3 seconds to terminate
+    logToFile(
+      logFilePath,
+      QString{"Failed to unzip: extraction command timed out after %1 seconds"}.arg(
+        UNZIP_TIMEOUT_MS / 1000));
+    return false;
+  }
+
+  const auto exitCode = process.exitCode();
+  const auto errorOutput = QString::fromUtf8(process.readAllStandardError());
+  const auto standardOutput = QString::fromUtf8(process.readAllStandardOutput());
+
+  if (process.exitStatus() != QProcess::NormalExit)
+  {
+    logProcessResult(logFilePath, exitCode, standardOutput, errorOutput);
+    logToFile(
+      logFilePath,
+      QString{"Failed to unzip: extraction command terminated abnormally (%1)"}.arg(
+        process.errorString()));
+    return false;
+  }
+
+  logProcessResult(logFilePath, exitCode, standardOutput, errorOutput);
+
+  if (exitCode != 0)
+  {
+    logToFile(
+      logFilePath,
+      QString{"Failed to unzip: extraction command exited with code %1"}.arg(exitCode));
     return false;
   }
 
   return true;
+}
+
+} // namespace
+
+bool unzip(
+  const QString& zipPath,
+  const QString& destFolderPath,
+  const std::optional<QString>& logFilePath)
+{
+  const auto absoluteZipPath = QFileInfo{zipPath}.absoluteFilePath();
+  const auto absoluteDestPath = QDir{destFolderPath}.absolutePath();
+
+  logToFile(
+    logFilePath,
+    QString{"Unzipping %1 to %2"}.arg(absoluteZipPath).arg(absoluteDestPath));
+
+#if defined(Q_OS_MACOS)
+  return unzipWithCommand(
+    absoluteZipPath,
+    absoluteDestPath,
+    "/usr/bin/ditto",
+    QStringList{"-xk", absoluteZipPath, absoluteDestPath},
+    logFilePath);
+#elif defined(Q_OS_LINUX)
+  return unzipWithCommand(
+    absoluteZipPath,
+    absoluteDestPath,
+    "/usr/bin/unzip",
+    QStringList{"-q", absoluteZipPath, "-d", absoluteDestPath},
+    logFilePath);
+#elif defined(Q_OS_WIN)
+  return unzipWithCommand(
+    absoluteZipPath,
+    absoluteDestPath,
+    "tar.exe",
+    QStringList{"-xf", absoluteZipPath, "-C", absoluteDestPath},
+    logFilePath);
+#else
+  logToFile(logFilePath, QString{"Failed to unzip: unsupported platform"});
+  return false;
+#endif
 }
 
 } // namespace upd

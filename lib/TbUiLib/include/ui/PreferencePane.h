@@ -21,11 +21,16 @@
 
 #include <QWidget>
 
+class QLayout;
+
 namespace tb::ui
 {
 
 class PreferencePane : public QWidget
 {
+private:
+  QWidget* m_content = nullptr;
+
 public:
   explicit PreferencePane(QWidget* parent = nullptr);
   ~PreferencePane() override;
@@ -33,6 +38,7 @@ public:
   virtual bool canResetToDefaults() = 0;
   void resetToDefaults();
   virtual void updateControls() = 0;
+  QSize contentSizeHint() const;
 
   /**
    * Returns whether the settings in the preference pane are valid to save.
@@ -40,6 +46,9 @@ public:
    * issues.
    */
   virtual bool validate() = 0;
+
+protected:
+  void createScrollableContent(QLayout* contentLayout);
 
 private:
   virtual void doResetToDefaults() = 0;

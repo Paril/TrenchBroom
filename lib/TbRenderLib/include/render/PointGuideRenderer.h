@@ -29,8 +29,9 @@ namespace tb
 {
 namespace gl
 {
+class Gl;
 class VboManager;
-}
+} // namespace gl
 
 namespace render
 {
@@ -47,9 +48,8 @@ public:
   void setColor(const Color& color);
   void setPosition(const vm::vec3d& position);
 
-private:
-  void doPrepareVertices(gl::VboManager& vboManager) override;
-  void doRender(RenderContext& renderContext) override;
+  void prepare(gl::Gl& gl, gl::VboManager& vboManager) override;
+  void render(RenderContext& renderContext) override;
 };
 
 } // namespace render

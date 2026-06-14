@@ -21,8 +21,6 @@
 
 #include <QWidget>
 
-class QWidget;
-
 namespace tb::ui
 {
 class ElidedLabel;

@@ -39,24 +39,12 @@ add_custom_command(OUTPUT "${INDEX_OUTPUT_PATH}"
 
 # Dump the keyboard shortcuts
 set(DOC_MANUAL_SHORTCUTS_JS_TARGET_ABSOLUTE "${DOC_MANUAL_TARGET_DIR}/shortcuts.js")
-if(NOT XVFB_EXE)
-    find_program(XVFB_EXE xvfb-run)
-endif()
-if(XVFB_EXE STREQUAL "XVFB_EXE-NOTFOUND")
-    add_custom_command(
-            OUTPUT "${DOC_MANUAL_SHORTCUTS_JS_TARGET_ABSOLUTE}"
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${DOC_MANUAL_TARGET_DIR}"
-            COMMAND DumpShortcuts ARGS ">" "${DOC_MANUAL_SHORTCUTS_JS_TARGET_ABSOLUTE}"
-            DEPENDS DumpShortcuts
-            VERBATIM)
-else()
-    add_custom_command(
-            OUTPUT "${DOC_MANUAL_SHORTCUTS_JS_TARGET_ABSOLUTE}"
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${DOC_MANUAL_TARGET_DIR}"
-            COMMAND "${XVFB_EXE}" ARGS "-a" "$<TARGET_FILE:DumpShortcuts>" ">" "${DOC_MANUAL_SHORTCUTS_JS_TARGET_ABSOLUTE}"
-            DEPENDS DumpShortcuts
-            VERBATIM)
-endif()
+add_custom_command(
+      OUTPUT "${DOC_MANUAL_SHORTCUTS_JS_TARGET_ABSOLUTE}"
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${DOC_MANUAL_TARGET_DIR}"
+      COMMAND ${CMAKE_COMMAND} -E env "QT_QPA_PLATFORM=offscreen" "$<TARGET_FILE:DumpShortcuts>" "${DOC_MANUAL_SHORTCUTS_JS_TARGET_ABSOLUTE}"
+      DEPENDS DumpShortcuts
+      VERBATIM)
 
 # Collect resources and copy them to the correct locations
 # DOC_MANUAL_SOURCE_FILES_ABSOLUTE contains the absolute paths to all source resource files

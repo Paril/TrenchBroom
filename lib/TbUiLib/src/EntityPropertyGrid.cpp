@@ -417,6 +417,10 @@ void EntityPropertyGrid::updateControls()
     m_table->setColumnHidden(
       EntityPropertyModel::ColumnProtected, !shouldShowProtectedProperties);
     m_addProtectedPropertyButton->setHidden(!shouldShowProtectedProperties);
+
+    // QHeaderView::ResizeToContents on ColumnKey does not reliably recompute the
+    // width when the table is updated via dataChanged/beginInsertRows, so force it.
+    m_table->resizeColumnToContents(EntityPropertyModel::ColumnKey);
   });
   updateControlsEnabled();
 }

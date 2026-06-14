@@ -210,31 +210,31 @@ TEST_CASE("ModelUtils.collectTouchingNodes")
 
   auto touchesAll = BrushNode{
     BrushBuilder{mapFormat, worldBounds}.createCube(24.0, "material") | kdl::value()};
-  REQUIRE_FALSE(touchesAll.intersects(&worldNode));
-  REQUIRE_FALSE(touchesAll.intersects(&layerNode));
-  REQUIRE(touchesAll.intersects(&groupNode));
-  REQUIRE(touchesAll.intersects(&entityNode));
-  REQUIRE(touchesAll.intersects(&brushNode));
-  REQUIRE(touchesAll.intersects(&patchNode));
+  REQUIRE_FALSE(touchesAll.intersects(worldNode));
+  REQUIRE_FALSE(touchesAll.intersects(layerNode));
+  REQUIRE(touchesAll.intersects(groupNode));
+  REQUIRE(touchesAll.intersects(entityNode));
+  REQUIRE(touchesAll.intersects(brushNode));
+  REQUIRE(touchesAll.intersects(patchNode));
 
   auto touchesNothing = BrushNode{touchesAll.brush()};
   transformNode(
     touchesNothing, vm::translation_matrix(vm::vec3d{128, 0, 0}), worldBounds);
-  REQUIRE_FALSE(touchesNothing.intersects(&worldNode));
-  REQUIRE_FALSE(touchesNothing.intersects(&layerNode));
-  REQUIRE_FALSE(touchesNothing.intersects(&groupNode));
-  REQUIRE_FALSE(touchesNothing.intersects(&entityNode));
-  REQUIRE_FALSE(touchesNothing.intersects(&brushNode));
-  REQUIRE_FALSE(touchesNothing.intersects(&patchNode));
+  REQUIRE_FALSE(touchesNothing.intersects(worldNode));
+  REQUIRE_FALSE(touchesNothing.intersects(layerNode));
+  REQUIRE_FALSE(touchesNothing.intersects(groupNode));
+  REQUIRE_FALSE(touchesNothing.intersects(entityNode));
+  REQUIRE_FALSE(touchesNothing.intersects(brushNode));
+  REQUIRE_FALSE(touchesNothing.intersects(patchNode));
 
   auto touchesBrush = BrushNode{touchesAll.brush()};
   transformNode(touchesBrush, vm::translation_matrix(vm::vec3d{24, 0, 0}), worldBounds);
-  REQUIRE_FALSE(touchesBrush.intersects(&worldNode));
-  REQUIRE_FALSE(touchesBrush.intersects(&layerNode));
-  REQUIRE_FALSE(touchesBrush.intersects(&groupNode));
-  REQUIRE_FALSE(touchesBrush.intersects(&entityNode));
-  REQUIRE(touchesBrush.intersects(&brushNode));
-  REQUIRE_FALSE(touchesBrush.intersects(&patchNode));
+  REQUIRE_FALSE(touchesBrush.intersects(worldNode));
+  REQUIRE_FALSE(touchesBrush.intersects(layerNode));
+  REQUIRE_FALSE(touchesBrush.intersects(groupNode));
+  REQUIRE_FALSE(touchesBrush.intersects(entityNode));
+  REQUIRE(touchesBrush.intersects(brushNode));
+  REQUIRE_FALSE(touchesBrush.intersects(patchNode));
 
   const auto allNodes = std::vector<Node*>{
     &worldNode, &layerNode, &groupNode, &entityNode, &brushNode, &patchNode};
@@ -285,31 +285,31 @@ TEST_CASE("ModelUtils.collectContainedNodes")
 
   auto containsAll = BrushNode{
     BrushBuilder{mapFormat, worldBounds}.createCube(128.0, "material") | kdl::value()};
-  REQUIRE_FALSE(containsAll.contains(&worldNode));
-  REQUIRE_FALSE(containsAll.contains(&layerNode));
-  REQUIRE(containsAll.contains(&groupNode));
-  REQUIRE(containsAll.contains(&entityNode));
-  REQUIRE(containsAll.contains(&brushNode));
-  REQUIRE(containsAll.contains(&patchNode));
+  REQUIRE_FALSE(containsAll.contains(worldNode));
+  REQUIRE_FALSE(containsAll.contains(layerNode));
+  REQUIRE(containsAll.contains(groupNode));
+  REQUIRE(containsAll.contains(entityNode));
+  REQUIRE(containsAll.contains(brushNode));
+  REQUIRE(containsAll.contains(patchNode));
 
   auto containsNothing = BrushNode{containsAll.brush()};
   transformNode(
     containsNothing, vm::translation_matrix(vm::vec3d{-64, 0, 0}), worldBounds);
-  REQUIRE_FALSE(containsNothing.contains(&worldNode));
-  REQUIRE_FALSE(containsNothing.contains(&layerNode));
-  REQUIRE_FALSE(containsNothing.contains(&groupNode));
-  REQUIRE_FALSE(containsNothing.contains(&entityNode));
-  REQUIRE_FALSE(containsNothing.contains(&brushNode));
-  REQUIRE_FALSE(containsNothing.contains(&patchNode));
+  REQUIRE_FALSE(containsNothing.contains(worldNode));
+  REQUIRE_FALSE(containsNothing.contains(layerNode));
+  REQUIRE_FALSE(containsNothing.contains(groupNode));
+  REQUIRE_FALSE(containsNothing.contains(entityNode));
+  REQUIRE_FALSE(containsNothing.contains(brushNode));
+  REQUIRE_FALSE(containsNothing.contains(patchNode));
 
   auto containsPatch = BrushNode{
     BrushBuilder{mapFormat, worldBounds}.createCube(8.0, "material") | kdl::value()};
-  REQUIRE_FALSE(containsPatch.contains(&worldNode));
-  REQUIRE_FALSE(containsPatch.contains(&layerNode));
-  REQUIRE_FALSE(containsPatch.contains(&groupNode));
-  REQUIRE_FALSE(containsPatch.contains(&entityNode));
-  REQUIRE_FALSE(containsPatch.contains(&brushNode));
-  REQUIRE(containsPatch.contains(&patchNode));
+  REQUIRE_FALSE(containsPatch.contains(worldNode));
+  REQUIRE_FALSE(containsPatch.contains(layerNode));
+  REQUIRE_FALSE(containsPatch.contains(groupNode));
+  REQUIRE_FALSE(containsPatch.contains(entityNode));
+  REQUIRE_FALSE(containsPatch.contains(brushNode));
+  REQUIRE(containsPatch.contains(patchNode));
 
   const auto allNodes = std::vector<Node*>{
     &worldNode, &layerNode, &groupNode, &entityNode, &brushNode, &patchNode};

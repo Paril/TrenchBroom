@@ -78,21 +78,21 @@ bool Issue::addSelectableNodes(std::vector<Node*>& nodes) const
   }
 
   m_node.accept(kdl::overload(
-    [](WorldNode*) {},
-    [](LayerNode*) {},
-    [&](GroupNode* group) { nodes.push_back(group); },
-    [&](auto&& thisLambda, EntityNode* entity) {
-      if (!entity->hasChildren())
+    [](WorldNode&) {},
+    [](LayerNode&) {},
+    [&](GroupNode& groupNode) { nodes.push_back(&groupNode); },
+    [&](auto&& thisLambda, EntityNode& entityNode) {
+      if (!entityNode.hasChildren())
       {
-        nodes.push_back(entity);
+        nodes.push_back(&entityNode);
       }
       else
       {
-        entity->visitChildren(thisLambda);
+        entityNode.visitChildren(thisLambda);
       }
     },
-    [&](BrushNode* brush) { nodes.push_back(brush); },
-    [&](PatchNode* patch) { nodes.push_back(patch); }));
+    [&](BrushNode& brushNode) { nodes.push_back(&brushNode); },
+    [&](PatchNode& patchNode) { nodes.push_back(&patchNode); }));
 
   return true;
 }

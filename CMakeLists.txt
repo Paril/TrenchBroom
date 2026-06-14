@@ -33,8 +33,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Using C and CXX because GLEW is C
 project(TrenchBroom C CXX)
+
+include(CTest)
 
 # Configure CCache if available and requested
 if(TB_ENABLE_CCACHE)
@@ -64,50 +65,6 @@ elseif(MSVC EQUAL 1)
   set(COMPILER_IS_MSVC TRUE)
 else()
   message(FATAL_ERROR "Unsupported compiler detected.")
-endif()
-
-# Request 8MB stack on Windows. (NOTE: /STACK should be used on .exe targets only.)
-# Default is 1MB and we need more for our current AABB builder on large maps (https://github.com/TrenchBroom/TrenchBroom/issues/2803)
-if(COMPILER_IS_MSVC)
-  set(TB_STACK_SIZE 8388608)
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:${TB_STACK_SIZE}")
-
-  # This might work in CMake 3.13 and avoid a global setting, but we are on 3.12 for now
-  # target_link_options(common INTERFACE "/STACK:${TB_STACK_SIZE}")
-endif()
-
-# Enable sanitizers if possible and requested
-if(TB_ENABLE_ASAN)
-  message(STATUS "Enabling ASan")
-
-  if(COMPILER_IS_CLANG OR COMPILER_IS_GNU)
-    add_compile_options(-fsanitize=address)
-    add_link_options(-fsanitize=address)
-  else()
-    message(WARNING "TB isn't set up to enable ASan for compiler ${CMAKE_CXX_COMPILER_ID}")
-  endif()
-endif()
-
-if(TB_ENABLE_TSAN)
-  message(STATUS "Enabling TSan")
-
-  if(COMPILER_IS_CLANG OR COMPILER_IS_GNU)
-    add_compile_options(-fsanitize=thread)
-    add_link_options(-fsanitize=thread)
-  else()
-    message(WARNING "TB isn't set up to enable TSan for compiler ${CMAKE_CXX_COMPILER_ID}")
-  endif()
-endif()
-
-if(TB_ENABLE_UBSAN)
-  message(STATUS "Enabling UBSan")
-
-  if(COMPILER_IS_CLANG OR COMPILER_IS_GNU)
-    add_compile_options(-fsanitize=undefined)
-    add_link_options(-fsanitize=undefined)
-  else()
-    message(WARNING "TB isn't set up to enable UBSan for compiler ${CMAKE_CXX_COMPILER_ID}")
-  endif()
 endif()
 
 include(cmake/Utils.cmake)
@@ -145,7 +102,6 @@ find_package(freeimage CONFIG REQUIRED)
 find_package(freetype CONFIG REQUIRED)
 find_package(Catch2 CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
-find_package(GLEW REQUIRED)
 find_package(miniz CONFIG REQUIRED)
 find_package(tinyxml2 CONFIG REQUIRED)
 find_package(stduuid REQUIRED)

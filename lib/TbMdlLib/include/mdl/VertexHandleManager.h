@@ -52,17 +52,17 @@ public:
 
 public:
   /**
-   * Adds all handles of the the given range of brushes to this handle manager.
+   * Adds all handles of the given range of brushes to this handle manager.
    *
    * @tparam R the type of the given range
-   * @param handles the handles to add
+   * @param brushNodes the brushes
    */
   template <std::ranges::range R>
-  void addHandles(const R& handles)
+  void addHandles(const R& brushNodes)
   {
-    for (const auto& handle : handles)
+    for (const auto* brushNode : brushNodes)
     {
-      addHandles(handle);
+      addHandles(*brushNode);
     }
   }
 
@@ -71,20 +71,20 @@ public:
    *
    * @param brushNode the brush whose handles to add
    */
-  virtual void addHandles(const BrushNode* brushNode) = 0;
+  virtual void addHandles(const BrushNode& brushNode) = 0;
 
   /**
    * Removes all handles of the given range of brushes from this handle manager.
    *
    * @tparam R the type of the given range
-   * @param handles the handles to remove
+   * @param brushNodes the brushes
    */
   template <std::ranges::range R>
-  void removeHandles(const R& handles)
+  void removeHandles(const R& brushNodes)
   {
-    for (const auto& handle : handles)
+    for (const auto* brushNode : brushNodes)
     {
-      removeHandles(handle);
+      removeHandles(*brushNode);
     }
   }
 
@@ -93,7 +93,7 @@ public:
    *
    * @param brushNode the brush whose handles to remove
    */
-  virtual void removeHandles(const BrushNode* brushNode) = 0;
+  virtual void removeHandles(const BrushNode& brushNode) = 0;
 };
 
 template <typename H>
@@ -541,10 +541,11 @@ public:
    * @param out an output iterator that accepts the incident brushes
    */
   template <std::ranges::range R, typename O>
-  void findIncidentBrushes(const Handle& handle, const R& brushes, O out) const
+  void findIncidentBrushes(const Handle& handle, const R& brushNodes, O out) const
   {
-    std::ranges::copy_if(
-      brushes, out, [&](const auto& brush) { return isIncident(handle, brush); });
+    std::ranges::copy_if(brushNodes, out, [&](const auto* brushNode) {
+      return isIncident(handle, *brushNode);
+    });
   }
 
 private:
@@ -555,7 +556,7 @@ private:
    * @param brushNode the brush to check
    * @return true if and only if the given brush is incident to the given handle
    */
-  virtual bool isIncident(const Handle& handle, const BrushNode* brushNode) const = 0;
+  virtual bool isIncident(const Handle& handle, const BrushNode& brushNode) const = 0;
 };
 
 /**
@@ -587,13 +588,13 @@ public:
     PickResult& pickResult) const;
 
 public:
-  void addHandles(const BrushNode* brushNode) override;
-  void removeHandles(const BrushNode* brushNode) override;
+  void addHandles(const BrushNode& brushNode) override;
+  void removeHandles(const BrushNode& brushNode) override;
 
   HitType::Type hitType() const override;
 
 private:
-  bool isIncident(const Handle& handle, const BrushNode* brushNode) const override;
+  bool isIncident(const Handle& handle, const BrushNode& brushNode) const override;
 };
 
 /**
@@ -649,13 +650,13 @@ public:
     PickResult& pickResult) const;
 
 public:
-  void addHandles(const BrushNode* brushNode) override;
-  void removeHandles(const BrushNode* brushNode) override;
+  void addHandles(const BrushNode& brushNode) override;
+  void removeHandles(const BrushNode& brushNode) override;
 
   HitType::Type hitType() const override;
 
 private:
-  bool isIncident(const Handle& handle, const BrushNode* brushNode) const override;
+  bool isIncident(const Handle& handle, const BrushNode& brushNode) const override;
 };
 
 /**
@@ -711,13 +712,13 @@ public:
     PickResult& pickResult) const;
 
 public:
-  void addHandles(const BrushNode* brushNode) override;
-  void removeHandles(const BrushNode* brushNode) override;
+  void addHandles(const BrushNode& brushNode) override;
+  void removeHandles(const BrushNode& brushNode) override;
 
   HitType::Type hitType() const override;
 
 private:
-  bool isIncident(const Handle& handle, const BrushNode* brushNode) const override;
+  bool isIncident(const Handle& handle, const BrushNode& brushNode) const override;
 };
 
 } // namespace mdl

@@ -22,6 +22,8 @@
 #include "PreferenceManager.h"
 #include "Preferences.h"
 #include "gl/MaterialManager.h"
+#include "gl/ResourceId.h"
+#include "gl/ResourceManager.h"
 #include "mdl/Brush.h"
 #include "mdl/BrushFace.h"
 #include "mdl/BrushNode.h"
@@ -246,14 +248,15 @@ void MapRenderer::render(RenderContext& renderContext, RenderBatch& renderBatch)
 
 class SetupGL : public Renderable
 {
-private:
-  void doRender(RenderContext&) override
+  void render(RenderContext& renderContext) override
   {
-    glAssert(glFrontFace(GL_CW));
-    glAssert(glEnable(GL_CULL_FACE));
-    glAssert(glEnable(GL_DEPTH_TEST));
-    glAssert(glDepthFunc(GL_LEQUAL));
-    gl::glResetEdgeOffset();
+    auto& gl = renderContext.gl();
+
+    gl.frontFace(GL_CW);
+    gl.enable(GL_CULL_FACE);
+    gl.enable(GL_DEPTH_TEST);
+    gl.depthFunc(GL_LEQUAL);
+    gl::glResetEdgeOffset(gl);
   }
 };
 
@@ -398,9 +401,9 @@ void MapRenderer::setupLockedRenderer(ObjectRenderer& renderer)
   renderer.setBrushEdgeColor(pref(Preferences::LockedEdgeColor));
 }
 
-static bool selected(const mdl::Node* node)
+static bool selected(const mdl::Node& node)
 {
-  return node->selected() || node->descendantSelected() || node->parentSelected();
+  return node.selected() || node.descendantSelected() || node.parentSelected();
 }
 
 int MapRenderer::determineDesiredRenderers(mdl::Node& node)
@@ -408,14 +411,14 @@ int MapRenderer::determineDesiredRenderers(mdl::Node& node)
   int result = 0;
 
   node.accept(kdl::overload(
-    [](mdl::WorldNode*) {},
-    [](mdl::LayerNode*) {},
-    [&](mdl::GroupNode* group) {
-      if (group->locked())
+    [](mdl::WorldNode&) {},
+    [](mdl::LayerNode&) {},
+    [&](mdl::GroupNode& groupNode) {
+      if (groupNode.locked())
       {
         result = int(Renderer::Locked);
       }
-      else if (selected(group) || group->opened())
+      else if (selected(groupNode) || groupNode.opened())
       {
         result = int(Renderer::Selection);
       }
@@ -424,12 +427,12 @@ int MapRenderer::determineDesiredRenderers(mdl::Node& node)
         result = int(Renderer::Default);
       }
     },
-    [&](mdl::EntityNode* entity) {
-      if (entity->locked())
+    [&](mdl::EntityNode& entityNode) {
+      if (entityNode.locked())
       {
         result = int(Renderer::Locked);
       }
-      else if (selected(entity))
+      else if (selected(entityNode))
       {
         result = int(Renderer::Selection);
       }
@@ -438,22 +441,22 @@ int MapRenderer::determineDesiredRenderers(mdl::Node& node)
         result = int(Renderer::Default);
       }
     },
-    [&](mdl::BrushNode* brush) {
-      if (brush->locked())
+    [&](mdl::BrushNode& brushNode) {
+      if (brushNode.locked())
       {
         result = int(Renderer::Locked);
       }
-      else if (selected(brush) || brush->hasSelectedFaces())
+      else if (selected(brushNode) || brushNode.hasSelectedFaces())
       {
         result = int(Renderer::Selection);
       }
-      if (!brush->selected() && !brush->parentSelected() && !brush->locked())
+      if (!brushNode.selected() && !brushNode.parentSelected() && !brushNode.locked())
       {
         result |= int(Renderer::Default);
       }
     },
-    [&](mdl::PatchNode* patchNode) {
-      if (patchNode->locked())
+    [&](mdl::PatchNode& patchNode) {
+      if (patchNode.locked())
       {
         result = int(Renderer::Locked);
       }
@@ -461,7 +464,7 @@ int MapRenderer::determineDesiredRenderers(mdl::Node& node)
       {
         result = int(Renderer::Selection);
       }
-      if (!patchNode->selected() && !patchNode->parentSelected() && !patchNode->locked())
+      if (!patchNode.selected() && !patchNode.parentSelected() && !patchNode.locked())
       {
         result |= int(Renderer::Default);
       }
@@ -516,22 +519,22 @@ void MapRenderer::updateAndInvalidateNode(mdl::Node& node)
 void MapRenderer::updateAndInvalidateNodeRecursive(mdl::Node& node)
 {
   node.accept(kdl::overload(
-    [](auto&& thisLambda, mdl::WorldNode* worldNode) {
-      worldNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, mdl::WorldNode& worldNode) {
+      worldNode.visitChildren(thisLambda);
     },
-    [](auto&& thisLambda, mdl::LayerNode* layerNode) {
-      layerNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, mdl::LayerNode& layerNode) {
+      layerNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, mdl::GroupNode* groupNode) {
-      updateAndInvalidateNode(*groupNode);
-      groupNode->visitChildren(thisLambda);
+    [&](auto&& thisLambda, mdl::GroupNode& groupNode) {
+      updateAndInvalidateNode(groupNode);
+      groupNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, mdl::EntityNode* entityNode) {
-      updateAndInvalidateNode(*entityNode);
-      entityNode->visitChildren(thisLambda);
+    [&](auto&& thisLambda, mdl::EntityNode& entityNode) {
+      updateAndInvalidateNode(entityNode);
+      entityNode.visitChildren(thisLambda);
     },
-    [&](mdl::BrushNode* brushNode) { updateAndInvalidateNode(*brushNode); },
-    [&](mdl::PatchNode* patchNode) { updateAndInvalidateNode(*patchNode); }));
+    [&](mdl::BrushNode& brushNode) { updateAndInvalidateNode(brushNode); },
+    [&](mdl::PatchNode& patchNode) { updateAndInvalidateNode(patchNode); }));
 
   // Due to the definition of `selected()` above, we also need to update the parent.
   // (not recursively, though, so this has little performance impact.)
@@ -575,22 +578,22 @@ void MapRenderer::removeNode(mdl::Node& node)
 void MapRenderer::removeNodeRecursive(mdl::Node& node)
 {
   node.accept(kdl::overload(
-    [](auto&& thisLambda, mdl::WorldNode* worldNode) {
-      worldNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, mdl::WorldNode& worldNode) {
+      worldNode.visitChildren(thisLambda);
     },
-    [](auto&& thisLambda, mdl::LayerNode* layerNode) {
-      layerNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, mdl::LayerNode& layerNode) {
+      layerNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, mdl::GroupNode* groupNode) {
-      removeNode(*groupNode);
-      groupNode->visitChildren(thisLambda);
+    [&](auto&& thisLambda, mdl::GroupNode& groupNode) {
+      removeNode(groupNode);
+      groupNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, mdl::EntityNode* entityNode) {
-      removeNode(*entityNode);
-      entityNode->visitChildren(thisLambda);
+    [&](auto&& thisLambda, mdl::EntityNode& entityNode) {
+      removeNode(entityNode);
+      entityNode.visitChildren(thisLambda);
     },
-    [&](mdl::BrushNode* brushNode) { removeNode(*brushNode); },
-    [&](mdl::PatchNode* patchNode) { removeNode(*patchNode); }));
+    [&](mdl::BrushNode& brushNode) { removeNode(brushNode); },
+    [&](mdl::PatchNode& patchNode) { removeNode(patchNode); }));
 }
 
 /**
@@ -661,8 +664,6 @@ void MapRenderer::connectObservers()
     m_map.groupWasClosedNotifier.connect(this, &MapRenderer::groupWasClosed);
   m_notifierConnection +=
     m_map.selectionDidChangeNotifier.connect(this, &MapRenderer::selectionDidChange);
-  m_notifierConnection += m_map.resourcesWereProcessedNotifier.connect(
-    this, &MapRenderer::resourcesWereProcessed);
   m_notifierConnection += m_map.materialCollectionsWillChangeNotifier.connect(
     this, &MapRenderer::materialCollectionsWillChange);
   m_notifierConnection += m_map.entityDefinitionsDidChangeNotifier.connect(
@@ -671,6 +672,9 @@ void MapRenderer::connectObservers()
     m_map.modsDidChangeNotifier.connect(this, &MapRenderer::modsDidChange);
   m_notifierConnection += m_map.editorContextDidChangeNotifier.connect(
     this, &MapRenderer::editorContextDidChange);
+
+  m_notifierConnection += m_map.resourceManager().resourcesWereProcessedNotifier.connect(
+    this, &MapRenderer::resourcesWereProcessed);
 
   auto& prefs = PreferenceManager::instance();
   m_notifierConnection +=
@@ -816,7 +820,7 @@ void MapRenderer::preferenceDidChange(const std::filesystem::path& path)
 {
   setupRenderers();
 
-  if (path == pref(m_map.gameInfo().gamePathPreference))
+  if (path == m_map.gameInfo().gamePathPreference.path)
   {
     reloadEntityModels();
     invalidateRenderers(Renderer::All);

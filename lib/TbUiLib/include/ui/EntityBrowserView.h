@@ -22,7 +22,6 @@
 #include "NotifierConnection.h"
 #include "el/Expression.h"
 #include "gl/FontDescriptor.h"
-#include "gl/ResourceId.h"
 #include "gl/VertexType.h"
 #include "ui/CellView.h"
 
@@ -40,7 +39,8 @@ class Logger;
 namespace gl
 {
 class MaterialRenderer;
-}
+class ResourceId;
+} // namespace gl
 
 namespace mdl
 {
@@ -58,6 +58,7 @@ class Transformation;
 
 namespace ui
 {
+class AppController;
 class MapDocument;
 
 using EntityGroupData = std::string;
@@ -100,7 +101,7 @@ private:
 
 public:
   EntityBrowserView(
-    QScrollBar* scrollBar, gl::ContextManager& contextManager, MapDocument& document);
+    AppController& appController, QScrollBar* scrollBar, MapDocument& document);
   ~EntityBrowserView() override;
 
 public:
@@ -131,15 +132,19 @@ private:
     const gl::FontDescriptor& font);
 
   void doClear() override;
-  void doRender(Layout& layout, float y, float height) override;
+  void doRender(gl::Gl& gl, Layout& layout, float y, float height) override;
   bool shouldRenderFocusIndicator() const override;
   const Color& getBackgroundColor() override;
 
-  void renderBounds(Layout& layout, float y, float height);
+  void renderBounds(gl::Gl& gl, Layout& layout, float y, float height);
 
   class MeshFunc;
   void renderModels(
-    Layout& layout, float y, float height, render::Transformation& transformation);
+    gl::Gl& gl,
+    Layout& layout,
+    float y,
+    float height,
+    render::Transformation& transformation);
 
   vm::mat4x4f itemTransformation(const Cell& cell, float y, float height) const;
 

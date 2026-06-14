@@ -38,7 +38,6 @@ private:
   QCheckBox* m_includePreReleaseUpdates = nullptr;
   QCheckBox* m_includeDraftReleaseUpdates = nullptr;
   int m_includeDraftReleaseUpdatesRow = 0;
-  bool m_disableNotifiers = false;
 
 public:
   explicit UpdatePreferencePane(AppController& appController, QWidget* parent = nullptr);

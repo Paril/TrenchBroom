@@ -41,7 +41,7 @@ echo "TB_SIGN_MAC_BUNDLE: $TB_SIGN_MAC_BUNDLE"
 # more details on how to set up the necessary prerequisites for signing and notarizing the
 # app and the archive.
 
-
+rm -rf cmakebuild
 mkdir cmakebuild
 cd cmakebuild
 cmake .. \
@@ -50,7 +50,7 @@ cmake .. \
   -DCMAKE_BUILD_TYPE="$TB_BUILD_TYPE" \
   -DCMAKE_CXX_FLAGS="-Werror" \
   -DCMAKE_EXE_LINKER_FLAGS="-Wl,-fatal_warnings" \
-  -DTB_ENABLE_CCACHE=0 \
+  -DTB_ENABLE_CCACHE=1 \
   -DTB_ENABLE_PCH=0 \
   -DTB_ENABLE_ASAN="$TB_ENABLE_ASAN" \
   -DTB_ENABLE_TSAN="$TB_ENABLE_TSAN" \
@@ -66,45 +66,7 @@ cmake .. \
 cmake --build . --config "$TB_BUILD_TYPE" || exit 1
 
 BUILD_DIR=$(pwd)
-
-cd "$BUILD_DIR/lib/KdLib/test"
-./KdLibTest || exit 1
-
-cd "$BUILD_DIR/lib/UpdateLib/test"
-./UpdateLibTest || exit 1
-
-cd "$BUILD_DIR/lib/TbBaseLib/test"
-./TbBaseLibTest || exit 1
-
-cd "$BUILD_DIR/lib/TbBaseLib/test-utils/test"
-./TbBaseTestUtilsLibTest || exit 1
-
-cd "$BUILD_DIR/lib/TbElLib/test"
-./TbElLibTest || exit 1
-
-cd "$BUILD_DIR/lib/TbFsLib/test"
-./TbFsLibTest || exit 1
-
-cd "$BUILD_DIR/lib/TbFsLib/test-utils/test"
-./TbFsTestUtilsLibTest || exit 1
-
-cd "$BUILD_DIR/lib/TbGlLib/test"
-./TbGlLibTest || exit 1
-
-cd "$BUILD_DIR/lib/TbMdlLib/test"
-./TbMdlLibTest || exit 1
-
-cd "$BUILD_DIR/lib/TbMdlLib/test-utils/test"
-./TbMdlTestUtilsLibTest || exit 1
-
-cd "$BUILD_DIR/lib/TbRenderLib/test"
-./TbRenderLibTest || exit 1
-
-cd "$BUILD_DIR/lib/TbUiLib/test"
-./TbUiLibTest || exit 1
-
-cd "$BUILD_DIR/lib/VmLib/test"
-./VmLibTest || exit 1
+ctest --test-dir "$BUILD_DIR" --output-on-failure -j || exit 1
 
 if [[ $TB_ENABLE_ASAN == "0" && $TB_ENABLE_UBSAN == "0" ]] ; then
   cd "$BUILD_DIR"

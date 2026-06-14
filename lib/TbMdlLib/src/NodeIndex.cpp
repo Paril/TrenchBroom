@@ -81,6 +81,11 @@ NodeIndex::NodeIndex()
 
 NodeIndex::~NodeIndex() = default;
 
+std::string NodeIndex::escapePattern(std::string_view str)
+{
+  return NodeStringIndex::escape(str);
+}
+
 void NodeIndex::addNode(Node& node)
 {
   const auto addToIndex = [&](const std::string_view key) {
@@ -88,12 +93,12 @@ void NodeIndex::addNode(Node& node)
   };
 
   node.accept(kdl::overload(
-    [&](WorldNode* worldNode) { withEntityNode(*worldNode, addToIndex); },
-    [](LayerNode*) {},
-    [&](GroupNode* groupNode) { withGroupNode(*groupNode, addToIndex); },
-    [&](EntityNode* entityNode) { withEntityNode(*entityNode, addToIndex); },
-    [&](BrushNode* brushNode) { withBrushNode(*brushNode, addToIndex); },
-    [&](PatchNode* patchNode) { withPatchNode(*patchNode, addToIndex); }));
+    [&](WorldNode& worldNode) { withEntityNode(worldNode, addToIndex); },
+    [](LayerNode&) {},
+    [&](GroupNode& groupNode) { withGroupNode(groupNode, addToIndex); },
+    [&](EntityNode& entityNode) { withEntityNode(entityNode, addToIndex); },
+    [&](BrushNode& brushNode) { withBrushNode(brushNode, addToIndex); },
+    [&](PatchNode& patchNode) { withPatchNode(patchNode, addToIndex); }));
 }
 
 void NodeIndex::removeNode(Node& node)
@@ -103,12 +108,12 @@ void NodeIndex::removeNode(Node& node)
   };
 
   node.accept(kdl::overload(
-    [&](WorldNode* worldNode) { withEntityNode(*worldNode, removeFromIndex); },
-    [](LayerNode*) {},
-    [&](GroupNode* groupNode) { withGroupNode(*groupNode, removeFromIndex); },
-    [&](EntityNode* entityNode) { withEntityNode(*entityNode, removeFromIndex); },
-    [&](BrushNode* brushNode) { withBrushNode(*brushNode, removeFromIndex); },
-    [&](PatchNode* patchNode) { withPatchNode(*patchNode, removeFromIndex); }));
+    [&](WorldNode& worldNode) { withEntityNode(worldNode, removeFromIndex); },
+    [](LayerNode&) {},
+    [&](GroupNode& groupNode) { withGroupNode(groupNode, removeFromIndex); },
+    [&](EntityNode& entityNode) { withEntityNode(entityNode, removeFromIndex); },
+    [&](BrushNode& brushNode) { withBrushNode(brushNode, removeFromIndex); },
+    [&](PatchNode& patchNode) { withPatchNode(patchNode, removeFromIndex); }));
 }
 
 void NodeIndex::clear()

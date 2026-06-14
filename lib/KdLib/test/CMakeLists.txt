@@ -7,7 +7,9 @@ target_sources(KdLibTest PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/src/ranges/tst_cartesian_product_view.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/ranges/tst_chunk_by_view.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/ranges/tst_chunk_view.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/ranges/tst_concat_view.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/ranges/tst_enumerate_view.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/ranges/tst_join_with_view.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/ranges/tst_movable_box.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/ranges/tst_repeat_view.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/ranges/tst_slide_view.cpp"
@@ -50,5 +52,13 @@ target_sources(KdLibTest PRIVATE
 
 add_compile_definitions(CATCH_CONFIG_ENABLE_ALL_STRINGMAKERS=1)
 
-target_link_libraries(KdLibTest PRIVATE CompilerConfig PrecompileStdHeaders)
-target_link_libraries(KdLibTest PRIVATE Catch2::Catch2WithMain KdLib)
+target_link_libraries(KdLibTest
+  PRIVATE
+    CompilerConfig
+    PrecompileStdHeaders
+    Catch2::Catch2WithMain
+    KdLib
+)
+
+include(Catch)
+catch_discover_tests(KdLibTest)

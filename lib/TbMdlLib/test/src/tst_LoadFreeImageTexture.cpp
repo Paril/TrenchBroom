@@ -17,6 +17,7 @@
  along with TrenchBroom. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "TestEnvironment.h"
 #include "fs/DiskFileSystem.h"
 #include "gl/Texture.h"
 #include "mdl/CatchConfig.h"
@@ -24,6 +25,8 @@
 #include "mdl/TestUtils.h"
 
 #include "kd/result.h"
+
+#include "vm/approx.h"
 
 #include <filesystem>
 #include <string>
@@ -37,9 +40,8 @@ namespace
 
 auto loadTexture(const std::string& name)
 {
-  auto diskFS = fs::DiskFileSystem{
-    std::filesystem::current_path() / "fixture" / "test" / "mdl"
-    / "LoadFreeImageTexture"};
+  auto diskFS =
+    fs::DiskFileSystem{getFixtureRoot() / "test" / "mdl" / "LoadFreeImageTexture"};
 
   return diskFS.openFile(name) | kdl::and_then([](const auto& file) {
            auto reader = file->reader().buffer();
@@ -148,6 +150,14 @@ TEST_CASE("loadFreeImageTexture")
         }
       }
     }
+  }
+
+  SECTION("average color")
+  {
+    const auto texture = loadTexture("pngContentsTest.png") | kdl::value();
+    CHECK(
+      texture.averageColor().to<RgbaF>().toVec()
+      == vm::approx{vm::vec4f{0.631289f, 0.631289f, 0.631289f, 1.0f}});
   }
 }
 

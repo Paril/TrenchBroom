@@ -23,7 +23,6 @@
 #include <algorithm>
 #include <forward_list>
 #include <memory>
-#include <sstream>
 #include <vector>
 
 #include <catch2/catch_test_macros.hpp>
@@ -44,7 +43,7 @@ auto make(std::vector<T> v, std::vector<U> w)
 
 TEST_CASE("cartesian_product")
 {
-  using namespace Catch::Matchers;
+  using Catch::Matchers::RangeEquals;
 
   SECTION("iterator / sentinel")
   {
@@ -77,6 +76,20 @@ TEST_CASE("cartesian_product")
       using iterator_type = decltype(c.begin());
       static_assert(
         std::is_same_v<iterator_type::iterator_concept, std::input_iterator_tag>);
+    }
+
+    SECTION("post increment (first range is input range)")
+    {
+      auto i = std::istringstream{"5 4 3 2 1"};
+      auto iv = std::ranges::istream_view<int>(i);
+      auto w = std::vector<float>{4.0f, 5.0f};
+      auto c = views::cartesian_product(iv, w);
+
+      auto it = c.begin();
+      CHECK(*it == std::tuple{5, 4.0f});
+
+      it++;
+      CHECK(*it == std::tuple{5, 5.0f});
     }
 
     SECTION("required types (first range is forward range)")
@@ -179,6 +192,26 @@ TEST_CASE("cartesian_product")
     }
   }
 
+  SECTION("move-only value types")
+  {
+    using move_only = std::unique_ptr<int>;
+
+    auto v = std::vector<move_only>{};
+    v.push_back(std::make_unique<int>(1));
+    v.push_back(std::make_unique<int>(2));
+
+    auto w = std::vector<int>{3, 4};
+
+    CHECK_THAT(
+      views::cartesian_product(v, w),
+      RangeEquals(std::vector<std::tuple<move_only&, int>>{
+        {v[0], 3},
+        {v[0], 4},
+        {v[1], 3},
+        {v[1], 4},
+      }));
+  }
+
   SECTION("examples")
   {
     CHECK_THAT(
@@ -208,23 +241,6 @@ TEST_CASE("cartesian_product")
       (make<int, float>({1, 2}, {4.0f, 5.0f, 6.0f})),
       RangeEquals(std::vector<std::tuple<int, float>>{
         {1, 4.0f}, {1, 5.0f}, {1, 6.0f}, {2, 4.0f}, {2, 5.0f}, {2, 6.0f}}));
-  }
-
-
-  SECTION("move-only values")
-  {
-    auto v = std::vector<std::unique_ptr<int>>{};
-    v.push_back(std::make_unique<int>(1));
-    v.push_back(std::make_unique<int>(2));
-
-    auto w = std::vector<float>{1.0f};
-
-    CHECK_THAT(
-      views::cartesian_product(v, w),
-      RangeEquals(std::vector<std::tuple<std::unique_ptr<int>&, float&>>{
-        {v[0], w[0]},
-        {v[1], w[0]},
-      }));
   }
 }
 

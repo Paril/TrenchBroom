@@ -17,6 +17,7 @@
  along with TrenchBroom. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "TestEnvironment.h"
 #include "TestParserStatus.h"
 #include "fs/DiskIO.h"
 #include "fs/PathMatcher.h"
@@ -36,7 +37,7 @@ TEST_CASE("DefParser")
 {
   SECTION("parseIncludedDefFiles")
   {
-    const auto basePath = std::filesystem::current_path() / "fixture/games/";
+    const auto basePath = getFixtureRoot() / "games/";
     const auto cfgFiles =
       fs::Disk::find(
         basePath, fs::TraversalMode::Flat, fs::makeExtensionPathMatcher({".def"}))
@@ -75,7 +76,7 @@ TEST_CASE("DefParser")
 
   SECTION("parseExtraDefFiles")
   {
-    const auto basePath = std::filesystem::current_path() / "fixture/test/mdl/DefParser";
+    const auto basePath = getFixtureRoot() / "test/mdl/DefParser";
     const auto cfgFiles =
       fs::Disk::find(
         basePath, fs::TraversalMode::Recursive, fs::makeExtensionPathMatcher({".def"}))
@@ -215,6 +216,40 @@ Set sounds to the cd track to play.
           },
         },
       });
+  }
+
+  SECTION("parseDuplicatePointClassKeepsLast")
+  {
+    const auto file = R"(
+    /*QUAKED monster_zombie (1.0 0.0 0.0) (-16 -16 -24) (16 16 32)
+    First definition.
+    */
+
+    /*QUAKED monster_zombie (0.0 1.0 0.0) (-8 -8 -8) (8 8 8)
+    Second definition.
+    */
+    )";
+
+    auto parser = DefParser{file, RgbaF{1.0f, 1.0f, 1.0f, 1.0f}};
+    auto status = TestParserStatus{};
+
+    CHECK(
+      parser.parseDefinitions(status)
+      == std::vector<mdl::EntityDefinition>{
+        {
+          "monster_zombie",
+          RgbF{0.0f, 1.0f, 0.0f},
+          "Second definition.",
+          {},
+          mdl::PointEntityDefinition{
+            {{-8.0, -8.0, -8.0}, {8.0, 8.0, 8.0}},
+            {},
+            {},
+          },
+        },
+      });
+    CHECK(status.countStatus(LogLevel::Warn) == 1u);
+    CHECK(status.countStatus(LogLevel::Error) == 0u);
   }
 
   SECTION("parseSpawnflagWithSkip")

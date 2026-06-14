@@ -22,7 +22,6 @@
 #include <QDialog>
 
 #include "NotifierConnection.h"
-#include "mdl/MapFormat.h"
 
 #include <filesystem>
 #include <optional>
@@ -32,7 +31,14 @@ class QComboBox;
 class QPushButton;
 class QWidget;
 
-namespace tb::ui
+namespace tb
+{
+namespace mdl
+{
+enum class MapFormat;
+} // namespace mdl
+
+namespace ui
 {
 class AppController;
 class GameListBox;
@@ -89,4 +95,5 @@ private:
   void preferenceDidChange(const std::filesystem::path& path);
 };
 
-} // namespace tb::ui
+} // namespace ui
+} // namespace tb

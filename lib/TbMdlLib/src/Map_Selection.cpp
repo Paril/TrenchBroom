@@ -41,6 +41,7 @@
 #include "kd/ranges/to.h"
 #include "kd/result_fold.h"
 #include "kd/string_compare.h"
+#include "kd/vector_utils.h"
 
 #include <algorithm>
 #include <ranges>
@@ -76,9 +77,8 @@ void selectSiblingNodes(Map& map)
     auto* parent = node->parent();
     if (visited.insert(parent).second)
     {
-      nodesToSelect = kdl::vec_concat(
-        std::move(nodesToSelect),
-        collectSelectableNodes(parent->children(), map.editorContext()));
+      kdl::vec_append(
+        nodesToSelect, collectSelectableNodes(parent->children(), map.editorContext()));
     }
   }
 
@@ -194,60 +194,58 @@ void selectContainedNodes(Map& map, const bool del)
 void selectNodesWithFilePosition(Map& map, const std::vector<size_t>& positions)
 {
   auto nodesToSelect = std::vector<Node*>{};
-  const auto hasFilePosition = [&](const auto* node) {
+  const auto hasFilePosition = [&](const auto& node) {
     return std::ranges::any_of(
-      positions, [&](const auto position) { return node->containsLine(position); });
+      positions, [&](const auto position) { return node.containsLine(position); });
   };
 
   map.worldNode().accept(kdl::overload(
-    [&](
-      auto&& thisLambda, WorldNode* worldNode) { worldNode->visitChildren(thisLambda); },
-    [&](
-      auto&& thisLambda, LayerNode* layerNode) { layerNode->visitChildren(thisLambda); },
-    [&](auto&& thisLambda, GroupNode* groupNode) {
+    [&](auto&& thisLambda, WorldNode& worldNode) { worldNode.visitChildren(thisLambda); },
+    [&](auto&& thisLambda, LayerNode& layerNode) { layerNode.visitChildren(thisLambda); },
+    [&](auto&& thisLambda, GroupNode& groupNode) {
       if (hasFilePosition(groupNode))
       {
-        if (map.editorContext().selectable(*groupNode))
+        if (map.editorContext().selectable(groupNode))
         {
-          nodesToSelect.push_back(groupNode);
+          nodesToSelect.push_back(&groupNode);
         }
         else
         {
-          groupNode->visitChildren(thisLambda);
+          groupNode.visitChildren(thisLambda);
         }
       }
     },
-    [&](auto&& thisLambda, EntityNode* entityNode) {
+    [&](auto&& thisLambda, EntityNode& entityNode) {
       if (hasFilePosition(entityNode))
       {
-        if (map.editorContext().selectable(*entityNode))
+        if (map.editorContext().selectable(entityNode))
         {
-          nodesToSelect.push_back(entityNode);
+          nodesToSelect.push_back(&entityNode);
         }
         else
         {
           const auto previousCount = nodesToSelect.size();
-          entityNode->visitChildren(thisLambda);
+          entityNode.visitChildren(thisLambda);
           if (previousCount == nodesToSelect.size())
           {
             // no child was selected, select all children
-            nodesToSelect = kdl::vec_concat(
-              std::move(nodesToSelect),
-              collectSelectableNodes(entityNode->children(), map.editorContext()));
+            kdl::vec_append(
+              nodesToSelect,
+              collectSelectableNodes(entityNode.children(), map.editorContext()));
           }
         }
       }
     },
-    [&](BrushNode* brushNode) {
-      if (hasFilePosition(brushNode) && map.editorContext().selectable(*brushNode))
+    [&](BrushNode& brushNode) {
+      if (hasFilePosition(brushNode) && map.editorContext().selectable(brushNode))
       {
-        nodesToSelect.push_back(brushNode);
+        nodesToSelect.push_back(&brushNode);
       }
     },
-    [&](PatchNode* patchNode) {
-      if (hasFilePosition(patchNode) && map.editorContext().selectable(*patchNode))
+    [&](PatchNode& patchNode) {
+      if (hasFilePosition(patchNode) && map.editorContext().selectable(patchNode))
       {
-        nodesToSelect.push_back(patchNode);
+        nodesToSelect.push_back(&patchNode);
       }
     }));
 
@@ -284,28 +282,28 @@ void invertNodeSelection(Map& map)
   // selection is inverted, which would reselect both children.
 
   auto nodesToSelect = std::vector<Node*>{};
-  const auto collectNode = [&](auto* node) {
+  const auto collectNode = [&](auto& node) {
     if (
-      !node->transitivelySelected() && !node->descendantSelected()
-      && map.editorContext().selectable(*node))
+      !node.transitivelySelected() && !node.descendantSelected()
+      && map.editorContext().selectable(node))
     {
-      nodesToSelect.push_back(node);
+      nodesToSelect.push_back(&node);
     }
   };
 
   currentGroupOrWorld(map)->accept(kdl::overload(
-    [](auto&& thisLambda, WorldNode* worldNode) { worldNode->visitChildren(thisLambda); },
-    [](auto&& thisLambda, LayerNode* layerNode) { layerNode->visitChildren(thisLambda); },
-    [&](auto&& thisLambda, GroupNode* groupNode) {
+    [](auto&& thisLambda, WorldNode& worldNode) { worldNode.visitChildren(thisLambda); },
+    [](auto&& thisLambda, LayerNode& layerNode) { layerNode.visitChildren(thisLambda); },
+    [&](auto&& thisLambda, GroupNode& groupNode) {
       collectNode(groupNode);
-      groupNode->visitChildren(thisLambda);
+      groupNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, EntityNode* entityNode) {
+    [&](auto&& thisLambda, EntityNode& entityNode) {
       collectNode(entityNode);
-      entityNode->visitChildren(thisLambda);
+      entityNode.visitChildren(thisLambda);
     },
-    [&](BrushNode* brushNode) { collectNode(brushNode); },
-    [&](PatchNode* patchNode) { collectNode(patchNode); }));
+    [&](BrushNode& brushNode) { collectNode(brushNode); },
+    [&](PatchNode& patchNode) { collectNode(patchNode); }));
 
   auto transaction = Transaction{map, "Select Inverse"};
   deselectAll(map);

@@ -23,6 +23,7 @@
 #include "Preferences.h"
 #include "gl/ActiveShader.h"
 #include "gl/Camera.h"
+#include "gl/GlInterface.h"
 #include "gl/Material.h"
 #include "gl/MaterialRenderFunc.h"
 #include "gl/PrimType.h"
@@ -62,11 +63,11 @@ public:
   {
   }
 
-  void before(const gl::Material* material) override
+  void before(gl::Gl& gl, const gl::Material* material) override
   {
     if (const auto* texture = gl::getTexture(material))
     {
-      material->activate(m_minFilter, m_magFilter);
+      material->activate(gl, m_minFilter, m_magFilter);
       m_shader.set("ApplyMaterial", m_applyMaterial);
       m_shader.set("Color", texture->averageColor());
     }
@@ -77,11 +78,11 @@ public:
     }
   }
 
-  void after(const gl::Material* material) override
+  void after(gl::Gl& gl, const gl::Material* material) override
   {
     if (material)
     {
-      material->deactivate();
+      material->deactivate(gl);
     }
   }
 };
@@ -125,30 +126,33 @@ void FaceRenderer::render(RenderBatch& renderBatch)
   renderBatch.add(this);
 }
 
-void FaceRenderer::prepareVerticesAndIndices(gl::VboManager& vboManager)
+void FaceRenderer::prepare(gl::Gl& gl, gl::VboManager& vboManager)
 {
-  m_vertexArray->prepare(vboManager);
+  m_vertexArray->prepare(gl, vboManager);
 
   for (const auto& [material, brushIndexHolderPtr] : *m_indexArrayMap)
   {
-    brushIndexHolderPtr->prepare(vboManager);
+    brushIndexHolderPtr->prepare(gl, vboManager);
   }
 }
 
-void FaceRenderer::doRender(RenderContext& context)
+void FaceRenderer::render(RenderContext& context)
 {
-  if (!m_indexArrayMap->empty() && m_vertexArray->setupVertices())
+  auto& gl = context.gl();
+
+  auto& shaderManager = context.shaderManager();
+  auto shader = gl::ActiveShader{gl, shaderManager, gl::Shaders::FaceShader};
+
+  if (!m_indexArrayMap->empty() && m_vertexArray->setup(gl, shader.program()))
   {
-    auto& shaderManager = context.shaderManager();
-    auto shader = gl::ActiveShader{shaderManager, gl::Shaders::FaceShader};
     auto& prefs = PreferenceManager::instance();
 
     const auto applyMaterial = context.showMaterials();
     const auto shadeFaces = context.shadeFaces();
     const auto showFog = context.showFog();
 
-    glAssert(glEnable(GL_TEXTURE_2D));
-    glAssert(glActiveTexture(GL_TEXTURE0));
+    gl.enable(GL_TEXTURE_2D);
+    gl.activeTexture(GL_TEXTURE0);
     shader.set("Brightness", prefs.get(Preferences::Brightness));
     shader.set("RenderGrid", context.showGrid());
     shader.set("GridSize", static_cast<float>(context.gridSize()));
@@ -182,7 +186,7 @@ void FaceRenderer::doRender(RenderContext& context)
 
     if (m_alpha < 1.0f)
     {
-      glAssert(glDepthMask(GL_FALSE));
+      gl.depthMask(GL_FALSE);
     }
     for (const auto& [material, brushIndexHolderPtr] : *m_indexArrayMap)
     {
@@ -192,21 +196,21 @@ void FaceRenderer::doRender(RenderContext& context)
         const auto enableMasked = texture && texture->mask() == gl::TextureMask::On;
 
         // set any per-material uniforms
-        shader.set("GridColor", material);
+        shader.set("GridColor", gridColorForMaterial(material));
         shader.set("EnableMasked", enableMasked);
 
-        func.before(material);
-        brushIndexHolderPtr->setupIndices();
-        brushIndexHolderPtr->render(gl::PrimType::Triangles);
-        brushIndexHolderPtr->cleanupIndices();
-        func.after(material);
+        func.before(gl, material);
+        brushIndexHolderPtr->setup(gl);
+        brushIndexHolderPtr->render(gl, gl::PrimType::Triangles);
+        brushIndexHolderPtr->cleanup(gl);
+        func.after(gl, material);
       }
     }
     if (m_alpha < 1.0f)
     {
-      glAssert(glDepthMask(GL_TRUE));
+      gl.depthMask(GL_TRUE);
     }
-    m_vertexArray->cleanupVertices();
+    m_vertexArray->cleanup(gl, shader.program());
   }
 }
 

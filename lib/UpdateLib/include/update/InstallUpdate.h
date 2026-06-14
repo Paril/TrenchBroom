@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <QString>
+class QString;
 
 namespace upd
 {

@@ -52,6 +52,11 @@ TextureFont::TextureFont(
 
 TextureFont::~TextureFont() = default;
 
+void TextureFont::destroy(Gl& gl)
+{
+  m_texture->destroy(gl);
+}
+
 int TextureFont::ascend() const
 {
   return m_ascend;
@@ -174,8 +179,7 @@ private:
   void makeQuads(const std::string& str, const float x)
   {
     const auto offset = m_offset + vm::vec2f(x, m_y);
-    m_vertices =
-      kdl::vec_concat(std::move(m_vertices), m_font.quads(str, m_clockwise, offset));
+    kdl::vec_append(m_vertices, m_font.quads(str, m_clockwise, offset));
 
     m_y -= m_sizes[m_index].y();
     m_index++;
@@ -266,14 +270,14 @@ vm::vec2f TextureFont::measure(const std::string& string) const
   return result;
 }
 
-void TextureFont::activate()
+void TextureFont::activate(Gl& gl)
 {
-  m_texture->activate();
+  m_texture->activate(gl);
 }
 
-void TextureFont::deactivate()
+void TextureFont::deactivate(Gl& gl)
 {
-  m_texture->deactivate();
+  m_texture->deactivate(gl);
 }
 
 } // namespace tb::gl

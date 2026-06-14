@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "gl/GL.h"
+#include "gl/GlInterface.h"
 #include "gl/PrimType.h"
 #include "gl/Vbo.h"
 #include "gl/VboManager.h"
@@ -28,6 +28,7 @@
 #include "kd/vector_utils.h"
 
 #include <memory>
+#include <utility>
 
 namespace tb::gl
 {
@@ -52,15 +53,11 @@ private:
     virtual size_t indexCount() const = 0;
     virtual size_t sizeInBytes() const = 0;
 
-    virtual void prepare(VboManager& vboManager) = 0;
-    virtual void setup() = 0;
-    virtual void cleanup() = 0;
+    virtual void prepare(Gl& gl, VboManager& vboManager) = 0;
+    virtual void setup(Gl& gl) = 0;
+    virtual void cleanup(Gl& gl) = 0;
 
-  public:
-    void render(PrimType primType, size_t offset, size_t count) const;
-
-  private:
-    virtual void doRender(PrimType primType, size_t offset, size_t count) const = 0;
+    virtual void render(Gl& gl, PrimType primType, size_t offset, size_t count) const = 0;
   };
 
   template <typename Index>
@@ -70,8 +67,8 @@ private:
     using IndexList = std::vector<Index>;
 
   private:
-    VboManager* m_vboManager;
-    Vbo* m_vbo;
+    VboManager* m_vboManager = nullptr;
+    std::unique_ptr<Vbo> m_vbo;
     size_t m_indexCount;
 
   public:
@@ -79,30 +76,33 @@ private:
 
     size_t sizeInBytes() const override { return sizeof(Index) * m_indexCount; }
 
-    void prepare(VboManager& vboManager) override
+    void prepare(Gl& gl, VboManager& vboManager) override
     {
-      if (m_indexCount > 0 && m_vbo == nullptr)
+      if (m_indexCount > 0 && !m_vbo)
       {
         m_vboManager = &vboManager;
-        m_vbo = vboManager.allocateVbo(VboType::ElementArrayBuffer, sizeInBytes());
-        m_vbo->writeBuffer(0, doGetIndices());
+        m_vbo = vboManager.allocateVbo(gl, VboType::ElementArrayBuffer, sizeInBytes());
+        m_vbo->writeBuffer(gl, 0, doGetIndices());
       }
     }
 
-    void setup() override
+    void setup(Gl& gl) override
     {
       contract_pre(m_vbo != nullptr);
 
-      m_vbo->bind();
+      m_vbo->bind(gl);
     }
 
-    void cleanup() override { m_vbo->unbind(); }
+    void cleanup(Gl& gl) override
+    {
+      contract_pre(m_vbo != nullptr);
+
+      m_vbo->unbind(gl);
+    }
 
   protected:
     explicit Holder(const size_t indexCount)
-      : m_vboManager{nullptr}
-      , m_vbo{nullptr}
-      , m_indexCount{indexCount}
+      : m_indexCount{indexCount}
     {
     }
 
@@ -111,21 +111,19 @@ private:
       // TODO: Revisit this revisiting OpenGL resource management. We should not store the
       // VboManager, since it represents a safe time to delete the OpenGL buffer
       // object.
-      if (m_vbo != nullptr)
+      if (m_vbo)
       {
-        m_vboManager->destroyVbo(m_vbo);
-        m_vbo = nullptr;
+        m_vboManager->destroyVbo(std::exchange(m_vbo, nullptr));
       }
     }
 
-  private:
-    void doRender(PrimType primType, size_t offset, size_t count) const override
+    void render(Gl& gl, PrimType primType, size_t offset, size_t count) const override
     {
-      glAssert(glDrawElements(
+      gl.drawElements(
         toGL(primType),
         static_cast<GLsizei>(count),
         GL_UNSIGNED_INT,
-        reinterpret_cast<void*>(offset * 4u)));
+        reinterpret_cast<void*>(offset * 4u));
     }
 
   private:
@@ -148,9 +146,9 @@ private:
     {
     }
 
-    void prepare(VboManager& vboManager)
+    void prepare(Gl& gl, VboManager& vboManager)
     {
-      Holder<Index>::prepare(vboManager);
+      Holder<Index>::prepare(gl, vboManager);
       kdl::vec_clear_to_zero(m_indices);
     }
 
@@ -268,10 +266,11 @@ public:
    * Prepares this index array by uploading its contents into the given vertex buffer
    * object.
    *
+   * @param gl the GL interface
    * @param vboManager the vertex buffer object to upload the contents of this index array
    * into
    */
-  void prepare(VboManager& vboManager);
+  void prepare(Gl& gl, VboManager& vboManager);
 
   /**
    * Sets this index array up for rendering. If this index array is only rendered once,
@@ -279,27 +278,28 @@ public:
    * since the render method will perform setup and cleanup automatically unless the index
    * array is already set up when the render method is called.
    *
-   * In the case the the index array was already setup before a render method was called,
-   * the render method will skip the setup and cleanup, and it is the callers'
-   * responsibility to perform proper cleanup.
+   * In the case the index array was already setup before a render method was called, the
+   * render method will skip the setup and cleanup, and it is the callers' responsibility
+   * to perform proper cleanup.
    *
    * It is only useful to perform setup and cleanup for a caller if the caller intends to
    * issue multiple render calls to this index array.
    */
-  bool setup();
+  bool setup(Gl& gl);
 
   /**
    * Renders a range of primitives of the given type using the indices stored in this
    * index array. Assumes that an appropriate vertex array has been set up that contains
    * the actual vertex data.
    *
+   * @param gl the GL interface
    * @param primType the type of primitive to render
    * @param offset the offset of the range of indices to render
    * @param count the number of indices to render
    */
-  void render(PrimType primType, size_t offset, size_t count);
+  void render(Gl& gl, PrimType primType, size_t offset, size_t count);
 
-  void cleanup();
+  void cleanup(Gl& gl);
 
 private:
   explicit IndexArray(BaseHolder::Ptr holder);

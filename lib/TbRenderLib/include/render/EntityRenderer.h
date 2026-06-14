@@ -93,16 +93,16 @@ public:
    * Adds an entity. Calling with an already-added entity is allowed, but ignored (not
    * guaranteed to invalidate it).
    */
-  void addEntity(const mdl::EntityNode* entity);
+  void addEntity(const mdl::EntityNode& entityNode);
   /**
    * Removes an entity. Calling with an unknown entity is allowed, but ignored.
    */
-  void removeEntity(const mdl::EntityNode* entity);
+  void removeEntity(const mdl::EntityNode& entityNode);
   /**
    * Causes cached renderer data to be rebuilt for the given entity (on the next render()
    * call).
    */
-  void invalidateEntity(const mdl::EntityNode* entity);
+  void invalidateEntity(const mdl::EntityNode& entityNode);
 
   /**
    * Invalidates cached renderer data to be result for any entity that references any of
@@ -145,8 +145,8 @@ private:
   void invalidateBounds();
   void validateBounds();
 
-  gl::AttrString entityString(const mdl::EntityNode* entityNode) const;
-  const Color& boundsColor(const mdl::EntityNode* entityNode) const;
+  gl::AttrString entityString(const mdl::EntityNode& entityNode) const;
+  const Color& boundsColor(const mdl::EntityNode& entityNode) const;
 };
 
 } // namespace render

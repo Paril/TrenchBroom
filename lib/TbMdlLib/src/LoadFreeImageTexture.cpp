@@ -89,21 +89,26 @@ Color getAverageColor(const gl::TextureBuffer& buffer, const GLenum format)
   const auto stride = numPixels <= 4192 ? 1 : numPixels / 64;
   const auto numSamples = numPixels / stride;
 
+  auto samples =
+    std::views::iota(0u, numSamples) | std::views::transform([&](const auto& i) {
+      const auto pixel = i * 4 * stride;
+      return vm::vec4f{
+        float(data[pixel + r]) / 255.0f,
+        float(data[pixel + g]) / 255.0f,
+        float(data[pixel + b]) / 255.0f,
+        float(data[pixel + a]) / 255.0f,
+      };
+    });
+
+  // can't use std::accumulate or std::reduce because samples isn't a common range
   auto average = vm::vec4f{};
-  for (std::size_t i = 0; i < numSamples; ++i)
+  for (const auto& sample : samples)
   {
-    const auto pixel = i * 4 * stride;
-    average = average
-              + vm::vec4f{
-                float(data[pixel + r]),
-                float(data[pixel + g]),
-                float(data[pixel + b]),
-                float(data[pixel + a])};
+    average = average + sample;
   }
-  average = vm::clamp(
-    average / static_cast<float>(numSamples),
-    vm::vec4f{0, 0, 0, 0},
-    vm::vec4f{1, 1, 1, 1});
+
+  average =
+    vm::clamp(average / float(numSamples), vm::vec4f{0, 0, 0, 0}, vm::vec4f{1, 1, 1, 1});
 
   return RgbaF{average[0], average[1], average[2], average[3]};
 }
@@ -224,8 +229,8 @@ std::vector<std::string> getSupportedFreeImageExtensions()
     {
       const auto extensionListStr =
         kdl::str_to_lower(std::string{FreeImage_GetFIFExtensionList(format)});
-      result = kdl::vec_concat(
-        std::move(result),
+      kdl::vec_append(
+        result,
         kdl::str_split(extensionListStr, ",")
           | std::views::transform([](const auto& extension) { return "." + extension; })
           | kdl::ranges::to<std::vector>());

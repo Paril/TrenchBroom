@@ -24,6 +24,7 @@
 #include "Preferences.h"
 #include "fs/DiskIO.h"
 #include "gl/MaterialManager.h"
+#include "gl/ResourceManager.h"
 #include "mdl/Autosaver.h"
 #include "mdl/CommandProcessor.h"
 #include "mdl/EditorContext.h"
@@ -44,7 +45,6 @@
 #include "mdl/WorldReader.h"
 #include "render/MapRenderer.h"
 #include "ui/ActionManager.h"
-#include "ui/ViewEffectsService.h"
 
 #include "kd/contracts.h"
 #include "kd/result.h"
@@ -236,11 +236,6 @@ const std::vector<vm::polygon3f>* MapDocument::portals() const
   return m_portalFile ? &m_portalFile->portals : nullptr;
 }
 
-void MapDocument::setViewEffectsService(ViewEffectsService* viewEffectsService)
-{
-  m_viewEffectsService = viewEffectsService;
-}
-
 std::vector<Action>& MapDocument::cacheTagActions(const ActionManager& actionManager)
 {
   if (!m_cachedTagActions)
@@ -378,6 +373,9 @@ void MapDocument::unloadPortalFile()
 
 void MapDocument::connectObservers()
 {
+  m_notifierConnection += m_resourceManager->resourcesWereProcessedNotifier.connect(
+    resourcesWereProcessedNotifier);
+
   m_notifierConnection +=
     documentWasLoadedNotifier.connect(this, &MapDocument::documentWasLoaded);
 
@@ -419,11 +417,11 @@ void MapDocument::connectMapObservers()
   m_notifierConnection += m_map->nodesWillChangeNotifier.connect(nodesWillChangeNotifier);
   m_notifierConnection += m_map->nodesDidChangeNotifier.connect(nodesDidChangeNotifier);
   m_notifierConnection +=
+    m_map->nodeVisibilityDidChangeNotifier.connect(nodeVisibilityDidChangeNotifier);
+  m_notifierConnection +=
     m_map->nodeLockingDidChangeNotifier.connect(nodeLockingDidChangeNotifier);
   m_notifierConnection += m_map->groupWasOpenedNotifier.connect(groupWasOpenedNotifier);
   m_notifierConnection += m_map->groupWasClosedNotifier.connect(groupWasClosedNotifier);
-  m_notifierConnection +=
-    m_map->resourcesWereProcessedNotifier.connect(resourcesWereProcessedNotifier);
   m_notifierConnection += m_map->materialCollectionsWillChangeNotifier.connect(
     materialCollectionsWillChangeNotifier);
   m_notifierConnection += m_map->materialCollectionsDidChangeNotifier.connect(
@@ -436,6 +434,8 @@ void MapDocument::connectMapObservers()
     m_map->entityDefinitionsDidChangeNotifier.connect(entityDefinitionsDidChangeNotifier);
   m_notifierConnection += m_map->modsWillChangeNotifier.connect(modsWillChangeNotifier);
   m_notifierConnection += m_map->modsDidChangeNotifier.connect(modsDidChangeNotifier);
+  m_notifierConnection +=
+    m_map->triggerVisualEffectNotifier.connect(triggerVisualEffectNotifier);
 
   auto& grid = m_map->grid();
   m_notifierConnection += grid.gridDidChangeNotifier.connect(gridDidChangeNotifier);

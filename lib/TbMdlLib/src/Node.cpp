@@ -156,23 +156,23 @@ Node* Node::parent() const
   return m_parent;
 }
 
-bool Node::isAncestorOf(const Node* node) const
+bool Node::isAncestorOf(const Node& node) const
 {
-  return node->isDescendantOf(this);
+  return node.isDescendantOf(*this);
 }
 
 bool Node::isAncestorOf(const std::vector<Node*>& nodes) const
 {
   return std::ranges::any_of(
-    nodes, [this](const Node* node) { return isAncestorOf(node); });
+    nodes, [this](const Node* node) { return isAncestorOf(*node); });
 }
 
-bool Node::isDescendantOf(const Node* node) const
+bool Node::isDescendantOf(const Node& node) const
 {
-  Node* parent = m_parent;
+  auto* parent = m_parent;
   while (parent)
   {
-    if (parent == node)
+    if (parent == &node)
     {
       return true;
     }
@@ -184,7 +184,7 @@ bool Node::isDescendantOf(const Node* node) const
 bool Node::isDescendantOf(const std::vector<Node*>& nodes) const
 {
   return std::ranges::any_of(
-    nodes, [this](const Node* node) { return isDescendantOf(node); });
+    nodes, [this](const Node* node) { return isDescendantOf(*node); });
 }
 
 std::vector<Node*> Node::findDescendants(const std::vector<Node*>& nodes) const
@@ -192,7 +192,7 @@ std::vector<Node*> Node::findDescendants(const std::vector<Node*>& nodes) const
   auto result = std::vector<Node*>{};
   for (auto* node : nodes)
   {
-    if (node->isDescendantOf(this))
+    if (node->isDescendantOf(*this))
     {
       result.push_back(node);
     }
@@ -258,9 +258,9 @@ std::vector<std::unique_ptr<Node>> Node::replaceChildren(
   {
     contract_assert(child != nullptr);
     contract_assert(child->parent() == this);
-    contract_assert(canRemoveChild(child));
+    contract_assert(canRemoveChild(*child));
 
-    childWillBeRemoved(child);
+    childWillBeRemoved(*child);
     child->setParent(nullptr);
   }
 
@@ -272,7 +272,7 @@ std::vector<std::unique_ptr<Node>> Node::replaceChildren(
 
   for (auto& child : oldChildren)
   {
-    childWasRemoved(child.get());
+    childWasRemoved(*child);
   }
 
   decDescendantCount(descendantCount());
@@ -294,12 +294,12 @@ void Node::removeChild(Node* child)
   decDescendantSelectionCount(child->descendantSelectionCount());
 }
 
-bool Node::canAddChild(const Node* child) const
+bool Node::canAddChild(const Node& child) const
 {
-  return child != this && !isDescendantOf(child) && doCanAddChild(child);
+  return &child != this && !isDescendantOf(child) && doCanAddChild(child);
 }
 
-bool Node::canRemoveChild(const Node* child) const
+bool Node::canRemoveChild(const Node& child) const
 {
   return doCanRemoveChild(child);
 }
@@ -309,13 +309,13 @@ void Node::doAddChild(Node* child)
   contract_pre(child != nullptr);
   contract_pre(child->parent() == nullptr);
   contract_pre(!kdl::vec_contains(m_children, child));
-  contract_pre(canAddChild(child));
+  contract_pre(canAddChild(*child));
 
-  childWillBeAdded(child);
+  childWillBeAdded(*child);
   // nodeWillChange();
   m_children.push_back(child);
   child->setParent(this);
-  childWasAdded(child);
+  childWasAdded(*child);
   // nodeDidChange();
 }
 
@@ -323,13 +323,13 @@ void Node::doRemoveChild(Node* child)
 {
   contract_pre(child != nullptr);
   contract_pre(child->parent() == this);
-  contract_pre(canRemoveChild(child));
+  contract_pre(canRemoveChild(*child));
 
-  childWillBeRemoved(child);
+  childWillBeRemoved(*child);
   // nodeWillChange();
   child->setParent(nullptr);
   m_children = kdl::vec_erase(std::move(m_children), child);
-  childWasRemoved(child);
+  childWasRemoved(*child);
   // nodeDidChange();
 }
 
@@ -338,31 +338,31 @@ void Node::clearChildren()
   kdl::vec_clear_and_delete(m_children);
 }
 
-void Node::childWillBeAdded(Node* node)
+void Node::childWillBeAdded(Node& node)
 {
   doChildWillBeAdded(node);
-  descendantWillBeAdded(this, node, 1);
+  descendantWillBeAdded(*this, node, 1);
 }
 
-void Node::childWasAdded(Node* node)
+void Node::childWasAdded(Node& node)
 {
   doChildWasAdded(node);
   descendantWasAdded(node, 1);
 }
 
-void Node::childWillBeRemoved(Node* node)
+void Node::childWillBeRemoved(Node& node)
 {
   doChildWillBeRemoved(node);
   descendantWillBeRemoved(node, 1);
 }
 
-void Node::childWasRemoved(Node* node)
+void Node::childWasRemoved(Node& node)
 {
   doChildWasRemoved(node);
-  descendantWasRemoved(this, node, 1);
+  descendantWasRemoved(*this, node, 1);
 }
 
-void Node::descendantWillBeAdded(Node* newParent, Node* node, const size_t depth)
+void Node::descendantWillBeAdded(Node& newParent, Node& node, const size_t depth)
 {
   doDescendantWillBeAdded(newParent, node, depth);
   if (m_parent)
@@ -371,7 +371,7 @@ void Node::descendantWillBeAdded(Node* newParent, Node* node, const size_t depth
   }
 }
 
-void Node::descendantWasAdded(Node* node, const size_t depth)
+void Node::descendantWasAdded(Node& node, const size_t depth)
 {
   doDescendantWasAdded(node, depth);
   if (m_parent)
@@ -381,7 +381,7 @@ void Node::descendantWasAdded(Node* node, const size_t depth)
   invalidateIssues();
 }
 
-void Node::descendantWillBeRemoved(Node* node, const size_t depth)
+void Node::descendantWillBeRemoved(Node& node, const size_t depth)
 {
   doDescendantWillBeRemoved(node, depth);
   if (m_parent)
@@ -390,7 +390,7 @@ void Node::descendantWillBeRemoved(Node* node, const size_t depth)
   }
 }
 
-void Node::descendantWasRemoved(Node* oldParent, Node* node, const size_t depth)
+void Node::descendantWasRemoved(Node& oldParent, Node& node, const size_t depth)
 {
   doDescendantWasRemoved(oldParent, node, depth);
   if (m_parent)
@@ -475,7 +475,7 @@ void Node::nodeWillChange()
 {
   if (m_parent)
   {
-    m_parent->childWillChange(this);
+    m_parent->childWillChange(*this);
   }
   invalidateIssues();
 }
@@ -484,7 +484,7 @@ void Node::nodeDidChange()
 {
   if (m_parent)
   {
-    m_parent->childDidChange(this);
+    m_parent->childDidChange(*this);
   }
   invalidateIssues();
 }
@@ -515,23 +515,23 @@ void Node::nodePhysicalBoundsDidChange()
   doNodePhysicalBoundsDidChange();
   if (m_parent)
   {
-    m_parent->childPhysicalBoundsDidChange(this);
+    m_parent->childPhysicalBoundsDidChange(*this);
   }
 }
 
-void Node::childWillChange(Node* node)
+void Node::childWillChange(Node& node)
 {
   doChildWillChange(node);
   descendantWillChange(node);
 }
 
-void Node::childDidChange(Node* node)
+void Node::childDidChange(Node& node)
 {
   doChildDidChange(node);
   descendantDidChange(node);
 }
 
-void Node::descendantWillChange(Node* node)
+void Node::descendantWillChange(Node& node)
 {
   doDescendantWillChange(node);
   if (m_parent)
@@ -541,7 +541,7 @@ void Node::descendantWillChange(Node* node)
   invalidateIssues();
 }
 
-void Node::descendantDidChange(Node* node)
+void Node::descendantDidChange(Node& node)
 {
   doDescendantDidChange(node);
   if (m_parent)
@@ -551,14 +551,14 @@ void Node::descendantDidChange(Node* node)
   invalidateIssues();
 }
 
-void Node::childPhysicalBoundsDidChange(Node* node)
+void Node::childPhysicalBoundsDidChange(Node& node)
 {
   nodePhysicalBoundsDidChange();
   doChildPhysicalBoundsDidChange();
   descendantPhysicalBoundsDidChange(node, 1);
 }
 
-void Node::descendantPhysicalBoundsDidChange(Node* node, const size_t depth)
+void Node::descendantPhysicalBoundsDidChange(Node& node, const size_t depth)
 {
   doDescendantPhysicalBoundsDidChange(node);
   if (m_parent)
@@ -804,6 +804,11 @@ size_t Node::lineNumber() const
   return m_lineNumber;
 }
 
+size_t Node::lineCount() const
+{
+  return m_lineCount;
+}
+
 void Node::setFilePosition(const size_t lineNumber, const size_t lineCount) const
 {
   m_lineNumber = lineNumber;
@@ -871,19 +876,17 @@ Node* Node::doCloneRecursively(const vm::bbox3d& worldBounds) const
   return clone;
 }
 
-void Node::doChildWillBeAdded(Node* /* node */) {}
-void Node::doChildWasAdded(Node* /* node */) {}
-void Node::doChildWillBeRemoved(Node* /* node */) {}
-void Node::doChildWasRemoved(Node* /* node */) {}
+void Node::doChildWillBeAdded(Node&) {}
+void Node::doChildWasAdded(Node&) {}
+void Node::doChildWillBeRemoved(Node&) {}
+void Node::doChildWasRemoved(Node&) {}
 
-void Node::doDescendantWillBeAdded(
-  Node* /* newParent */, Node* /* node */, const size_t /* depth */)
+void Node::doDescendantWillBeAdded(Node& /* newParent */, Node&, const size_t /* depth */)
 {
 }
-void Node::doDescendantWasAdded(Node* /* node */, const size_t /* depth */) {}
-void Node::doDescendantWillBeRemoved(Node* /* node */, const size_t /* depth */) {}
-void Node::doDescendantWasRemoved(
-  Node* /* oldParent */, Node* /* node */, const size_t /* depth */)
+void Node::doDescendantWasAdded(Node&, const size_t /* depth */) {}
+void Node::doDescendantWillBeRemoved(Node&, const size_t /* depth */) {}
+void Node::doDescendantWasRemoved(Node& /* oldParent */, Node&, const size_t /* depth */)
 {
 }
 
@@ -894,12 +897,12 @@ void Node::doAncestorDidChange() {}
 
 void Node::doNodePhysicalBoundsDidChange() {}
 void Node::doChildPhysicalBoundsDidChange() {}
-void Node::doDescendantPhysicalBoundsDidChange(Node* /* node */) {}
+void Node::doDescendantPhysicalBoundsDidChange(Node&) {}
 
-void Node::doChildWillChange(Node* /* node */) {}
-void Node::doChildDidChange(Node* /* node */) {}
-void Node::doDescendantWillChange(Node* /* node */) {}
-void Node::doDescendantDidChange(Node* /* node */) {}
+void Node::doChildWillChange(Node&) {}
+void Node::doChildDidChange(Node&) {}
+void Node::doDescendantWillChange(Node&) {}
+void Node::doDescendantDidChange(Node&) {}
 
 const EntityPropertyConfig& Node::doGetEntityPropertyConfig() const
 {

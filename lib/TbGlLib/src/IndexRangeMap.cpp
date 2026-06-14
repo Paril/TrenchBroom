@@ -19,6 +19,7 @@
 
 #include "gl/IndexRangeMap.h"
 
+#include "Macros.h"
 #include "gl/PrimType.h"
 #include "gl/VertexArray.h"
 
@@ -97,8 +98,8 @@ void IndexRangeMap::IndicesAndCounts::add(
   contract_pre(
     dynamicGrowth || indices.capacity() >= indices.size() + other.indices.size());
 
-  indices = kdl::vec_concat(std::move(indices), other.indices);
-  counts = kdl::vec_concat(std::move(counts), other.counts);
+  kdl::vec_append(indices, other.indices);
+  kdl::vec_append(counts, other.counts);
 }
 
 void IndexRangeMap::Size::inc(const PrimType primType, const size_t count)
@@ -170,7 +171,7 @@ void IndexRangeMap::add(const IndexRangeMap& other)
   }
 }
 
-void IndexRangeMap::render(VertexArray& vertexArray) const
+void IndexRangeMap::render(Gl& gl, VertexArray& vertexArray) const
 {
   for (const auto& primType : PrimTypeValues)
   {
@@ -179,7 +180,7 @@ void IndexRangeMap::render(VertexArray& vertexArray) const
     {
       const auto primCount = static_cast<GLsizei>(indicesAndCounts.size());
       vertexArray.render(
-        primType, indicesAndCounts.indices, indicesAndCounts.counts, primCount);
+        gl, primType, indicesAndCounts.indices, indicesAndCounts.counts, primCount);
     }
   }
 }

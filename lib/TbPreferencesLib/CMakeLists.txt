@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.12)
-
 add_library(TbPreferencesLib STATIC)
 
 target_sources(TbPreferencesLib
@@ -10,5 +8,11 @@ target_sources(TbPreferencesLib
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(TbPreferencesLib PRIVATE CompilerConfig PrecompileStdHeaders)
-target_link_libraries(TbPreferencesLib PUBLIC TbBaseLib Qt6::Gui)
+target_link_libraries(TbPreferencesLib
+  PRIVATE
+    CompilerConfig
+    PrecompileStdHeaders
+  PUBLIC
+    Qt6::Gui
+    TbBaseLib
+)

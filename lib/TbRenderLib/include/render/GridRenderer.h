@@ -31,6 +31,7 @@ namespace tb
 {
 namespace gl
 {
+class Gl;
 class OrthographicCamera;
 class VboManager;
 } // namespace gl
@@ -48,12 +49,12 @@ private:
 public:
   GridRenderer(const gl::OrthographicCamera& camera, const vm::bbox3d& worldBounds);
 
+  void prepare(gl::Gl& gl, gl::VboManager& vboManager) override;
+  void render(RenderContext& renderContext) override;
+
 private:
   static std::vector<Vertex> vertices(
     const gl::OrthographicCamera& camera, const vm::bbox3d& worldBounds);
-
-  void doPrepareVertices(gl::VboManager& vboManager) override;
-  void doRender(RenderContext& renderContext) override;
 };
 
 } // namespace render

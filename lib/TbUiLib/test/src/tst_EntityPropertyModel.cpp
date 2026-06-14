@@ -23,6 +23,7 @@
 #include "mdl/Map.h"
 #include "mdl/Map_Nodes.h"
 #include "mdl/Map_Selection.h"
+#include "mdl/NodeIndex.h"
 #include "ui/CatchConfig.h"
 #include "ui/EntityPropertyModel.h"
 #include "ui/MapDocument.h"
@@ -417,6 +418,34 @@ TEST_CASE("EntityPropertyModel")
             .tooltip = "",
           },
         });
+    }
+
+    SECTION("properties with special characters")
+    {
+      const auto specialKey = std::string{"name%with%specials"};
+
+      auto* literalKeyEntityNode = new mdl::EntityNode{mdl::Entity{{
+        {specialKey, "literal_value"},
+      }}};
+      auto* wildcardMatchedEntityNode = new mdl::EntityNode{mdl::Entity{{
+        {"name1with2specials", "wildcard_value"},
+      }}};
+
+      mdl::addNodes(
+        map,
+        {{
+          mdl::parentForNodes(map),
+          {literalKeyEntityNode, wildcardMatchedEntityNode},
+        }});
+
+      mdl::selectNodes(map, {literalKeyEntityNode, wildcardMatchedEntityNode});
+      model.updateFromMap();
+
+      const auto rowIndex = model.rowIndexForPropertyKey(specialKey);
+      REQUIRE(rowIndex != -1);
+
+      const auto rowKey = model.propertyKey(rowIndex);
+      CHECK(rowKey == specialKey);
     }
   }
 }

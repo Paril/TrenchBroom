@@ -24,18 +24,11 @@
 #include "NotifierConnection.h"
 
 class QSpinBox;
-class QWidget;
 class QAbstractButton;
 
-namespace tb
+namespace tb::ui
 {
-namespace gl
-{
-class ContextManager;
-}
-
-namespace ui
-{
+class AppController;
 class MapDocument;
 class UVView;
 
@@ -60,7 +53,7 @@ private:
 
 public:
   explicit UVEditor(
-    MapDocument& document, gl::ContextManager& contextManager, QWidget* parent = nullptr);
+    AppController& appController, MapDocument& document, QWidget* parent = nullptr);
 
   bool cancelMouseDrag();
 
@@ -68,7 +61,7 @@ private:
   void updateButtons();
 
 private:
-  void createGui(gl::ContextManager& contextManager);
+  void createGui(AppController& appController);
 
   void connectObservers();
 
@@ -81,5 +74,4 @@ private:
   void subDivisionChanged();
 };
 
-} // namespace ui
-} // namespace tb
+} // namespace tb::ui

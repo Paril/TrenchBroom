@@ -76,6 +76,10 @@ void IssueBrowser::connectObservers()
   m_notifierConnection +=
     m_document.documentWasSavedNotifier.connect([&] { m_view->update(); });
   m_notifierConnection += m_document.documentDidChangeNotifier.connect([&] { reload(); });
+  m_notifierConnection +=
+    m_document.materialCollectionsDidChangeNotifier.connect([&] { reload(); });
+  m_notifierConnection +=
+    m_document.entityDefinitionsDidChangeNotifier.connect([&] { reload(); });
 }
 
 void IssueBrowser::reload()

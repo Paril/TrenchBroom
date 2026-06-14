@@ -89,14 +89,14 @@ public:
   {
     while (cur != end)
     {
-      updateEntity(*cur);
+      updateEntity(**cur);
       ++cur;
     }
   }
 
-  void addEntity(const mdl::EntityNode* entityNode);
-  void removeEntity(const mdl::EntityNode* entityNode);
-  void updateEntity(const mdl::EntityNode* entityNode);
+  void addEntity(const mdl::EntityNode& entityNode);
+  void removeEntity(const mdl::EntityNode& entityNode);
+  void updateEntity(const mdl::EntityNode& entityNode);
   void clear();
 
   bool applyTinting() const;
@@ -110,8 +110,8 @@ public:
   void render(RenderBatch& renderBatch);
 
 private:
-  void doPrepareVertices(gl::VboManager& vboManager) override;
-  void doRender(RenderContext& renderContext) override;
+  void prepare(gl::Gl& gl, gl::VboManager& vboManager) override;
+  void render(RenderContext& renderContext) override;
 };
 
 } // namespace render

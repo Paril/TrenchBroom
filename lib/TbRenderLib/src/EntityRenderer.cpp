@@ -49,11 +49,11 @@ namespace
 class EntityClassnameAnchor : public TextAnchor3D
 {
 private:
-  const mdl::EntityNode* m_entity;
+  const mdl::EntityNode& m_entityNode;
 
 public:
-  explicit EntityClassnameAnchor(const mdl::EntityNode* entity)
-    : m_entity{entity}
+  explicit EntityClassnameAnchor(const mdl::EntityNode& entityNode)
+    : m_entityNode{entityNode}
   {
   }
 
@@ -61,7 +61,8 @@ private:
   vm::vec3f basePosition() const override
   {
     return vm::vec3f{
-      m_entity->logicalBounds().center().xy(), m_entity->logicalBounds().max.z() + 2.0};
+      m_entityNode.logicalBounds().center().xy(),
+      m_entityNode.logicalBounds().max.z() + 2.0};
   }
 
   TextAlignment::Type alignment() const override { return TextAlignment::Bottom; }
@@ -99,28 +100,28 @@ void EntityRenderer::reloadModels()
   m_modelRenderer.updateEntities(std::begin(m_entities), std::end(m_entities));
 }
 
-void EntityRenderer::addEntity(const mdl::EntityNode* entity)
+void EntityRenderer::addEntity(const mdl::EntityNode& entityNode)
 {
-  if (m_entities.insert(entity).second)
+  if (m_entities.insert(&entityNode).second)
   {
-    m_modelRenderer.addEntity(entity);
+    m_modelRenderer.addEntity(entityNode);
     invalidateBounds();
   }
 }
 
-void EntityRenderer::removeEntity(const mdl::EntityNode* entity)
+void EntityRenderer::removeEntity(const mdl::EntityNode& entityNode)
 {
-  if (auto it = m_entities.find(entity); it != std::end(m_entities))
+  if (auto it = m_entities.find(&entityNode); it != std::end(m_entities))
   {
     m_entities.erase(it);
-    m_modelRenderer.removeEntity(entity);
+    m_modelRenderer.removeEntity(entityNode);
     invalidateBounds();
   }
 }
 
-void EntityRenderer::invalidateEntity(const mdl::EntityNode* entity)
+void EntityRenderer::invalidateEntity(const mdl::EntityNode& entityNode)
 {
-  m_modelRenderer.updateEntity(entity);
+  m_modelRenderer.updateEntity(entityNode);
   invalidateBounds();
 }
 
@@ -129,11 +130,11 @@ void EntityRenderer::invalidateEntityModels(
 {
   const auto entityModelSet =
     std::unordered_set<const mdl::EntityModel*>{entityModels.begin(), entityModels.end()};
-  for (const auto* entity : m_entities)
+  for (const auto* entityNode : m_entities)
   {
-    if (entityModelSet.contains(entity->entity().model()))
+    if (entityModelSet.contains(entityNode->entity().model()))
     {
-      invalidateEntity(entity);
+      invalidateEntity(*entityNode);
     }
   }
 }
@@ -308,7 +309,7 @@ void EntityRenderer::renderClassnames(
           }
 
           renderService.renderString(
-            entityString(entityNode), EntityClassnameAnchor{entityNode});
+            entityString(*entityNode), EntityClassnameAnchor{*entityNode});
         }
       }
     }
@@ -490,21 +491,21 @@ void EntityRenderer::validateBounds()
         {
           entityNode->logicalBounds().for_each_edge(
             makeColoredWireFrameBoundsVertexBuilder(
-              pointEntityWireframeVertices, boundsColor(entityNode)));
+              pointEntityWireframeVertices, boundsColor(*entityNode)));
 
           const auto hasModel =
             entityNode->entity().model() && entityNode->entity().model()->data();
           if (!hasModel)
           {
             entityNode->logicalBounds().for_each_face(makeColoredSolidBoundsVertexBuilder(
-              solidVertices, boundsColor(entityNode)));
+              solidVertices, boundsColor(*entityNode)));
           }
         }
         else
         {
           entityNode->logicalBounds().for_each_edge(
             makeColoredWireFrameBoundsVertexBuilder(
-              brushEntityWireframeVertices, boundsColor(entityNode)));
+              brushEntityWireframeVertices, boundsColor(*entityNode)));
         }
       }
     }
@@ -522,9 +523,9 @@ void EntityRenderer::validateBounds()
   m_boundsValid = true;
 }
 
-gl::AttrString EntityRenderer::entityString(const mdl::EntityNode* entityNode) const
+gl::AttrString EntityRenderer::entityString(const mdl::EntityNode& entityNode) const
 {
-  const auto& classname = entityNode->entity().classname();
+  const auto& classname = entityNode.entity().classname();
   // const mdl::AttributeValue& targetname =
   // entity->attribute(mdl::AttributeNames::Targetname);
 
@@ -535,9 +536,9 @@ gl::AttrString EntityRenderer::entityString(const mdl::EntityNode* entityNode) c
   return str;
 }
 
-const Color& EntityRenderer::boundsColor(const mdl::EntityNode* entityNode) const
+const Color& EntityRenderer::boundsColor(const mdl::EntityNode& entityNode) const
 {
-  if (const auto* definition = entityNode->entity().definition())
+  if (const auto* definition = entityNode.entity().definition())
   {
     return definition->color;
   }

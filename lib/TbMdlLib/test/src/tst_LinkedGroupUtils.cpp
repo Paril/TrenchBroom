@@ -83,22 +83,22 @@ std::unordered_map<const Node*, std::string> getLinkIds(const Node& node)
 {
   auto result = std::unordered_map<const Node*, std::string>{};
   node.accept(kdl::overload(
-    [](auto&& thisLambda, const WorldNode* worldNode) {
-      worldNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, const WorldNode& worldNode) {
+      worldNode.visitChildren(thisLambda);
     },
-    [](auto&& thisLambda, const LayerNode* layerNode) {
-      layerNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, const LayerNode& layerNode) {
+      layerNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, const GroupNode* groupNode) {
-      result[groupNode] = groupNode->linkId();
-      groupNode->visitChildren(thisLambda);
+    [&](auto&& thisLambda, const GroupNode& groupNode) {
+      result[&groupNode] = groupNode.linkId();
+      groupNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, const EntityNode* entityNode) {
-      result[entityNode] = entityNode->linkId();
-      entityNode->visitChildren(thisLambda);
+    [&](auto&& thisLambda, const EntityNode& entityNode) {
+      result[&entityNode] = entityNode.linkId();
+      entityNode.visitChildren(thisLambda);
     },
-    [&](const BrushNode* brushNode) { result[brushNode] = brushNode->linkId(); },
-    [&](const PatchNode* patchNode) { result[patchNode] = patchNode->linkId(); }));
+    [&](const BrushNode& brushNode) { result[&brushNode] = brushNode.linkId(); },
+    [&](const PatchNode& patchNode) { result[&patchNode] = patchNode.linkId(); }));
   return result;
 }
 

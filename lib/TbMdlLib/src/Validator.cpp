@@ -56,12 +56,12 @@ std::vector<const IssueQuickFix*> Validator::quickFixes() const
 void Validator::validate(Node& node, std::vector<std::unique_ptr<Issue>>& issues) const
 {
   node.accept(kdl::overload(
-    [&](WorldNode* worldNode) { doValidate(*worldNode, issues); },
-    [&](LayerNode* layerNode) { doValidate(*layerNode, issues); },
-    [&](GroupNode* groupNode) { doValidate(*groupNode, issues); },
-    [&](EntityNode* entityNode) { doValidate(*entityNode, issues); },
-    [&](BrushNode* brushNode) { doValidate(*brushNode, issues); },
-    [&](PatchNode* patchNode) { doValidate(*patchNode, issues); }));
+    [&](WorldNode& worldNode) { doValidate(worldNode, issues); },
+    [&](LayerNode& layerNode) { doValidate(layerNode, issues); },
+    [&](GroupNode& groupNode) { doValidate(groupNode, issues); },
+    [&](EntityNode& entityNode) { doValidate(entityNode, issues); },
+    [&](BrushNode& brushNode) { doValidate(brushNode, issues); },
+    [&](PatchNode& patchNode) { doValidate(patchNode, issues); }));
 }
 
 Validator::Validator(const IssueType type, std::string description)

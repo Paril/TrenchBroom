@@ -20,13 +20,10 @@
 
 #include "kd/ranges/enumerate_view.h"
 
-#include <algorithm>
 #include <map>
 #include <memory>
 #include <sstream>
 #include <string>
-#include <tuple>
-#include <type_traits>
 #include <vector>
 
 #include <catch2/catch_test_macros.hpp>
@@ -37,7 +34,7 @@ namespace kdl
 
 TEST_CASE("enumerate")
 {
-  using namespace Catch::Matchers;
+  using Catch::Matchers::RangeEquals;
 
   SECTION("iterator / sentinel")
   {
@@ -184,12 +181,12 @@ TEST_CASE("enumerate")
     {
       auto e = std::ranges::istream_view<int>(ints) | views::enumerate;
 
-      // does not work because std::convertible_to is not satisfied (fixed in C++23)
+      // Note: this is broken due to std::convertible_to (fixed in C++23)
       // static_assert(std::ranges::input_range<decltype(e)>);
 
-      using tuple_type = typename std::ranges::iterator_t<decltype(e)>::value_type;
-
-      CHECK_THAT(e, RangeEquals(std::vector<tuple_type>{{0, 1}, {1, 2}, {2, 3}, {3, 4}}));
+      CHECK_THAT(
+        e,
+        RangeEquals(std::vector<std::tuple<long, int>>{{0, 1}, {1, 2}, {2, 3}, {3, 4}}));
     }
   }
 
@@ -197,15 +194,13 @@ TEST_CASE("enumerate")
   {
     SECTION("as rvalue")
     {
-      using tuple_type = typename std::ranges::iterator_t<
-        decltype(std::vector<int>{1, 2, 3, 4} | views::enumerate)>::value_type;
-
       CHECK_THAT(
         (std::vector<int>{1, 2, 3, 4} | views::enumerate),
-        RangeEquals(std::vector<tuple_type>{{0, 1}, {1, 2}, {2, 3}, {3, 4}}));
+        RangeEquals(std::vector<std::tuple<long, int>>{{0, 1}, {1, 2}, {2, 3}, {3, 4}}));
 
       CHECK_THAT(
-        std::vector<int>{} | views::enumerate, RangeEquals(std::vector<tuple_type>{}));
+        (std::vector<int>{} | views::enumerate),
+        RangeEquals(std::vector<std::tuple<long, int>>{}));
     }
 
     SECTION("as lvalue")
@@ -214,10 +209,9 @@ TEST_CASE("enumerate")
       const auto e = v | views::enumerate;
       static_assert(std::ranges::bidirectional_range<decltype(e)>);
 
-      using tuple_type =
-        typename std::ranges::iterator_t<decltype(v | views::enumerate)>::value_type;
-
-      CHECK_THAT(e, RangeEquals(std::vector<tuple_type>{{0, 1}, {1, 2}, {2, 3}, {3, 4}}));
+      CHECK_THAT(
+        e,
+        RangeEquals(std::vector<std::tuple<long, int>>{{0, 1}, {1, 2}, {2, 3}, {3, 4}}));
     }
   }
 
@@ -227,10 +221,9 @@ TEST_CASE("enumerate")
     {
       const int a[] = {1, 2, 3, 4};
       auto e = views::enumerate(a);
-
-      using tuple_type = typename std::ranges::iterator_t<decltype(e)>::value_type;
-
-      CHECK_THAT(e, RangeEquals(std::vector<tuple_type>{{0, 1}, {1, 2}, {2, 3}, {3, 4}}));
+      CHECK_THAT(
+        e,
+        RangeEquals(std::vector<std::tuple<long, int>>{{0, 1}, {1, 2}, {2, 3}, {3, 4}}));
     }
 
     SECTION("nested types")
@@ -242,12 +235,9 @@ TEST_CASE("enumerate")
       };
 
       auto e = views::enumerate(v);
-
-      using tuple_type = typename std::ranges::iterator_t<decltype(e)>::value_type;
-
-      CHECK_THAT(
+      CHECK(std::ranges::equal(
         e,
-        RangeEquals(std::vector<tuple_type>{
+        std::vector<std::tuple<long, std::map<int, std::string>>>{
           {0, {{1, "a"}, {2, "b"}}},
           {1, {{3, "c"}}},
           {2, {{4, "d"}, {5, "e"}, {6, "f"}}},
@@ -258,27 +248,25 @@ TEST_CASE("enumerate")
     {
       const auto l = std::initializer_list<int>{1, 2, 3, 4};
       auto e = views::enumerate(l);
-
-      using tuple_type = typename std::ranges::iterator_t<decltype(e)>::value_type;
-
-      CHECK_THAT(e, RangeEquals(std::vector<tuple_type>{{0, 1}, {1, 2}, {2, 3}, {3, 4}}));
-    }
-
-    SECTION("move-only values")
-    {
-      auto v = std::vector<std::unique_ptr<int>>{};
-      v.push_back(std::make_unique<int>(1));
-      v.push_back(std::make_unique<int>(2));
-      v.push_back(std::make_unique<int>(3));
-
       CHECK_THAT(
-        v | views::enumerate,
-        RangeEquals(std::vector<std::tuple<long, std::unique_ptr<int>&>>{
-          {0, v[0]},
-          {1, v[1]},
-          {2, v[2]},
-        }));
+        e,
+        RangeEquals(std::vector<std::tuple<long, int>>{{0, 1}, {1, 2}, {2, 3}, {3, 4}}));
     }
+  }
+
+  SECTION("move-only value types")
+  {
+    auto v = std::vector<std::unique_ptr<int>>{};
+    v.push_back(std::make_unique<int>(1));
+    v.push_back(std::make_unique<int>(2));
+
+    auto e = v | views::enumerate;
+    CHECK_THAT(
+      e,
+      RangeEquals(std::vector<std::tuple<long, std::unique_ptr<int>&>>{
+        {0, v[0]},
+        {1, v[1]},
+      }));
   }
 }
 

@@ -73,24 +73,24 @@ void GroupRenderer::clear()
   m_boundsRenderer = DirectEdgeRenderer();
 }
 
-void GroupRenderer::addGroup(const mdl::GroupNode* group)
+void GroupRenderer::addGroup(const mdl::GroupNode& groupNode)
 {
-  if (m_groups.insert(group).second)
+  if (m_groups.insert(&groupNode).second)
   {
     invalidate();
   }
 }
 
-void GroupRenderer::removeGroup(const mdl::GroupNode* group)
+void GroupRenderer::removeGroup(const mdl::GroupNode& groupNode)
 {
-  if (auto it = m_groups.find(group); it != std::end(m_groups))
+  if (auto it = m_groups.find(&groupNode); it != std::end(m_groups))
   {
     m_groups.erase(it);
     invalidate();
   }
 }
 
-void GroupRenderer::invalidateGroup(const mdl::GroupNode*)
+void GroupRenderer::invalidateGroup(const mdl::GroupNode&)
 {
   invalidate();
 }

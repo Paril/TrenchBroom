@@ -21,7 +21,6 @@
 #include "range_test_utils.h"
 
 #include "kd/ranges/chunk_by_view.h"
-#include "kd/ranges/chunk_view.h"
 
 #include <forward_list>
 #include <ranges>
@@ -112,6 +111,47 @@ TEST_CASE("chunk_by")
       CHECK(std::ranges::equal(*--it, std::vector<int>{1, 1}));
       CHECK(std::ranges::equal(*it, std::vector<int>{1, 1}));
     }
+  }
+
+  SECTION("move-only value types")
+  {
+    using move_only = std::unique_ptr<int>;
+
+    auto v = std::vector<move_only>{};
+    v.push_back(std::make_unique<int>(1));
+    v.push_back(std::make_unique<int>(1));
+    v.push_back(std::make_unique<int>(2));
+    v.push_back(std::make_unique<int>(3));
+    v.push_back(std::make_unique<int>(3));
+
+    auto c = v | views::chunk_by([](const auto& x, const auto& y) { return *x == *y; });
+
+    const auto i = std::ranges::begin(v);
+
+    CHECK(recursive_ranges_equal(
+      c,
+      std::vector{
+        std::ranges::subrange{std::next(i, 0), std::next(i, 2)},
+        std::ranges::subrange{std::next(i, 2), std::next(i, 3)},
+        std::ranges::subrange{std::next(i, 3), std::next(i, 5)},
+      }));
+  }
+
+  SECTION("two-argument call form")
+  {
+    const auto v = std::vector{1, 1, 2, 3, 3};
+    auto c = views::chunk_by(v, std::ranges::equal_to{});
+
+    CHECK(recursive_ranges_equal(c, std::vector<std::vector<int>>{{1, 1}, {2}, {3, 3}}));
+  }
+
+  SECTION("const view")
+  {
+    const auto v = std::vector{1, 1, 2, 3, 3};
+    const auto c = views::chunk_by(v, std::ranges::equal_to{});
+
+    static_assert(std::ranges::range<const decltype(c)>);
+    CHECK(recursive_ranges_equal(c, std::vector<std::vector<int>>{{1, 1}, {2}, {3, 3}}));
   }
 
   SECTION("examples")

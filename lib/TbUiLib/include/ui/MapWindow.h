@@ -29,12 +29,12 @@
 #include <chrono>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
 class QAction;
 class QComboBox;
-class QDialog;
 class QDropEvent;
 class QMenuBar;
 class QLabel;
@@ -50,6 +50,7 @@ namespace gl
 {
 class ContextManager;
 class Material;
+class ResourceId;
 } // namespace gl
 
 namespace mdl
@@ -60,7 +61,9 @@ class Map;
 class Node;
 
 enum class PasteType;
+enum class VisualEffect;
 
+struct CompilationProfile;
 struct SelectionChange;
 } // namespace mdl
 
@@ -68,6 +71,7 @@ namespace ui
 {
 class Action;
 class AppController;
+class CompilationDialog;
 class Console;
 class InfoPanel;
 class Inspector;
@@ -88,14 +92,12 @@ private:
 
   std::chrono::time_point<std::chrono::system_clock> m_lastInputTime;
   QTimer* m_autosaveTimer = nullptr;
-  QTimer* m_processResourcesTimer = nullptr;
 
   QToolBar* m_toolBar = nullptr;
 
   QSplitter* m_hSplitter = nullptr;
   QSplitter* m_vSplitter = nullptr;
 
-  std::unique_ptr<gl::ContextManager> m_contextManager;
   SwitchableMapViewContainer* m_mapView = nullptr;
   /**
    * Last focused MapViewBase. It's a QPointer to handle changing from e.g. a 2-pane map
@@ -109,8 +111,10 @@ private:
   QComboBox* m_gridChoice = nullptr;
   QLabel* m_statusBarLabel = nullptr;
 
-  QPointer<QDialog> m_compilationDialog;
+  QPointer<CompilationDialog> m_compilationDialog;
   QPointer<ObjExportDialog> m_objExportDialog;
+
+  std::optional<std::string> m_lastCompilationProfileName;
 
   NotifierConnection m_notifierConnection;
 
@@ -119,9 +123,10 @@ private: // shortcuts
   ActionMap m_actionMap;
 
 private: // special menu entries
-  QMenu* m_recentDocumentsMenu;
-  QAction* m_undoAction;
-  QAction* m_redoAction;
+  QMenu* m_recentDocumentsMenu = nullptr;
+  QAction* m_undoAction = nullptr;
+  QAction* m_redoAction = nullptr;
+  QAction* m_rerunAction = nullptr;
 
 private:
   SignalDelayer* m_updateTitleSignalDelayer = nullptr;
@@ -178,6 +183,8 @@ private: // notification handlers
   void transactionUndone(const std::string& name, bool observable, bool isModification);
 
   void preferenceDidChange(const std::filesystem::path& path);
+  void resourcesWereProcessed(const std::vector<gl::ResourceId>& resourceIds);
+
   void gridDidChange();
   void toolActivated(Tool& tool);
   void toolDeactivated(Tool& tool);
@@ -188,6 +195,8 @@ private: // notification handlers
   void groupWasClosed();
   void nodeVisibilityDidChange(const std::vector<mdl::Node*>& nodes);
   void editorContextDidChange();
+  void triggerVisualEffect(mdl::VisualEffect visualEffect);
+
   void pointFileDidChange();
   void portalFileDidChange();
 
@@ -221,6 +230,9 @@ public:
 
   void reloadMaterialCollections();
   void reloadEntityDefinitions();
+  bool canReloadMaterialCollections() const;
+  bool canReloadEntityDefinitions() const;
+
   void closeDocument();
 
   void undo();
@@ -383,6 +395,8 @@ public:
 
   void showCompileDialog();
   bool closeCompileDialog();
+  void rerunLastCompilation();
+  bool hasLastCompilationProfile() const;
 
   void showLaunchEngineDialog();
 
@@ -404,6 +418,11 @@ public:
   MapViewBase* currentMapViewBase();
 
 private:
+  const mdl::CompilationProfile* lastCompilationProfile() const;
+  void setLastCompilationProfileName(std::string name);
+  void loadLastCompilationProfileName();
+  void updateRerunAction();
+
   bool canCompile() const;
   bool canLaunch() const;
 
@@ -420,7 +439,6 @@ public: // event filter (suppress autosave for user input events)
 
 private:
   void triggerAutosave();
-  void triggerProcessResources();
 };
 
 class DebugPaletteWindow : public QDialog

@@ -112,10 +112,7 @@ private: // shortcuts
 
 protected:
   MapViewBase(
-    AppController& appController,
-    MapDocument& document,
-    MapViewToolBox& toolBox,
-    gl::ContextManager& contextManager);
+    AppController& appController, MapDocument& document, MapViewToolBox& toolBox);
 
   void setCompass(std::unique_ptr<render::Compass> compass);
 
@@ -155,6 +152,8 @@ private:
   void entityDefinitionsDidChange();
   void modsDidChange();
   void editorContextDidChange();
+  void nodeVisibilityDidChange(const std::vector<mdl::Node*>&);
+  void nodeLockingDidChange(const std::vector<mdl::Node*>&);
   void gridDidChange();
   void pointFileDidChange();
   void portalFileDidChange();
@@ -301,14 +300,12 @@ public:
   ActionContext::Type actionContext() const;
   virtual ActionContext::Type viewActionContext() const = 0;
 
-public: // implement ViewEffectsService interface
-  void flashSelection() override;
-
 public: // implement MapView interface
   void installActivationTracker(MapViewActivationTracker& activationTracker) override;
   bool isCurrent() const override;
   MapViewBase* firstMapViewBase() override;
   bool cancelMouseDrag() override;
+  void flashSelection() override;
   void refreshViews() override;
 
 protected: // RenderView overrides
@@ -316,7 +313,7 @@ protected: // RenderView overrides
 
 private: // implement RenderView interface
   bool shouldRenderFocusIndicator() const override;
-  void renderContents() override;
+  void renderContents(gl::Gl& gl) override;
 
   virtual void preRender();
   virtual render::RenderMode renderMode() = 0;

@@ -33,6 +33,11 @@
 #include "mdl/StringMakers.h"
 #include "mdl/WorldNode.h"
 
+#include "vm/approx.h"
+
+#include <fmt/format.h>
+#include <fmt/ostream.h>
+
 #include <algorithm>
 
 namespace tb::mdl
@@ -50,37 +55,37 @@ bool nodesMatch(const Node& lhs, const Node& rhs)
   }
 
   return lhs.accept(kdl::overload(
-    [&](const WorldNode* expectedWorldNode) {
+    [&](const WorldNode& expectedWorldNode) {
       const auto* inWorldNode = dynamic_cast<const WorldNode*>(&rhs);
-      return inWorldNode && inWorldNode->entity() == expectedWorldNode->entity()
-             && nodesMatch(inWorldNode->children(), expectedWorldNode->children());
+      return inWorldNode && inWorldNode->entity() == expectedWorldNode.entity()
+             && nodesMatch(inWorldNode->children(), expectedWorldNode.children());
     },
-    [&](const LayerNode* expectedLayerNode) {
+    [&](const LayerNode& expectedLayerNode) {
       const auto* inLayerNode = dynamic_cast<const LayerNode*>(&rhs);
-      return inLayerNode && inLayerNode->layer() == expectedLayerNode->layer()
-             && nodesMatch(inLayerNode->children(), expectedLayerNode->children());
+      return inLayerNode && inLayerNode->layer() == expectedLayerNode.layer()
+             && nodesMatch(inLayerNode->children(), expectedLayerNode.children());
     },
-    [&](const GroupNode* expectedGroupNode) {
+    [&](const GroupNode& expectedGroupNode) {
       const auto* inGroupNode = dynamic_cast<const GroupNode*>(&rhs);
-      return inGroupNode && inGroupNode->group() == expectedGroupNode->group()
-             && inGroupNode->linkId() == expectedGroupNode->linkId()
-             && nodesMatch(inGroupNode->children(), expectedGroupNode->children());
+      return inGroupNode && inGroupNode->group() == expectedGroupNode.group()
+             && inGroupNode->linkId() == expectedGroupNode.linkId()
+             && nodesMatch(inGroupNode->children(), expectedGroupNode.children());
     },
-    [&](const EntityNode* expectedEntityNode) {
+    [&](const EntityNode& expectedEntityNode) {
       const auto* inEntityNode = dynamic_cast<const EntityNode*>(&rhs);
-      return inEntityNode && inEntityNode->entity() == expectedEntityNode->entity()
-             && inEntityNode->linkId() == expectedEntityNode->linkId()
-             && nodesMatch(inEntityNode->children(), expectedEntityNode->children());
+      return inEntityNode && inEntityNode->entity() == expectedEntityNode.entity()
+             && inEntityNode->linkId() == expectedEntityNode.linkId()
+             && nodesMatch(inEntityNode->children(), expectedEntityNode.children());
     },
-    [&](const BrushNode* expectedBrushNode) {
+    [&](const BrushNode& expectedBrushNode) {
       const auto* inBrushNode = dynamic_cast<const BrushNode*>(&rhs);
-      return inBrushNode && inBrushNode->brush() == expectedBrushNode->brush()
-             && inBrushNode->linkId() == expectedBrushNode->linkId();
+      return inBrushNode && inBrushNode->brush() == expectedBrushNode.brush()
+             && inBrushNode->linkId() == expectedBrushNode.linkId();
     },
-    [&](const PatchNode* expectedPatchNode) {
+    [&](const PatchNode& expectedPatchNode) {
       const auto* inPatchNode = dynamic_cast<const PatchNode*>(&rhs);
-      return inPatchNode && inPatchNode->patch() == expectedPatchNode->patch()
-             && inPatchNode->linkId() == expectedPatchNode->linkId();
+      return inPatchNode && inPatchNode->patch() == expectedPatchNode.patch()
+             && inPatchNode->linkId() == expectedPatchNode.linkId();
     }));
 }
 
@@ -90,6 +95,35 @@ bool nodesMatch(const std::vector<Node*>& lhs, const std::vector<Node*>& rhs)
     return nodesMatch(*lhsChild, *rhsChild);
   });
 }
+
+bool valueOpsMatch(const std::optional<ValueOp>& lhs, const std::optional<ValueOp>& rhs)
+{
+  if (!lhs.has_value() && !rhs.has_value())
+  {
+    return true;
+  }
+
+  if (lhs.has_value() != rhs.has_value())
+  {
+    return false;
+  }
+
+  return std::visit(
+    kdl::overload(
+      [](const SetValue& lhsSetValue, const SetValue& rhsSetValue) {
+        return lhsSetValue.value == vm::optional_approx{rhsSetValue.value};
+      },
+      [](const AddValue& lhsAddValue, const AddValue& rhsAddValue) {
+        return lhsAddValue.delta == vm::approx{rhsAddValue.delta};
+      },
+      [](const MultiplyValue& lhsMultiplyValue, const MultiplyValue& rhsMultiplyValue) {
+        return lhsMultiplyValue.factor == vm::approx{rhsMultiplyValue.factor};
+      },
+      [](const auto&, const auto&) { return false; }),
+    *lhs,
+    *rhs);
+}
+
 } // namespace
 
 NodeMatcher::NodeMatcher(const Node& expected)
@@ -114,23 +148,62 @@ NodeMatcher MatchesNode(const Node& expected)
   return NodeMatcher{expected};
 }
 
-NodeVectorMatcher::NodeVectorMatcher(std::vector<Node*> expected)
+BrushFaceAttributesMatcher::BrushFaceAttributesMatcher(BrushFaceAttributes expected)
   : m_expected{std::move(expected)}
 {
 }
 
-bool NodeVectorMatcher::match(const std::vector<Node*>& in) const
+bool BrushFaceAttributesMatcher::match(const BrushFaceAttributes& in) const
 {
-  return std::ranges::equal(in, m_expected, [](const auto& lhs, const auto& rhs) {
-    return nodesMatch(*lhs, *rhs);
-  });
+  return in.materialName() == m_expected.materialName()
+         && in.offset() == vm::approx{m_expected.offset()}
+         && in.scale() == vm::approx{m_expected.scale()}
+         && in.rotation() == vm::approx{m_expected.rotation()}
+         && in.surfaceContents() == m_expected.surfaceContents()
+         && in.surfaceFlags() == m_expected.surfaceFlags()
+         && in.surfaceValue() == m_expected.surfaceValue()
+         && in.color() == m_expected.color();
 }
 
-std::string NodeVectorMatcher::describe() const
+std::string BrushFaceAttributesMatcher::describe() const
 {
-  auto str = std::stringstream{};
-  str << "matches " << kdl::make_streamable(m_expected);
-  return str.str();
+  return fmt::format("{}", fmt::streamed(m_expected));
+}
+
+BrushFaceAttributesMatcher MatchesBrushFaceAttributes(BrushFaceAttributes expected)
+{
+  return BrushFaceAttributesMatcher{std::move(expected)};
+}
+
+UpdateBrushFaceAttributesMatcher::UpdateBrushFaceAttributesMatcher(
+  UpdateBrushFaceAttributes expected)
+  : m_expected{std::move(expected)}
+{
+}
+
+bool UpdateBrushFaceAttributesMatcher::match(const UpdateBrushFaceAttributes& in) const
+{
+  return in.materialName == m_expected.materialName
+         && valueOpsMatch(in.xOffset, m_expected.xOffset)
+         && valueOpsMatch(in.yOffset, m_expected.yOffset)
+         && valueOpsMatch(in.rotation, m_expected.rotation)
+         && valueOpsMatch(in.xScale, m_expected.xScale)
+         && valueOpsMatch(in.yScale, m_expected.yScale)
+         && in.surfaceFlags == m_expected.surfaceFlags
+         && in.surfaceContents == m_expected.surfaceContents
+         && in.surfaceValue == m_expected.surfaceValue && in.color == m_expected.color
+         && in.axis == m_expected.axis;
+}
+
+std::string UpdateBrushFaceAttributesMatcher::describe() const
+{
+  return fmt::format("{}", fmt::streamed(m_expected));
+}
+
+UpdateBrushFaceAttributesMatcher MatchesUpdateBrushFaceAttributes(
+  UpdateBrushFaceAttributes expected)
+{
+  return UpdateBrushFaceAttributesMatcher{std::move(expected)};
 }
 
 } // namespace tb::mdl

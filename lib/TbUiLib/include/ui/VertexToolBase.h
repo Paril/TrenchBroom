@@ -613,12 +613,12 @@ protected:
     for (const auto* node : nodes)
     {
       node->accept(kdl::overload(
-        [](const mdl::WorldNode*) {},
-        [](const mdl::LayerNode*) {},
-        [](const mdl::GroupNode*) {},
-        [](const mdl::EntityNode*) {},
-        [&](const mdl::BrushNode* brush) { handleManager.addHandles(brush); },
-        [](const mdl::PatchNode*) {}));
+        [](const mdl::WorldNode&) {},
+        [](const mdl::LayerNode&) {},
+        [](const mdl::GroupNode&) {},
+        [](const mdl::EntityNode&) {},
+        [&](const mdl::BrushNode& brushNode) { handleManager.addHandles(brushNode); },
+        [](const mdl::PatchNode&) {}));
     }
   }
 
@@ -630,12 +630,12 @@ protected:
     for (const auto* node : nodes)
     {
       node->accept(kdl::overload(
-        [](const mdl::WorldNode*) {},
-        [](const mdl::LayerNode*) {},
-        [](const mdl::GroupNode*) {},
-        [](const mdl::EntityNode*) {},
-        [&](const mdl::BrushNode* brush) { handleManager.removeHandles(brush); },
-        [](const mdl::PatchNode*) {}));
+        [](const mdl::WorldNode&) {},
+        [](const mdl::LayerNode&) {},
+        [](const mdl::GroupNode&) {},
+        [](const mdl::EntityNode&) {},
+        [&](const mdl::BrushNode& brushNode) { handleManager.removeHandles(brushNode); },
+        [](const mdl::PatchNode&) {}));
     }
   }
 

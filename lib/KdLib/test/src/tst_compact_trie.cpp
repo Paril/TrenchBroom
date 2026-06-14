@@ -23,7 +23,7 @@
 #include <iterator>
 
 #include <catch2/catch_test_macros.hpp>
-#include <catch2/matchers/catch_matchers_vector.hpp>
+#include <catch2/matchers/catch_matchers_range_equals.hpp>
 
 namespace kdl
 {
@@ -33,185 +33,204 @@ namespace
 {
 using test_index = compact_trie<std::string>;
 
-void assertMatches(
-  const test_index& index,
-  const std::string& pattern,
-  std::vector<std::string> expectedMatches)
+std::vector<std::string> find(const test_index& index, const std::string& pattern)
 {
-  std::vector<std::string> matches;
+  auto matches = std::vector<std::string>{};
   index.find_matches(pattern, std::back_inserter(matches));
-
-  CHECK_THAT(matches, UnorderedEquals(expectedMatches));
+  return matches;
 }
 
 } // namespace
 
-TEST_CASE("compact_trie_test.insert")
+TEST_CASE("compact_trie")
 {
   test_index index;
-  index.insert("key", "value");
-  index.insert("key2", "value");
-  index.insert("key22", "value2");
-  index.insert("k1", "value3");
-  index.insert("test", "value4");
 
-  assertMatches(index, "whoops", {});
+  SECTION("escape")
+  {
+    CHECK(test_index::escape("") == "");
+    CHECK(test_index::escape("plain text") == "plain text");
+    CHECK(test_index::escape("literal*?%\\") == "literal\\*\\?\\%\\\\");
 
-  assertMatches(index, "key222", {});
-  assertMatches(index, "key22?", {});
-  assertMatches(index, "key22*", {"value2"});
-  assertMatches(index, "key%%*", {"value", "value2"});
-  assertMatches(index, "key%*", {"value", "value", "value2"});
-  assertMatches(index, "key*", {"value", "value", "value2"});
+    index.insert("literal*?%\\", "value");
+    index.insert("literal1234", "other");
 
-  assertMatches(index, "k*", {"value", "value", "value2", "value3"});
-  assertMatches(index, "k*2", {"value", "value2"});
+    CHECK_THAT(
+      find(index, test_index::escape("literal*?%\\")), UnorderedRangeEquals({"value"}));
+  }
 
-  assertMatches(index, "test", {"value4"});
-  assertMatches(index, "test*", {"value4"});
-  assertMatches(index, "test?", {});
-  assertMatches(index, "test%", {});
-  assertMatches(index, "test%*", {"value4"});
+  SECTION("insert")
+  {
+    index.insert("key", "value");
+    index.insert("key2", "value");
+    index.insert("key22", "value2");
+    index.insert("k1", "value3");
+    index.insert("test", "value4");
 
-  index.insert("k", "value4");
+    CHECK(find(index, "whoops") == std::vector<std::string>{});
 
-  assertMatches(index, "k", {"value4"});
-  assertMatches(index, "k%", {"value3"});
-  assertMatches(index, "k*", {"value", "value", "value2", "value3", "value4"});
+    CHECK(find(index, "key222") == std::vector<std::string>{});
+    CHECK(find(index, "key22?") == std::vector<std::string>{});
+    CHECK_THAT(find(index, "key22*"), UnorderedRangeEquals({"value2"}));
+    CHECK_THAT(find(index, "key%%*"), UnorderedRangeEquals({"value", "value2"}));
+    CHECK_THAT(find(index, "key%*"), UnorderedRangeEquals({"value", "value", "value2"}));
+    CHECK_THAT(find(index, "key*"), UnorderedRangeEquals({"value", "value", "value2"}));
 
-  assertMatches(index, "*", {"value", "value", "value2", "value3", "value4", "value4"});
-}
+    CHECK_THAT(
+      find(index, "k*"), UnorderedRangeEquals({"value", "value", "value2", "value3"}));
+    CHECK_THAT(find(index, "k*2"), UnorderedRangeEquals({"value", "value2"}));
 
-TEST_CASE("compact_trie_test.remove")
-{
-  test_index index;
-  index.insert("andrew", "value");
-  index.insert("andreas", "value");
-  index.insert("andrar", "value2");
-  index.insert("andrary", "value3");
-  index.insert("andy", "value4");
+    CHECK_THAT(find(index, "test"), UnorderedRangeEquals({"value4"}));
+    CHECK_THAT(find(index, "test*"), UnorderedRangeEquals({"value4"}));
+    CHECK(find(index, "test?") == std::vector<std::string>{});
+    CHECK(find(index, "test%") == std::vector<std::string>{});
+    CHECK_THAT(find(index, "test%*"), UnorderedRangeEquals({"value4"}));
 
-  assertMatches(index, "*", {"value", "value", "value2", "value3", "value4"});
+    index.insert("k", "value4");
 
-  CHECK_FALSE(index.remove("andrary", "value2"));
+    CHECK_THAT(find(index, "k"), UnorderedRangeEquals({"value4"}));
+    CHECK_THAT(find(index, "k%"), UnorderedRangeEquals({"value3"}));
+    CHECK_THAT(
+      find(index, "k*"),
+      UnorderedRangeEquals({"value", "value", "value2", "value3", "value4"}));
 
-  CHECK(index.remove("andrary", "value3"));
-  assertMatches(index, "andrary*", {});
+    CHECK_THAT(
+      find(index, "*"),
+      UnorderedRangeEquals({"value", "value", "value2", "value3", "value4", "value4"}));
+  }
 
-  assertMatches(index, "andrar*", {"value2"});
-  CHECK(index.remove("andrar", "value2"));
-  assertMatches(index, "andrar*", {});
+  SECTION("remove")
+  {
+    index.insert("andrew", "value");
+    index.insert("andreas", "value");
+    index.insert("andrar", "value2");
+    index.insert("andrary", "value3");
+    index.insert("andy", "value4");
 
-  assertMatches(index, "andy", {"value4"});
-  CHECK(index.remove("andy", "value4"));
-  assertMatches(index, "andy", {});
+    CHECK_THAT(
+      find(index, "*"),
+      UnorderedRangeEquals({"value", "value", "value2", "value3", "value4"}));
 
-  assertMatches(index, "andre*", {"value", "value"});
-  assertMatches(index, "andreas", {"value"});
-  CHECK(index.remove("andreas", "value"));
-  assertMatches(index, "andre*", {"value"});
-  assertMatches(index, "andreas", {});
+    CHECK_FALSE(index.remove("andrary", "value2"));
 
-  assertMatches(index, "andrew", {"value"});
-  CHECK(index.remove("andrew", "value"));
-  assertMatches(index, "andrew", {});
+    CHECK(index.remove("andrary", "value3"));
+    CHECK(find(index, "andrary*") == std::vector<std::string>{});
 
-  assertMatches(index, "*", {});
-}
+    CHECK_THAT(find(index, "andrar*"), UnorderedRangeEquals({"value2"}));
+    CHECK(index.remove("andrar", "value2"));
+    CHECK(find(index, "andrar*") == std::vector<std::string>{});
 
-TEST_CASE("compact_trie_test.find_matches_with_exact_pattern")
-{
-  test_index index;
-  index.insert("key", "value");
-  index.insert("key2", "value");
-  index.insert("key22", "value2");
-  index.insert("k1", "value3");
+    CHECK_THAT(find(index, "andy"), UnorderedRangeEquals({"value4"}));
+    CHECK(index.remove("andy", "value4"));
+    CHECK(find(index, "andy") == std::vector<std::string>{});
 
-  assertMatches(index, "whoops", {});
-  assertMatches(index, "key222", {});
-  assertMatches(index, "key", {"value"});
-  assertMatches(index, "k", {});
-  assertMatches(index, "k1", {"value3"});
+    CHECK_THAT(find(index, "andre*"), UnorderedRangeEquals({"value", "value"}));
+    CHECK_THAT(find(index, "andreas"), UnorderedRangeEquals({"value"}));
+    CHECK(index.remove("andreas", "value"));
+    CHECK_THAT(find(index, "andre*"), UnorderedRangeEquals({"value"}));
+    CHECK(find(index, "andreas") == std::vector<std::string>{});
 
-  index.insert("key", "value4");
-  assertMatches(index, "key", {"value", "value4"});
+    CHECK_THAT(find(index, "andrew"), UnorderedRangeEquals({"value"}));
+    CHECK(index.remove("andrew", "value"));
+    CHECK(find(index, "andrew") == std::vector<std::string>{});
 
-  assertMatches(index, "", {});
-}
+    CHECK(find(index, "*") == std::vector<std::string>{});
+  }
 
-TEST_CASE("compact_trie_test.find_matches_with_wildcards")
-{
-  test_index index;
-  index.insert("key", "value");
-  index.insert("key2", "value");
-  index.insert("key22", "value2");
-  index.insert("k1", "value3");
-  index.insert("test", "value4");
+  SECTION("find_matches_with_exact_pattern")
+  {
+    index.insert("key", "value");
+    index.insert("key2", "value");
+    index.insert("key22", "value2");
+    index.insert("k1", "value3");
 
-  assertMatches(index, "whoops", {});
-  assertMatches(index, "k??%*", {"value", "value", "value2"});
-  assertMatches(index, "?ey", {"value"});
-  assertMatches(index, "?ey*", {"value", "value", "value2"});
-  assertMatches(index, "?*", {"value", "value", "value2", "value3", "value4"});
-  assertMatches(index, "*??", {"value", "value", "value2", "value3", "value4"});
-  assertMatches(index, "*???", {"value", "value", "value2", "value4"});
-  assertMatches(index, "k*2", {"value", "value2"});
-  assertMatches(index, "k*", {"value", "value", "value2", "value3"});
-  assertMatches(index, "t??t", {"value4"});
-  assertMatches(index, "t??*", {"value4"});
-  assertMatches(index, "t*", {"value4"});
-  assertMatches(index, "*st", {"value4"});
-  assertMatches(index, "t*t", {"value4"});
-  assertMatches(index, "t??t", {"value4"});
+    CHECK(find(index, "whoops") == std::vector<std::string>{});
+    CHECK(find(index, "key222") == std::vector<std::string>{});
+    CHECK_THAT(find(index, "key"), UnorderedRangeEquals({"value"}));
+    CHECK(find(index, "k") == std::vector<std::string>{});
+    CHECK_THAT(find(index, "k1"), UnorderedRangeEquals({"value3"}));
 
-  index.insert("this2345that", "value5");
-  assertMatches(index, "t*%%%%that", {"value5"});
-  assertMatches(index, "t*%*that", {"value5"});
-  assertMatches(index, "t*%**t", {"value4", "value5"});
-  assertMatches(index, "t*%**", {"value4", "value5"});
-  assertMatches(index, "t*", {"value4", "value5"});
-  assertMatches(index, "t**", {"value4", "value5"});
-  assertMatches(index, "t?*", {"value4", "value5"});
-  assertMatches(index, "t??*", {"value4", "value5"});
-  assertMatches(index, "t???*", {"value4", "value5"});
-  assertMatches(index, "t????*", {"value5"});
-  assertMatches(index, "t*%*", {});
-}
+    index.insert("key", "value4");
+    CHECK_THAT(find(index, "key"), UnorderedRangeEquals({"value", "value4"}));
 
-TEST_CASE("compact_trie_test.find_matches_with_digit_suffix")
-{
-  test_index index;
-  index.insert("key", "value");
-  index.insert("key2", "value");
-  index.insert("key22", "value2");
-  index.insert("key22bs", "value4");
-  index.insert("k1", "value3");
+    CHECK(find(index, "") == std::vector<std::string>{});
+  }
 
-  assertMatches(index, "whoops", {});
-  assertMatches(index, "key%*", {"value", "value", "value2"});
-  assertMatches(index, "key%%*", {"value", "value2"});
-  assertMatches(index, "key2%*", {"value", "value2"});
-  assertMatches(index, "k%*", {"value3"});
+  SECTION("find_matches_with_wildcards")
+  {
+    index.insert("key", "value");
+    index.insert("key2", "value");
+    index.insert("key22", "value2");
+    index.insert("k1", "value3");
+    index.insert("test", "value4");
 
-  index.remove("k1", "value3");
-  assertMatches(index, "k%*", {});
-}
+    CHECK(find(index, "whoops") == std::vector<std::string>{});
+    CHECK_THAT(find(index, "k??%*"), UnorderedRangeEquals({"value", "value", "value2"}));
+    CHECK_THAT(find(index, "?ey"), UnorderedRangeEquals({"value"}));
+    CHECK_THAT(find(index, "?ey*"), UnorderedRangeEquals({"value", "value", "value2"}));
+    CHECK_THAT(
+      find(index, "?*"),
+      UnorderedRangeEquals({"value", "value", "value2", "value3", "value4"}));
+    CHECK_THAT(
+      find(index, "*??"),
+      UnorderedRangeEquals({"value", "value", "value2", "value3", "value4"}));
+    CHECK_THAT(
+      find(index, "*???"), UnorderedRangeEquals({"value", "value", "value2", "value4"}));
+    CHECK_THAT(find(index, "k*2"), UnorderedRangeEquals({"value", "value2"}));
+    CHECK_THAT(
+      find(index, "k*"), UnorderedRangeEquals({"value", "value", "value2", "value3"}));
+    CHECK_THAT(find(index, "t??t"), UnorderedRangeEquals({"value4"}));
+    CHECK_THAT(find(index, "t??*"), UnorderedRangeEquals({"value4"}));
+    CHECK_THAT(find(index, "t*"), UnorderedRangeEquals({"value4"}));
+    CHECK_THAT(find(index, "*st"), UnorderedRangeEquals({"value4"}));
+    CHECK_THAT(find(index, "t*t"), UnorderedRangeEquals({"value4"}));
+    CHECK_THAT(find(index, "t??t"), UnorderedRangeEquals({"value4"}));
 
-TEST_CASE("compact_trie_test.get_keys")
-{
-  test_index index;
-  index.insert("key", "value");
-  index.insert("key2", "value");
-  index.insert("key22", "value2");
-  index.insert("key22bs", "value4");
-  index.insert("k1", "value3");
+    index.insert("this2345that", "value5");
+    CHECK_THAT(find(index, "t*%%%%that"), UnorderedRangeEquals({"value5"}));
+    CHECK_THAT(find(index, "t*%*that"), UnorderedRangeEquals({"value5"}));
+    CHECK_THAT(find(index, "t*%**t"), UnorderedRangeEquals({"value4", "value5"}));
+    CHECK_THAT(find(index, "t*%**"), UnorderedRangeEquals({"value4", "value5"}));
+    CHECK_THAT(find(index, "t*"), UnorderedRangeEquals({"value4", "value5"}));
+    CHECK_THAT(find(index, "t**"), UnorderedRangeEquals({"value4", "value5"}));
+    CHECK_THAT(find(index, "t?*"), UnorderedRangeEquals({"value4", "value5"}));
+    CHECK_THAT(find(index, "t??*"), UnorderedRangeEquals({"value4", "value5"}));
+    CHECK_THAT(find(index, "t???*"), UnorderedRangeEquals({"value4", "value5"}));
+    CHECK_THAT(find(index, "t????*"), UnorderedRangeEquals({"value5"}));
+    CHECK(find(index, "t*%*") == std::vector<std::string>{});
+  }
 
-  std::vector<std::string> keys;
-  index.get_keys(std::back_inserter(keys));
+  SECTION("find_matches_with_digit_suffix")
+  {
+    index.insert("key", "value");
+    index.insert("key2", "value");
+    index.insert("key22", "value2");
+    index.insert("key22bs", "value4");
+    index.insert("k1", "value3");
 
-  CHECK_THAT(
-    keys,
-    UnorderedEquals(std::vector<std::string>{"key", "key2", "key22", "key22bs", "k1"}));
+    CHECK(find(index, "whoops") == std::vector<std::string>{});
+    CHECK_THAT(find(index, "key%*"), UnorderedRangeEquals({"value", "value", "value2"}));
+    CHECK_THAT(find(index, "key%%*"), UnorderedRangeEquals({"value", "value2"}));
+    CHECK_THAT(find(index, "key2%*"), UnorderedRangeEquals({"value", "value2"}));
+    CHECK_THAT(find(index, "k%*"), UnorderedRangeEquals({"value3"}));
+
+    index.remove("k1", "value3");
+    CHECK(find(index, "k%*") == std::vector<std::string>{});
+  }
+
+  SECTION("get_keys")
+  {
+    index.insert("key", "value");
+    index.insert("key2", "value");
+    index.insert("key22", "value2");
+    index.insert("key22bs", "value4");
+    index.insert("k1", "value3");
+
+    std::vector<std::string> keys;
+    index.get_keys(std::back_inserter(keys));
+
+    CHECK_THAT(keys, UnorderedRangeEquals({"key", "key2", "key22", "key22bs", "k1"}));
+  }
 }
 
 } // namespace kdl

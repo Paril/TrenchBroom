@@ -22,7 +22,9 @@
 #include "PreferenceManager.h"
 #include "Preferences.h"
 #include "gl/ActiveShader.h"
+#include "gl/GlInterface.h"
 #include "gl/PrimType.h"
+#include "gl/ShaderManager.h"
 #include "gl/Shaders.h"
 #include "render/BrushRendererArrays.h"
 #include "render/RenderBatch.h"
@@ -73,21 +75,23 @@ EdgeRenderer::RenderBase::~RenderBase() = default;
 
 void EdgeRenderer::RenderBase::renderEdges(RenderContext& renderContext)
 {
+  auto& gl = renderContext.gl();
+
   if (m_params.offset != 0.0)
   {
-    gl::glSetEdgeOffset(m_params.offset);
+    gl::glSetEdgeOffset(gl, m_params.offset);
   }
 
-  glAssert(glLineWidth(m_params.width * renderContext.dpiScale()));
+  gl.lineWidth(m_params.width * renderContext.dpiScale());
 
   if (m_params.onTop)
   {
-    glAssert(glDisable(GL_DEPTH_TEST));
+    gl.disable(GL_DEPTH_TEST);
   }
 
   {
     auto shader =
-      gl::ActiveShader{renderContext.shaderManager(), gl::Shaders::EdgeShader};
+      gl::ActiveShader{gl, renderContext.shaderManager(), gl::Shaders::EdgeShader};
     shader.set("ShowSoftMapBounds", !renderContext.softMapBounds().is_empty());
     shader.set("SoftMapBoundsMin", renderContext.softMapBounds().min);
     shader.set("SoftMapBoundsMax", renderContext.softMapBounds().max);
@@ -98,19 +102,20 @@ void EdgeRenderer::RenderBase::renderEdges(RenderContext& renderContext)
         0.33f}); // NOTE: heavier tint than FaceRenderer, since these are lines
     shader.set("UseUniformColor", m_params.useColor);
     shader.set("Color", m_params.color);
+
     doRenderVertices(renderContext);
   }
 
   if (m_params.onTop)
   {
-    glAssert(glEnable(GL_DEPTH_TEST));
+    gl.enable(GL_DEPTH_TEST);
   }
 
-  glAssert(glLineWidth(renderContext.dpiScale()));
+  gl.lineWidth(renderContext.dpiScale());
 
   if (m_params.offset != 0.0)
   {
-    gl::glResetEdgeOffset();
+    gl::glResetEdgeOffset(gl);
   }
 }
 
@@ -181,12 +186,12 @@ DirectEdgeRenderer::Render::Render(
 {
 }
 
-void DirectEdgeRenderer::Render::doPrepareVertices(gl::VboManager& vboManager)
+void DirectEdgeRenderer::Render::prepare(gl::Gl& gl, gl::VboManager& vboManager)
 {
-  m_vertexArray.prepare(vboManager);
+  m_vertexArray.prepare(gl, vboManager);
 }
 
-void DirectEdgeRenderer::Render::doRender(RenderContext& renderContext)
+void DirectEdgeRenderer::Render::render(RenderContext& renderContext)
 {
   if (m_vertexArray.vertexCount() > 0)
   {
@@ -194,9 +199,18 @@ void DirectEdgeRenderer::Render::doRender(RenderContext& renderContext)
   }
 }
 
-void DirectEdgeRenderer::Render::doRenderVertices(RenderContext&)
+void DirectEdgeRenderer::Render::doRenderVertices(RenderContext& renderContext)
 {
-  m_indexRanges.render(m_vertexArray);
+  auto& gl = renderContext.gl();
+
+  auto* currentProgram = renderContext.shaderManager().currentProgram();
+  contract_assert(currentProgram);
+
+  if (m_vertexArray.setup(gl, *currentProgram))
+  {
+    m_indexRanges.render(gl, m_vertexArray);
+    m_vertexArray.cleanup(gl, *currentProgram);
+  }
 }
 
 DirectEdgeRenderer::DirectEdgeRenderer() {}
@@ -233,13 +247,13 @@ IndexedEdgeRenderer::Render::Render(
 {
 }
 
-void IndexedEdgeRenderer::Render::prepareVerticesAndIndices(gl::VboManager& vboManager)
+void IndexedEdgeRenderer::Render::prepare(gl::Gl& gl, gl::VboManager& vboManager)
 {
-  m_vertexArray->prepare(vboManager);
-  m_indexArray->prepare(vboManager);
+  m_vertexArray->prepare(gl, vboManager);
+  m_indexArray->prepare(gl, vboManager);
 }
 
-void IndexedEdgeRenderer::Render::doRender(RenderContext& renderContext)
+void IndexedEdgeRenderer::Render::render(RenderContext& renderContext)
 {
   if (m_indexArray->hasValidIndices())
   {
@@ -247,13 +261,19 @@ void IndexedEdgeRenderer::Render::doRender(RenderContext& renderContext)
   }
 }
 
-void IndexedEdgeRenderer::Render::doRenderVertices(RenderContext&)
+void IndexedEdgeRenderer::Render::doRenderVertices(RenderContext& renderContext)
 {
-  m_vertexArray->setupVertices();
-  m_indexArray->setupIndices();
-  m_indexArray->render(gl::PrimType::Lines);
-  m_vertexArray->cleanupVertices();
-  m_indexArray->cleanupIndices();
+  auto* currentProgram = renderContext.shaderManager().currentProgram();
+  contract_assert(currentProgram);
+
+  auto& gl = renderContext.gl();
+  if (m_vertexArray->setup(gl, *currentProgram))
+  {
+    m_indexArray->setup(gl);
+    m_indexArray->render(gl, gl::PrimType::Lines);
+    m_vertexArray->cleanup(gl, *currentProgram);
+    m_indexArray->cleanup(gl);
+  }
 }
 
 // IndexedEdgeRenderer

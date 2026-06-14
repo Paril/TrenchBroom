@@ -117,23 +117,23 @@ TEST_CASE("GroupNode.canAddChild")
     {0, 2, 0}, {1, 2, 1}, {2, 2, 0} }, "material"}};
   // clang-format on
 
-  CHECK_FALSE(groupNode.canAddChild(&worldNode));
-  CHECK_FALSE(groupNode.canAddChild(&layerNode));
-  CHECK_FALSE(groupNode.canAddChild(&groupNode));
-  CHECK(groupNode.canAddChild(&entityNode));
-  CHECK(groupNode.canAddChild(&brushNode));
-  CHECK(groupNode.canAddChild(&patchNode));
+  CHECK_FALSE(groupNode.canAddChild(worldNode));
+  CHECK_FALSE(groupNode.canAddChild(layerNode));
+  CHECK_FALSE(groupNode.canAddChild(groupNode));
+  CHECK(groupNode.canAddChild(entityNode));
+  CHECK(groupNode.canAddChild(brushNode));
+  CHECK(groupNode.canAddChild(patchNode));
 
   SECTION("Recursive linked groups")
   {
     auto linkedGroupNode = std::make_unique<GroupNode>(Group{"group"});
     setLinkId(groupNode, "linked_group_id");
     setLinkId(*linkedGroupNode, groupNode.linkId());
-    CHECK_FALSE(groupNode.canAddChild(linkedGroupNode.get()));
+    CHECK_FALSE(groupNode.canAddChild(*linkedGroupNode));
 
     auto outerGroupNode = GroupNode{Group{"outer_group"}};
     outerGroupNode.addChild(linkedGroupNode.release());
-    CHECK_FALSE(groupNode.canAddChild(&outerGroupNode));
+    CHECK_FALSE(groupNode.canAddChild(outerGroupNode));
   }
 }
 
@@ -156,12 +156,12 @@ TEST_CASE("GroupNode.canRemoveChild")
     {0, 2, 0}, {1, 2, 1}, {2, 2, 0} }, "material"}};
   // clang-format on
 
-  CHECK(groupNode.canRemoveChild(&worldNode));
-  CHECK(groupNode.canRemoveChild(&layerNode));
-  CHECK(groupNode.canRemoveChild(&groupNode));
-  CHECK(groupNode.canRemoveChild(&entityNode));
-  CHECK(groupNode.canRemoveChild(&brushNode));
-  CHECK(groupNode.canRemoveChild(&patchNode));
+  CHECK(groupNode.canRemoveChild(worldNode));
+  CHECK(groupNode.canRemoveChild(layerNode));
+  CHECK(groupNode.canRemoveChild(groupNode));
+  CHECK(groupNode.canRemoveChild(entityNode));
+  CHECK(groupNode.canRemoveChild(brushNode));
+  CHECK(groupNode.canRemoveChild(patchNode));
 }
 
 } // namespace tb::mdl

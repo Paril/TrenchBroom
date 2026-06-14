@@ -36,6 +36,7 @@
 
 #include "kd/path_utils.h"
 #include "kd/ranges/as_rvalue_view.h"
+#include "kd/ranges/to.h"
 #include "kd/result_fold.h"
 
 #include <assimp/IOStream.hpp>
@@ -46,6 +47,8 @@
 #include <assimp/types.h>
 #include <fmt/format.h>
 #include <fmt/std.h>
+
+#include <ranges>
 
 namespace tb::mdl
 {
@@ -122,16 +125,26 @@ class AssimpIOSystem : public Assimp::IOSystem
 {
 private:
   const fs::FileSystem& m_fs;
+  Logger& m_logger;
 
 public:
-  explicit AssimpIOSystem(const fs::FileSystem& fs)
+  explicit AssimpIOSystem(const fs::FileSystem& fs, Logger& logger)
     : m_fs{fs}
+    , m_logger{logger}
   {
   }
 
   bool Exists(const char* path) const override
   {
-    return m_fs.pathInfo(std::filesystem::path{path}) == fs::PathInfo::File;
+    return parsePath(path) | kdl::transform([&](const auto& fsPath) {
+             return m_fs.pathInfo(fsPath) == fs::PathInfo::File;
+           })
+           | kdl::transform_error([&](const auto& e) {
+               m_logger.warn() << fmt::format(
+                 "Assimp path lookup failed for '{}': {}", path, e.msg);
+               return false;
+             })
+           | kdl::value();
   }
 
   char getOsSeparator() const override
@@ -145,14 +158,32 @@ public:
   {
     if (mode[0] != 'r')
     {
-      throw ParserException{"Assimp attempted to open a file not for reading."};
+      m_logger.error() << "Assimp attempted to open a file not for reading.";
+      return nullptr;
     }
 
-    return (m_fs.openFile(path) | kdl::transform([](auto file) {
-              return std::make_unique<AssimpIOStream>(std::move(file));
-            })
-            | kdl::if_error([](auto e) { throw ParserException{e.msg}; }) | kdl::value())
-      .release();
+    return parsePath(path)
+           | kdl::and_then([&](const auto& fsPath) { return m_fs.openFile(fsPath); })
+           | kdl::transform([](auto file) { return new AssimpIOStream{std::move(file)}; })
+           | kdl::transform_error([&](const auto e) {
+               m_logger.error()
+                 << fmt::format("Assimp cannot open '{}': {}", path, e.msg);
+               return nullptr;
+             })
+           | kdl::value();
+  }
+
+private:
+  Result<std::filesystem::path> parsePath(const char* path) const
+  {
+    try
+    {
+      return kdl::parse_utf8_path(std::string{path});
+    }
+    catch (const std::system_error& e)
+    {
+      return Error{e.what()};
+    }
   }
 };
 
@@ -162,6 +193,31 @@ struct AssimpMeshWithTransforms
   aiMatrix4x4 m_transform;
   aiMatrix4x4 m_axisTransform;
 };
+
+std::optional<std::filesystem::path> parseAssimpTexturePath(
+  const aiString& assimpPath,
+  const size_t materialIndex,
+  const std::filesystem::path& modelPath,
+  Logger& logger)
+{
+  const auto texturePathString =
+    std::string{assimpPath.C_Str(), size_t(assimpPath.length)};
+
+  try
+  {
+    return kdl::parse_utf8_path(texturePathString);
+  }
+  catch (const std::system_error& e)
+  {
+    logger.error() << fmt::format(
+      "Could not convert diffuse texture path '{}' for material {} of model '{}': {}",
+      texturePathString,
+      materialIndex,
+      modelPath,
+      e.what());
+    return std::nullopt;
+  }
+}
 
 std::optional<gl::Texture> loadFallbackTexture(const fs::FileSystem& fs)
 {
@@ -202,10 +258,35 @@ gl::Texture loadTextureFromFileSystem(
 }
 
 gl::Texture loadUncompressedEmbeddedTexture(
-  const aiTexel& data, const size_t width, const size_t height)
+  const aiTexel& data,
+  const size_t width,
+  const size_t height,
+  const std::optional<aiTexel>& transparentTexel)
 {
+  using TexelPredicate = std::function<bool(const aiTexel&)>;
+
+  // Check if a texel is transparent according to the given transparentTexel.
+  const auto isTransparentTexel =
+    transparentTexel ? TexelPredicate{[&](const auto& texel) {
+      return texel.r == transparentTexel->r && texel.g == transparentTexel->g
+             && texel.b == transparentTexel->b;
+    }}
+                     : TexelPredicate{[](const auto&) { return false; }};
+
+  // Set the alpha component of any transparent texel to 0.
+  const auto transformTexel = [&](const auto& texel) {
+    return isTransparentTexel(texel) ? aiTexel{texel.b, texel.g, texel.r, 0} : texel;
+  };
+
+  // The source range transforms texels according to the given transparentTexel. We
+  // perform this transformation on the source range to so that we can work on aiTexels.
+  auto sourceRange = std::ranges::subrange(&data, &data + (width * height))
+                     | std::views::transform(transformTexel);
+
+  // Copy the pixels from the source range into the texture buffer. Since aiTexel's layout
+  // is just 4 bytes, we can get away with reinterpret_cast here.
   auto buffer = gl::TextureBuffer{width * height * sizeof(aiTexel)};
-  std::memcpy(buffer.data(), &data, width * height * sizeof(aiTexel));
+  std::ranges::copy(sourceRange, reinterpret_cast<aiTexel*>(buffer.data()));
 
   const auto averageColor = getAverageColor(buffer, GL_BGRA);
   return {
@@ -225,29 +306,18 @@ gl::Texture loadCompressedEmbeddedTexture(
          | kdl::or_else(makeReadTextureErrorHandler(fs, logger)) | kdl::value();
 }
 
-gl::Texture loadTexture(
-  const aiTexture* texture,
-  const std::filesystem::path& texturePath,
-  const std::filesystem::path& modelPath,
-  const fs::FileSystem& fs,
-  Logger& logger)
+std::optional<aiTexel> getTransparentTexel(const aiMaterial& material)
 {
-  if (!texture)
+  if (aiColor3D transparentColor;
+      material.Get(AI_MATKEY_COLOR_TRANSPARENT, transparentColor) == aiReturn_SUCCESS)
   {
-    // The texture is not embedded. Load it using the file system.
-    const auto filePath = modelPath.parent_path() / texturePath;
-    return loadTextureFromFileSystem(filePath, fs, logger);
+    return aiTexel{
+      static_cast<unsigned char>(transparentColor.b),
+      static_cast<unsigned char>(transparentColor.g),
+      static_cast<unsigned char>(transparentColor.r),
+      0};
   }
-
-  if (texture->mHeight != 0)
-  {
-    // The texture is uncompressed, load it directly.
-    return loadUncompressedEmbeddedTexture(
-      *texture->pcData, texture->mWidth, texture->mHeight);
-  }
-
-  // The texture is embedded, but compressed. Let FreeImage load it from memory.
-  return loadCompressedEmbeddedTexture(*texture->pcData, texture->mWidth, fs, logger);
+  return std::nullopt;
 }
 
 std::vector<gl::Texture> loadTexturesForMaterial(
@@ -257,28 +327,50 @@ std::vector<gl::Texture> loadTexturesForMaterial(
   const fs::FileSystem& fs,
   Logger& logger)
 {
-  auto textures = std::vector<gl::Texture>{};
-
   // Is there even a single diffuse texture? If not, fail and load fallback texture.
   const auto textureCount =
     scene.mMaterials[materialIndex]->GetTextureCount(aiTextureType_DIFFUSE);
-  if (textureCount > 0)
-  {
-    // load up every diffuse texture
-    for (unsigned int ti = 0; ti < textureCount; ++ti)
-    {
-      auto path = aiString{};
-      scene.mMaterials[materialIndex]->GetTexture(aiTextureType_DIFFUSE, ti, &path);
 
-      const auto texturePath = std::filesystem::path{path.C_Str()};
-      const auto* texture = scene.GetEmbeddedTexture(path.C_Str());
-      textures.push_back(loadTexture(texture, texturePath, modelPath, fs, logger));
-    }
-  }
-  else
+  auto textures =
+    std::views::iota(0u, textureCount) | std::views::transform([&](const auto ti) {
+      auto assimpPath = aiString{};
+      scene.mMaterials[materialIndex]->GetTexture(aiTextureType_DIFFUSE, ti, &assimpPath);
+
+      if (const auto* texture = scene.GetEmbeddedTexture(assimpPath.C_Str()))
+      {
+        if (texture->mHeight != 0)
+        {
+          const auto transparentTexel =
+            getTransparentTexel(*scene.mMaterials[materialIndex]);
+
+          // The texture is uncompressed, load it directly.
+          return loadUncompressedEmbeddedTexture(
+            *texture->pcData, texture->mWidth, texture->mHeight, transparentTexel);
+        }
+
+        // The texture is embedded, but compressed. Let FreeImage load it from memory.
+        return loadCompressedEmbeddedTexture(
+          *texture->pcData, texture->mWidth, fs, logger);
+      }
+
+      if (
+        const auto texturePath =
+          parseAssimpTexturePath(assimpPath, materialIndex, modelPath, logger))
+      {
+        // The texture is not embedded. Load it using the file system.
+        return loadTextureFromFileSystem(
+          modelPath.parent_path() / *texturePath, fs, logger);
+      }
+
+      return loadFallbackOrDefaultTexture(fs, logger);
+    })
+    | kdl::ranges::to<std::vector>();
+
+  if (textures.empty())
   {
     logger.error() << fmt::format(
-      "No diffuse textures found for material {} of model '{}', loading fallback texture",
+      "No usable diffuse textures found for material {} of model '{}', loading "
+      "fallback texture",
       materialIndex,
       modelPath);
 
@@ -826,7 +918,7 @@ Result<EntityModelData> loadAssimpModel(
 
     // Import the file as an Assimp scene and populate our vectors.
     auto importer = Assimp::Importer{};
-    importer.SetIOHandler(new AssimpIOSystem{fs});
+    importer.SetIOHandler(new AssimpIOSystem{fs, logger});
 
     const auto* scene = importer.ReadFile(modelPath, assimpFlags);
     if (!scene)

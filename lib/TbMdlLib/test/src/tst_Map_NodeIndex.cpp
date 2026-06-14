@@ -33,6 +33,7 @@
 #include "mdl/Map_Nodes.h"
 #include "mdl/Map_Selection.h"
 #include "mdl/Matchers.h"
+#include "mdl/NodeIndex.h"
 #include "mdl/TagMatcher.h"
 #include "mdl/TestFactory.h"
 #include "mdl/TestUtils.h"
@@ -71,6 +72,25 @@ TEST_CASE("Map_NodeIndex")
 
     CHECK(map.findNodes("some_key") == std::vector<Node*>{entityNode});
     CHECK(map.findNodes("group") == std::vector<Node*>{groupNode});
+  }
+
+  SECTION("special characters in property keys can be queried with escaped patterns")
+  {
+    auto* literalEntityNode = new EntityNode{Entity{{
+      {"name*?%\\", "literal_value"},
+    }}};
+    auto* wildcardEntityNode = new EntityNode{Entity{{
+      {"name1234", "wildcard_value"},
+    }}};
+
+    addNodes(map, {{parentForNodes(map), {literalEntityNode, wildcardEntityNode}}});
+
+    CHECK_THAT(
+      map.findNodes("name*"),
+      UnorderedEquals(std::vector<Node*>{literalEntityNode, wildcardEntityNode}));
+    CHECK_THAT(
+      map.findNodes(NodeIndex::escapePattern("name*?%\\")),
+      UnorderedEquals(std::vector<Node*>{literalEntityNode}));
   }
 
   SECTION("Removing nodes updates the index")

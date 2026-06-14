@@ -82,8 +82,8 @@ public:
 
   void setFaceMaterial(size_t faceIndex, gl::Material* material);
 
-  bool contains(const Node* node) const;
-  bool intersects(const Node* node) const;
+  bool contains(const Node& node) const;
+  bool intersects(const Node& node) const;
 
 private:
   void clearSelectedFaces();
@@ -98,8 +98,8 @@ private: // implement Node interface
 
   Node* doClone(const vm::bbox3d& worldBounds) const override;
 
-  bool doCanAddChild(const Node* child) const override;
-  bool doCanRemoveChild(const Node* child) const override;
+  bool doCanAddChild(const Node& child) const override;
+  bool doCanRemoveChild(const Node& child) const override;
   bool doRemoveIfEmpty() const override;
 
   bool doShouldAddToSpacialIndex() const override;

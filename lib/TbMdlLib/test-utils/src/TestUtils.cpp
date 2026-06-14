@@ -284,34 +284,34 @@ void transformNode(
   Node& node, const vm::mat4x4d& transformation, const vm::bbox3d& worldBounds)
 {
   node.accept(kdl::overload(
-    [](const WorldNode*) {},
-    [](const LayerNode*) {},
-    [&](auto&& thisLambda, GroupNode* groupNode) {
-      auto group = groupNode->group();
+    [](const WorldNode&) {},
+    [](const LayerNode&) {},
+    [&](auto&& thisLambda, GroupNode& groupNode) {
+      auto group = groupNode.group();
       group.transform(transformation);
-      groupNode->setGroup(std::move(group));
+      groupNode.setGroup(std::move(group));
 
-      groupNode->visitChildren(thisLambda);
+      groupNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, EntityNode* entityNode) {
+    [&](auto&& thisLambda, EntityNode& entityNode) {
       const auto updateAngleProperty =
-        entityNode->entityPropertyConfig().updateAnglePropertyAfterTransform;
+        entityNode.entityPropertyConfig().updateAnglePropertyAfterTransform;
 
-      auto entity = entityNode->entity();
+      auto entity = entityNode.entity();
       entity.transform(transformation, updateAngleProperty);
-      entityNode->setEntity(std::move(entity));
+      entityNode.setEntity(std::move(entity));
 
-      entityNode->visitChildren(thisLambda);
+      entityNode.visitChildren(thisLambda);
     },
-    [&](BrushNode* brushNode) {
-      auto brush = brushNode->brush();
+    [&](BrushNode& brushNode) {
+      auto brush = brushNode.brush();
       REQUIRE(brush.transform(worldBounds, transformation, false));
-      brushNode->setBrush(std::move(brush));
+      brushNode.setBrush(std::move(brush));
     },
-    [&](PatchNode* patchNode) {
-      auto patch = patchNode->patch();
+    [&](PatchNode& patchNode) {
+      auto patch = patchNode.patch();
       patch.transform(transformation);
-      patchNode->setPatch(std::move(patch));
+      patchNode.setPatch(std::move(patch));
     }));
 }
 
@@ -356,9 +356,9 @@ void checkBrushUVCoordSystem(const mdl::BrushNode* brushNode, const bool expectP
 void setLinkId(Node& node, std::string linkId)
 {
   node.accept(kdl::overload(
-    [](const WorldNode*) {},
-    [](const LayerNode*) {},
-    [&](Object* object) { object->setLinkId(std::move(linkId)); }));
+    [](const WorldNode&) {},
+    [](const LayerNode&) {},
+    [&](Object& object) { object.setLinkId(std::move(linkId)); }));
 }
 
 Selection makeSelection(Map& map, const std::vector<Node*>& nodes)
@@ -368,23 +368,23 @@ Selection makeSelection(Map& map, const std::vector<Node*>& nodes)
   mdl::Node::visitAll(
     nodes,
     kdl::overload(
-      [](mdl::WorldNode*) {},
-      [](mdl::LayerNode*) {},
-      [&](mdl::GroupNode* group) {
-        selection.nodes.push_back(group);
-        selection.groups.push_back(group);
+      [](mdl::WorldNode&) {},
+      [](mdl::LayerNode&) {},
+      [&](mdl::GroupNode& groupNode) {
+        selection.nodes.push_back(&groupNode);
+        selection.groups.push_back(&groupNode);
       },
-      [&](mdl::EntityNode* entity) {
-        selection.nodes.push_back(entity);
-        selection.entities.push_back(entity);
+      [&](mdl::EntityNode& entityNode) {
+        selection.nodes.push_back(&entityNode);
+        selection.entities.push_back(&entityNode);
       },
-      [&](mdl::BrushNode* brush) {
-        selection.nodes.push_back(brush);
-        selection.brushes.push_back(brush);
+      [&](mdl::BrushNode& brushNode) {
+        selection.nodes.push_back(&brushNode);
+        selection.brushes.push_back(&brushNode);
       },
-      [&](mdl::PatchNode* patch) {
-        selection.nodes.push_back(patch);
-        selection.patches.push_back(patch);
+      [&](mdl::PatchNode& patchNode) {
+        selection.nodes.push_back(&patchNode);
+        selection.patches.push_back(&patchNode);
       }));
 
   return selection;

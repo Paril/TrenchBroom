@@ -18,6 +18,7 @@
  */
 
 #include "Matchers.h"
+#include "TestEnvironment.h"
 #include "TestParserStatus.h"
 #include "fs/TestUtils.h"
 #include "gl/Material.h"
@@ -31,6 +32,7 @@
 #include "mdl/NodeReader.h"
 #include "mdl/TestUtils.h"
 
+#include "kd/ranges/concat_view.h"
 #include "kd/ranges/to.h"
 #include "kd/result.h"
 #include "kd/result_fold.h"
@@ -1519,7 +1521,7 @@ TEST_CASE("Brush")
         {+64, +64, -64},
         {+64, -64, -64}};
       const auto vertexPositions =
-        kdl::vec_concat(std::vector<vm::vec3d>{peakPosition}, baseQuadVertexPositions);
+        kdl::vec_push_back(baseQuadVertexPositions, peakPosition);
 
       auto builder = BrushBuilder{MapFormat::Standard, worldBounds};
       auto brush =
@@ -2060,7 +2062,8 @@ TEST_CASE("Brush")
       };
 
       const auto vertexPositions =
-        kdl::vec_concat(smallerTopPolygon, cubeTopFace, cubeBottomFace);
+        kdl::views::concat(smallerTopPolygon, cubeTopFace, cubeBottomFace)
+        | kdl::ranges::to<std::vector>();
 
       auto builder = BrushBuilder{MapFormat::Standard, worldBounds};
       auto brush =
@@ -2123,7 +2126,8 @@ TEST_CASE("Brush")
       };
 
       const auto vertexPositions =
-        kdl::vec_concat(leftPolygon, bottomPolygon, bottomRightPolygon);
+        kdl::views::concat(leftPolygon, bottomPolygon, bottomRightPolygon)
+        | kdl::ranges::to<std::vector>();
 
       auto builder = BrushBuilder{MapFormat::Standard, worldBounds};
       auto brush =
@@ -3291,8 +3295,7 @@ TEST_CASE("Brush (Regression)", "[regression]")
   SECTION("convexMergeCrash_2789")
   {
     // see https://github.com/TrenchBroom/TrenchBroom/issues/2789
-    const auto path =
-      std::filesystem::current_path() / "fixture/test/mdl/Brush/curvetut-crash.map";
+    const auto path = getFixtureRoot() / "test/mdl/Brush/curvetut-crash.map";
     const auto data = fs::readTextFile(path);
     REQUIRE(!data.empty());
 
@@ -3359,8 +3362,7 @@ TEST_CASE("Brush (Regression)", "[regression]")
   {
     // weirdcurvemerge.map from https://github.com/TrenchBroom/TrenchBroom/issues/2789
 
-    const auto path =
-      std::filesystem::current_path() / "fixture/test/mdl/Brush/weirdcurvemerge.map";
+    const auto path = getFixtureRoot() / "test/mdl/Brush/weirdcurvemerge.map";
     const auto data = fs::readTextFile(path);
     REQUIRE(!data.empty());
 
@@ -3507,8 +3509,7 @@ TEST_CASE("Brush (Regression)", "[regression]")
         ( -1178 54.02274375211438695 -20 ) ( -1178 -277.57717407067275417 -20 ) ( -1178 54.02274375211438695 -12 ) 128_gold_2 -14.94120025634765625 -108 -0 0.72087001800537109 1
     })";
 
-    const auto subtrahendPath =
-      std::filesystem::current_path() / "fixture/test/mdl/Brush/subtrahend.map";
+    const auto subtrahendPath = getFixtureRoot() / "test/mdl/Brush/subtrahend.map";
     const auto subtrahendStr = fs::readTextFile(subtrahendPath);
 
     auto status = TestParserStatus{};

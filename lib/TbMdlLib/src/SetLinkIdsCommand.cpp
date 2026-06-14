@@ -44,15 +44,15 @@ auto setLinkIds(const std::vector<std::tuple<Node*, std::string>>& linkIds)
            auto* node = std::get<Node*>(nodeAndLinkId);
            const auto& linkId = std::get<std::string>(nodeAndLinkId);
            return node->accept(kdl::overload(
-             [&](const WorldNode*) -> std::tuple<Node*, std::string> {
+             [&](const WorldNode&) -> std::tuple<Node*, std::string> {
                contract_assert(false);
              },
-             [](const LayerNode*) -> std::tuple<Node*, std::string> {
+             [](const LayerNode&) -> std::tuple<Node*, std::string> {
                contract_assert(false);
              },
-             [&](Object* object) -> std::tuple<Node*, std::string> {
-               auto oldLinkId = object->linkId();
-               object->setLinkId(std::move(linkId));
+             [&](Object& object) -> std::tuple<Node*, std::string> {
+               auto oldLinkId = object.linkId();
+               object.setLinkId(std::move(linkId));
                return {node, std::move(oldLinkId)};
              }));
          })

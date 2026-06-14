@@ -22,6 +22,7 @@
 
 #include "kd/contracts.h"
 #include "kd/string_compare.h"
+#include "kd/string_format.h"
 #include "kd/vector_set.h"
 
 #include <stdexcept>
@@ -32,6 +33,23 @@
 
 namespace kdl
 {
+namespace detail
+{
+
+inline constexpr auto pattern_match_all = '*';
+inline constexpr auto pattern_match_one = '?';
+inline constexpr auto pattern_match_number = '%';
+inline constexpr auto pattern_escape_char = '\\';
+
+inline constexpr std::string_view pattern_special_chars = "*?%\\";
+
+inline bool is_special_char(const char c)
+{
+  return pattern_special_chars.find(c) != std::string_view::npos;
+}
+
+} // namespace detail
+
 /**
  * Maps string keys to values, but with more efficient storage characteristics than a
  * regular std::map. Another difference is that values can be stored multiple times in
@@ -465,7 +483,7 @@ private:
 
         // after this point, we can assume that the pattern is not consumed, but the key
         // might be
-        if (pattern[p_i] == '\\' && p_i < pattern.length() - 1u)
+        if (pattern[p_i] == detail::pattern_escape_char && p_i < pattern.length() - 1u)
         {
           // handle escaped characters in the pattern
           const auto& n = pattern[p_i + 1u];
@@ -474,7 +492,7 @@ private:
           {
             // check the next character in the pattern against the next character in the
             // key
-            if (n == '*' || n == '?' || n == '%' || n == '\\')
+            if (detail::is_special_char(n))
             {
               if (m_key[k_i] == n)
               {
@@ -490,7 +508,7 @@ private:
           else
           {
             // the key is consumed, so continue matching at the children
-            for (const auto& c : {"*", "?", "%", "\\"})
+            for (const auto c : detail::pattern_special_chars)
             {
               const auto it = m_children.find(c);
               if (it != m_children.end())
@@ -500,7 +518,7 @@ private:
             }
           }
         }
-        else if (pattern[p_i] == '*')
+        else if (pattern[p_i] == detail::pattern_match_all)
         {
           // handle '*' in the pattern
           if (p_i == pattern.length() - 1u)
@@ -529,7 +547,7 @@ private:
             }
           }
         }
-        else if (pattern[p_i] == '?')
+        else if (pattern[p_i] == detail::pattern_match_one)
         {
           // handle '?' in the pattern
           if (k_i < m_key.length())
@@ -547,10 +565,11 @@ private:
             }
           }
         }
-        else if (pattern[p_i] == '%')
+        else if (pattern[p_i] == detail::pattern_match_number)
         {
           // handle '%' in the pattern
-          if (p_i < pattern.length() - 1u && pattern[p_i + 1u] == '*')
+          if (
+            p_i < pattern.length() - 1u && pattern[p_i + 1u] == detail::pattern_match_all)
           {
             // handle "%*" in the pattern
             // try to continue matching after "%*"
@@ -779,12 +798,33 @@ private:
       contract_pre(!lhs.empty() && !rhs.empty());
       return lhs[0] < rhs[0];
     }
+
+    bool operator()(const char lhs, const node& rhs) const
+    {
+      return compare(std::string_view{&lhs, 1}, rhs.m_key);
+    }
+
+    bool operator()(const node& lhs, const char rhs) const
+    {
+      return compare(lhs.m_key, std::string_view{&rhs, 1});
+    }
   };
 
 private:
   node m_root = node{""};
 
 public:
+  /**
+   * Escapes any special characters such as '*' in the given string.
+   *
+   * @param str the string to escape
+   * @return the escaped string
+   */
+  static std::string escape(std::string_view str)
+  {
+    return kdl::str_escape(str, detail::pattern_special_chars);
+  }
+
   /**
    * Creates a new empty trie.
    */

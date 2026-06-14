@@ -980,8 +980,8 @@ TEST_CASE("Map_Groups")
         const auto [newProtectedGroupNode, newUnprotectedGroupNode] =
           findNodeOrDescendant<EntityNode>(
             {newGroupNodes[0]->children()},
-            [](const auto* entityNode) {
-              return !entityNode->entity().protectedProperties().empty();
+            [](const auto& entityNode) {
+              return !entityNode.entity().protectedProperties().empty();
             })
             ? std::tuple{newGroupNodes[0], newGroupNodes[1]}
             : std::tuple{newGroupNodes[1], newGroupNodes[0]};
@@ -1083,13 +1083,13 @@ TEST_CASE("Map_Groups")
         REQUIRE(newGroupNodes[1]->childCount() == 1);
 
         const auto newEntityNode =
-          findNodeOrDescendant<EntityNode>(newGroupNodes, [&](const auto* entityNode) {
-            return entityNode->entity().origin() == originalEntityPosition;
+          findNodeOrDescendant<EntityNode>(newGroupNodes, [&](const auto& entityNode) {
+            return entityNode.entity().origin() == originalEntityPosition;
           });
 
         const auto newTranslatedEntityNode =
-          findNodeOrDescendant<EntityNode>(newGroupNodes, [&](const auto* entityNode) {
-            return entityNode->entity().origin() == originalLinkedEntityPosition;
+          findNodeOrDescendant<EntityNode>(newGroupNodes, [&](const auto& entityNode) {
+            return entityNode.entity().origin() == originalLinkedEntityPosition;
           });
 
         CHECK(newEntityNode);

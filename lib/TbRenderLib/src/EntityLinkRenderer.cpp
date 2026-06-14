@@ -217,15 +217,15 @@ auto collectSelectedLinks(const mdl::Selection& selection, Visitor visitor)
   for (auto* node : selection.nodes)
   {
     node->accept(kdl::overload(
-      [](const mdl::WorldNode*) {},
-      [](const mdl::LayerNode*) {},
-      [](const mdl::GroupNode*) {},
-      [&](const mdl::EntityNode* entityNode) { visitor.visit(*entityNode, links); },
-      [](auto&& thisLambda, const mdl::BrushNode* brushNode) {
-        brushNode->visitParent(thisLambda);
+      [](const mdl::WorldNode&) {},
+      [](const mdl::LayerNode&) {},
+      [](const mdl::GroupNode&) {},
+      [&](const mdl::EntityNode& entityNode) { visitor.visit(entityNode, links); },
+      [](auto&& thisLambda, const mdl::BrushNode& brushNode) {
+        brushNode.visitParent(thisLambda);
       },
-      [](auto&& thisLambda, const mdl::PatchNode* patchNode) {
-        patchNode->visitParent(thisLambda);
+      [](auto&& thisLambda, const mdl::PatchNode& patchNode) {
+        patchNode.visitParent(thisLambda);
       }));
   }
 
@@ -241,18 +241,18 @@ auto getAllLinks(
     map.entityLinkManager(), map.editorContext(), defaultColor, selectedColor};
 
   map.worldNode().accept(kdl::overload(
-    [](auto&& thisLambda, const mdl::WorldNode* worldNode) {
-      worldNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, const mdl::WorldNode& worldNode) {
+      worldNode.visitChildren(thisLambda);
     },
-    [](auto&& thisLambda, const mdl::LayerNode* layerNode) {
-      layerNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, const mdl::LayerNode& layerNode) {
+      layerNode.visitChildren(thisLambda);
     },
-    [](auto&& thisLambda, const mdl::GroupNode* groupNode) {
-      groupNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, const mdl::GroupNode& groupNode) {
+      groupNode.visitChildren(thisLambda);
     },
-    [&](const mdl::EntityNode* entityNode) { visitor.visit(*entityNode, links); },
-    [](const mdl::BrushNode*) {},
-    [](const mdl::PatchNode*) {}));
+    [&](const mdl::EntityNode& entityNode) { visitor.visit(entityNode, links); },
+    [](const mdl::BrushNode&) {},
+    [](const mdl::PatchNode&) {}));
 
   return links;
 }

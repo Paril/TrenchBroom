@@ -58,6 +58,7 @@ protected: // QWidget overrides
 
 private:
   void createGui();
+  QSize initialDialogSize() const;
   void switchToPane(PrefPane pane);
   PreferencePane* currentPane() const;
   void connectObservers();

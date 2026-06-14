@@ -26,11 +26,13 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace tb::gl
 {
 class FontDescriptor;
 class FontFactory;
+class Gl;
 class TextureFont;
 
 using FindFontFunc = std::function<std::filesystem::path(const std::filesystem::path&)>;
@@ -40,6 +42,8 @@ class FontManager
 private:
   std::unique_ptr<FontFactory> m_factory;
   std::map<FontDescriptor, std::unique_ptr<TextureFont>> m_cache;
+
+  std::vector<std::unique_ptr<TextureFont>> m_fontsToDestroy;
 
 public:
   explicit FontManager(FindFontFunc findFontFunc);
@@ -51,7 +55,10 @@ public:
     const std::string& string,
     float maxWidth,
     size_t minFontSize);
+
   void clearCache();
+
+  void destroyPendingFonts(Gl& gl);
 
   deleteCopyAndMove(FontManager);
 };

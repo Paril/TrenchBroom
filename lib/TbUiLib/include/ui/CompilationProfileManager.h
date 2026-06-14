@@ -23,6 +23,8 @@
 
 #include "mdl/CompilationConfig.h"
 
+#include <string>
+
 class QAbstractButton;
 class QPoint;
 
@@ -59,6 +61,8 @@ public:
     MapDocument& document, mdl::CompilationConfig config, QWidget* parent = nullptr);
 
   const mdl::CompilationProfile* selectedProfile() const;
+  bool selectProfile(const mdl::CompilationProfile& profile);
+  void selectFirstProfile();
   const mdl::CompilationConfig& config() const;
 
 private:

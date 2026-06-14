@@ -22,6 +22,7 @@
 #include "PreferenceManager.h"
 #include "Preferences.h"
 #include "gl/ActiveShader.h"
+#include "gl/GlInterface.h"
 #include "gl/Shaders.h"
 #include "mdl/Hit.h"
 #include "mdl/HitFilter.h"
@@ -70,29 +71,30 @@ public:
   {
   }
 
-private:
-  void doPrepareVertices(gl::VboManager& vboManager) override
+  void prepare(gl::Gl& gl, gl::VboManager& vboManager) override
   {
-    m_circle.prepare(vboManager);
+    m_circle.prepare(gl, vboManager);
   }
 
-  void doRender(render::RenderContext& renderContext) override
+  void render(render::RenderContext& renderContext) override
   {
-    glAssert(glDisable(GL_DEPTH_TEST));
+    auto& gl = renderContext.gl();
 
-    glAssert(glPushAttrib(GL_POLYGON_BIT));
-    glAssert(glDisable(GL_CULL_FACE));
-    glAssert(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
+    gl.disable(GL_DEPTH_TEST);
+
+    gl.pushAttrib(GL_POLYGON_BIT);
+    gl.disable(GL_CULL_FACE);
+    gl.polygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     auto translation = render::MultiplyModelMatrix{
       renderContext.transformation(), vm::translation_matrix(vm::vec3f{m_position})};
     auto shader = gl::ActiveShader{
-      renderContext.shaderManager(), gl::Shaders::VaryingPUniformCShader};
+      gl, renderContext.shaderManager(), gl::Shaders::VaryingPUniformCShader};
     shader.set("Color", RgbaF{1.0f, 1.0f, 1.0f, 0.2f});
-    m_circle.render();
+    m_circle.render(gl, shader.program());
 
-    glAssert(glEnable(GL_DEPTH_TEST));
-    glAssert(glPopAttrib());
+    gl.enable(GL_DEPTH_TEST);
+    gl.popAttrib();
   }
 };
 
@@ -175,15 +177,18 @@ private:
     render::RenderBatch& renderBatch,
     const vm::vec3d& initialHandlePosition) const
   {
-    const auto center = m_tool.rotationCenter();
-    const auto axis = m_tool.rotationAxis(m_area);
-    const auto handleRadius =
-      static_cast<float>(m_tool.majorHandleRadius(renderContext.camera()));
-    const auto startAxis = vm::normalize(initialHandlePosition - center);
-    const auto endAxis = vm::quatd{axis, m_angle} * startAxis;
+    if (const auto handleRadius =
+          static_cast<float>(m_tool.majorHandleRadius(renderContext.camera()));
+        handleRadius > 0.0f)
+    {
+      const auto center = m_tool.rotationCenter();
+      const auto axis = m_tool.rotationAxis(m_area);
+      const auto startAxis = vm::normalize(initialHandlePosition - center);
+      const auto endAxis = vm::quatd{axis, m_angle} * startAxis;
 
-    renderBatch.addOneShot(new AngleIndicatorRenderer{
-      center, handleRadius, vm::find_abs_max_component(axis), startAxis, endAxis});
+      renderBatch.addOneShot(new AngleIndicatorRenderer{
+        center, handleRadius, vm::find_abs_max_component(axis), startAxis, endAxis});
+    }
   }
 
   void renderAngleText(

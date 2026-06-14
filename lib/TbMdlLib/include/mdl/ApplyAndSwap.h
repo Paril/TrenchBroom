@@ -65,12 +65,12 @@ std::optional<std::vector<std::pair<Node*, NodeContents>>> applyToNodeContents(
   using NodeContent = std::variant<Layer, Group, Entity, Brush, BezierPatch>;
   auto getNodeContents = [](const Node* node) -> NodeContent {
     return node->accept(kdl::overload(
-      [](const WorldNode* worldNode) -> NodeContent { return worldNode->entity(); },
-      [](const LayerNode* layerNode) -> NodeContent { return layerNode->layer(); },
-      [](const GroupNode* groupNode) -> NodeContent { return groupNode->group(); },
-      [](const EntityNode* entityNode) -> NodeContent { return entityNode->entity(); },
-      [](const BrushNode* brushNode) -> NodeContent { return brushNode->brush(); },
-      [](const PatchNode* patchNode) -> NodeContent { return patchNode->patch(); }));
+      [](const WorldNode& worldNode) -> NodeContent { return worldNode.entity(); },
+      [](const LayerNode& layerNode) -> NodeContent { return layerNode.layer(); },
+      [](const GroupNode& groupNode) -> NodeContent { return groupNode.group(); },
+      [](const EntityNode& entityNode) -> NodeContent { return entityNode.entity(); },
+      [](const BrushNode& brushNode) -> NodeContent { return brushNode.brush(); },
+      [](const PatchNode& patchNode) -> NodeContent { return patchNode.patch(); }));
   };
 
   auto newNodes = std::vector<std::pair<Node*, NodeContents>>{};
@@ -190,10 +190,8 @@ bool applyAndSwap(
 
   auto changedLinkedGroups =
     collectContainingGroups(newNodes | std::views::keys | kdl::ranges::to<std::vector>());
-  updateNodeContents(
+  return updateNodeContents(
     map, commandName, std::move(newNodes), std::move(changedLinkedGroups));
-
-  return true;
 }
 
 } // namespace tb::mdl

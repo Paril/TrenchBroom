@@ -37,22 +37,23 @@ bool MaterialIndexArrayRenderer::empty() const
   return m_indexArray.empty();
 }
 
-void MaterialIndexArrayRenderer::prepare(VboManager& vboManager)
+void MaterialIndexArrayRenderer::prepare(Gl& gl, VboManager& vboManager)
 {
-  m_vertexArray.prepare(vboManager);
-  m_indexArray.prepare(vboManager);
+  m_vertexArray.prepare(gl, vboManager);
+  m_indexArray.prepare(gl, vboManager);
 }
 
-void MaterialIndexArrayRenderer::render(MaterialRenderFunc& func)
+void MaterialIndexArrayRenderer::render(
+  Gl& gl, ShaderProgram& currentProgram, MaterialRenderFunc& func)
 {
-  if (m_vertexArray.setup())
+  if (m_vertexArray.setup(gl, currentProgram))
   {
-    if (m_indexArray.setup())
+    if (m_indexArray.setup(gl))
     {
-      m_indexRanges.render(m_indexArray, func);
-      m_indexArray.cleanup();
+      m_indexRanges.render(gl, m_indexArray, func);
+      m_indexArray.cleanup(gl);
     }
-    m_vertexArray.cleanup();
+    m_vertexArray.cleanup(gl, currentProgram);
   }
 }
 

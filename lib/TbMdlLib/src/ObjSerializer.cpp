@@ -227,19 +227,19 @@ void ObjSerializer::doEndFile()
     m_objects);
 }
 
-void ObjSerializer::doBeginEntity(const Node*) {}
-void ObjSerializer::doEndEntity(const Node*) {}
+void ObjSerializer::doBeginEntity(const Node&) {}
+void ObjSerializer::doEndEntity(const Node&) {}
 void ObjSerializer::doEntityProperty(const EntityProperty&) {}
 
-void ObjSerializer::doBrush(const BrushNode* brush)
+void ObjSerializer::doBrush(const BrushNode& brushNode)
 {
   m_currentBrush = BrushObject{entityNo(), brushNo(), {}};
-  m_currentBrush->faces.reserve(brush->brush().faceCount());
+  m_currentBrush->faces.reserve(brushNode.brush().faceCount());
 
   // Vertex positions inserted from now on should get new indices
   m_vertices.clearIndices();
 
-  for (const auto& face : brush->brush().faces())
+  for (const auto& face : brushNode.brush().faces())
   {
     doBrushFace(face);
   }
@@ -274,13 +274,13 @@ void ObjSerializer::doBrushFace(const BrushFace& face)
   });
 }
 
-void ObjSerializer::doPatch(const PatchNode* patchNode)
+void ObjSerializer::doPatch(const PatchNode& patchNode)
 {
-  const auto& patch = patchNode->patch();
+  const auto& patch = patchNode.patch();
   auto patchObject =
     PatchObject{entityNo(), brushNo(), {}, patch.materialName(), patch.material()};
 
-  const auto& patchGrid = patchNode->grid();
+  const auto& patchGrid = patchNode.grid();
   patchObject.quads.reserve(patchGrid.quadRowCount() * patchGrid.quadColumnCount());
 
   // Vertex positions inserted from now on should get new indices

@@ -19,6 +19,8 @@
 
 #include "ui/MapViewBase.h"
 
+#include <QApplication>
+#include <QClipboard>
 #include <QDebug>
 #include <QMenu>
 #include <QMimeData>
@@ -30,9 +32,10 @@
 #include "PreferenceManager.h"
 #include "Preferences.h"
 #include "gl/Camera.h"
-#include "gl/ContextManager.h"
 #include "gl/FontDescriptor.h"
 #include "gl/FontManager.h"
+#include "gl/GlInterface.h"
+#include "gl/GlManager.h"
 #include "mdl/BrushFace.h"
 #include "mdl/BrushNode.h"
 #include "mdl/EditorContext.h"
@@ -101,11 +104,8 @@ namespace tb::ui
 const int MapViewBase::DefaultCameraAnimationDuration = 250;
 
 MapViewBase::MapViewBase(
-  AppController& appController,
-  MapDocument& document,
-  MapViewToolBox& toolBox,
-  gl::ContextManager& contextManager)
-  : RenderView{contextManager}
+  AppController& appController, MapDocument& document, MapViewToolBox& toolBox)
+  : RenderView{appController}
   , m_appController{appController}
   , m_document{document}
   , m_toolBox{toolBox}
@@ -167,6 +167,10 @@ void MapViewBase::connectObservers()
     m_document.modsDidChangeNotifier.connect(this, &MapViewBase::modsDidChange);
   m_notifierConnection += m_document.editorContextDidChangeNotifier.connect(
     this, &MapViewBase::editorContextDidChange);
+  m_notifierConnection += m_document.nodeVisibilityDidChangeNotifier.connect(
+    this, &MapViewBase::nodeVisibilityDidChange);
+  m_notifierConnection += m_document.nodeLockingDidChangeNotifier.connect(
+    this, &MapViewBase::nodeLockingDidChange);
   m_notifierConnection +=
     m_document.pointFileWasLoadedNotifier.connect(this, &MapViewBase::pointFileDidChange);
   m_notifierConnection += m_document.pointFileWasUnloadedNotifier.connect(
@@ -242,6 +246,16 @@ void MapViewBase::modsDidChange()
 }
 
 void MapViewBase::editorContextDidChange()
+{
+  update();
+}
+
+void MapViewBase::nodeVisibilityDidChange(const std::vector<mdl::Node*>&)
+{
+  update();
+}
+
+void MapViewBase::nodeLockingDidChange(const std::vector<mdl::Node*>&)
 {
   update();
 }
@@ -902,13 +916,6 @@ ActionContext::Type MapViewBase::actionContext() const
   return viewContext | toolContext | selectionContext;
 }
 
-void MapViewBase::flashSelection()
-{
-  auto animation =
-    std::make_unique<FlashSelectionAnimation>(m_document.mapRenderer(), this, 180);
-  m_animationManager->runAnimation(std::move(animation), true);
-}
-
 void MapViewBase::installActivationTracker(MapViewActivationTracker& activationTracker)
 {
   activationTracker.addWindow(this);
@@ -929,6 +936,13 @@ bool MapViewBase::cancelMouseDrag()
   return ToolBoxConnector::cancelDrag();
 }
 
+void MapViewBase::flashSelection()
+{
+  auto animation =
+    std::make_unique<FlashSelectionAnimation>(m_document.mapRenderer(), this, 300);
+  m_animationManager->runAnimation(std::move(animation), true);
+}
+
 void MapViewBase::refreshViews()
 {
   update();
@@ -938,10 +952,11 @@ void MapViewBase::initializeGL()
 {
   if (doInitializeGL())
   {
+    const auto& glInfo = m_appController.glManager().glInfo();
+
     auto& logger = m_document.logger();
-    logger.info() << "Renderer info: " << gl::ContextManager::GLRenderer << " version "
-                  << gl::ContextManager::GLVersion << " from "
-                  << gl::ContextManager::GLVendor;
+    logger.info() << "Renderer info: " << glInfo.renderer << " version " << glInfo.version
+                  << " from " << glInfo.vendor;
     logger.info() << "Depth buffer bits: " << depthBits();
     logger.info() << "Multisampling "
                   << kdl::str_select(multisample(), "enabled", "disabled");
@@ -953,7 +968,7 @@ bool MapViewBase::shouldRenderFocusIndicator() const
   return true;
 }
 
-void MapViewBase::renderContents()
+void MapViewBase::renderContents(gl::Gl& gl)
 {
   preRender();
 
@@ -965,7 +980,7 @@ void MapViewBase::renderContents()
   const auto& grid = map.grid();
 
   auto renderContext =
-    render::RenderContext{renderMode(), camera(), fontManager(), shaderManager()};
+    render::RenderContext{gl, renderMode(), camera(), fontManager(), shaderManager()};
   renderContext.setFilterMode(
     pref(Preferences::TextureMinFilter), pref(Preferences::TextureMagFilter));
   renderContext.setShowMaterials(
@@ -1006,11 +1021,6 @@ void MapViewBase::renderContents()
   renderFPS(renderContext, renderBatch);
 
   renderBatch.render(renderContext);
-
-  if (map.needsResourceProcessing())
-  {
-    update();
-  }
 }
 
 void MapViewBase::preRender() {}
@@ -1019,25 +1029,27 @@ void MapViewBase::renderGrid(render::RenderContext&, render::RenderBatch&) {}
 
 void MapViewBase::setupGL(render::RenderContext& context)
 {
+  auto& gl = context.gl();
+
   const auto& viewport = context.camera().viewport();
   const auto r = devicePixelRatioF();
   const auto x = static_cast<int>(viewport.x * r);
   const auto y = static_cast<int>(viewport.y * r);
   const auto width = static_cast<int>(viewport.width * r);
   const auto height = static_cast<int>(viewport.height * r);
-  glAssert(glViewport(x, y, width, height));
+  gl.viewport(x, y, width, height);
 
   if (pref(Preferences::EnableMSAA))
   {
-    glAssert(glEnable(GL_MULTISAMPLE));
+    gl.enable(GL_MULTISAMPLE);
   }
   else
   {
-    glAssert(glDisable(GL_MULTISAMPLE));
+    gl.disable(GL_MULTISAMPLE);
   }
-  glAssert(glEnable(GL_BLEND));
-  glAssert(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
-  glAssert(glShadeModel(GL_SMOOTH));
+  gl.enable(GL_BLEND);
+  gl.blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  gl.shadeModel(GL_SMOOTH);
 }
 
 void MapViewBase::renderCoordinateSystem(
@@ -1287,12 +1299,12 @@ void MapViewBase::showPopupMenuLater()
     moveToWorldAction->setEnabled(canMakeStructural());
 
     const auto isEntity = newBrushParent->accept(kdl::overload(
-      [](const mdl::WorldNode*) { return false; },
-      [](const mdl::LayerNode*) { return false; },
-      [](const mdl::GroupNode*) { return false; },
-      [](const mdl::EntityNode*) { return true; },
-      [](const mdl::BrushNode*) { return false; },
-      [](const mdl::PatchNode*) { return false; }));
+      [](const mdl::WorldNode&) { return false; },
+      [](const mdl::LayerNode&) { return false; },
+      [](const mdl::GroupNode&) { return false; },
+      [](const mdl::EntityNode&) { return true; },
+      [](const mdl::BrushNode&) { return false; },
+      [](const mdl::PatchNode&) { return false; }));
 
     if (isEntity)
     {
@@ -1317,6 +1329,12 @@ void MapViewBase::showPopupMenuLater()
         .arg(QString::fromStdString(faceHandle->face().attributes().materialName())),
       mapWindow,
       [=] { mapWindow->revealMaterial(material); });
+
+    menu.addAction(tr("Copy Material Name"), mapWindow, [=] {
+      auto* clipboard = QApplication::clipboard();
+      clipboard->setText(
+        QString::fromStdString(faceHandle->face().attributes().materialName()));
+    });
 
     menu.addSeparator();
   }
@@ -1533,7 +1551,8 @@ mdl::GroupNode* MapViewBase::findGroupToMergeGroupsInto(
 
 bool MapViewBase::canReparentNode(const mdl::Node* node, const mdl::Node* newParent) const
 {
-  return newParent != node && newParent != node->parent() && newParent->canAddChild(node);
+  return newParent != node && newParent != node->parent()
+         && newParent->canAddChild(*node);
 }
 
 void MapViewBase::moveSelectedBrushesToEntity()
@@ -1603,26 +1622,29 @@ static std::vector<mdl::Node*> collectEntitiesForNodes(
   const std::vector<mdl::Node*>& selectedNodes, const mdl::WorldNode& worldNode)
 {
   auto result = std::vector<mdl::Node*>{};
-  const auto addNode = [&](auto&& thisLambda, auto* node) {
-    if (node->entity() == &worldNode)
+  const auto addNode = [&](auto&& thisLambda, auto& node) {
+    if (node.entity() == &worldNode)
     {
-      result.push_back(node);
+      result.push_back(&node);
     }
     else
     {
-      node->visitParent(thisLambda);
+      node.visitParent(thisLambda);
     }
   };
 
   mdl::Node::visitAll(
     selectedNodes,
     kdl::overload(
-      [](mdl::WorldNode*) {},
-      [](mdl::LayerNode*) {},
-      [&](mdl::GroupNode* group) { result.push_back(group); },
-      [&](mdl::EntityNode* entity) { result.push_back(entity); },
-      [&](auto&& thisLambda, mdl::BrushNode* brush) { addNode(thisLambda, brush); },
-      [&](auto&& thisLambda, mdl::PatchNode* patch) { addNode(thisLambda, patch); }));
+      [](mdl::WorldNode&) {},
+      [](mdl::LayerNode&) {},
+      [&](mdl::GroupNode& groupNode) { result.push_back(&groupNode); },
+      [&](mdl::EntityNode& entityNode) { result.push_back(&entityNode); },
+      [&](
+        auto&& thisLambda, mdl::BrushNode& brushNode) { addNode(thisLambda, brushNode); },
+      [&](auto&& thisLambda, mdl::PatchNode& patchNode) {
+        addNode(thisLambda, patchNode);
+      }));
   return kdl::vec_sort_and_remove_duplicates(std::move(result));
 }
 
@@ -1658,7 +1680,7 @@ std::vector<mdl::Node*> MapViewBase::collectReparentableNodes(
 {
   return nodes | std::views::filter([&](const auto* node) {
            return newParent != node && newParent != node->parent()
-                  && !newParent->isDescendantOf(node);
+                  && !newParent->isDescendantOf(*node);
          })
          | kdl::ranges::to<std::vector>();
 }

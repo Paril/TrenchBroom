@@ -45,12 +45,12 @@ protected:
 public:
   virtual ~NodeVisitor();
 
-  virtual void visit(WorldNode* world) = 0;
-  virtual void visit(LayerNode* layer) = 0;
-  virtual void visit(GroupNode* group) = 0;
-  virtual void visit(EntityNode* entity) = 0;
-  virtual void visit(BrushNode* brush) = 0;
-  virtual void visit(PatchNode* patch) = 0;
+  virtual void visit(WorldNode& worldNode) = 0;
+  virtual void visit(LayerNode& layerNode) = 0;
+  virtual void visit(GroupNode& groupNode) = 0;
+  virtual void visit(EntityNode& entityNode) = 0;
+  virtual void visit(BrushNode& brushNode) = 0;
+  virtual void visit(PatchNode& patchNode) = 0;
 };
 
 class ConstNodeVisitor
@@ -61,12 +61,12 @@ protected:
 public:
   virtual ~ConstNodeVisitor();
 
-  virtual void visit(const WorldNode* world) = 0;
-  virtual void visit(const LayerNode* layer) = 0;
-  virtual void visit(const GroupNode* group) = 0;
-  virtual void visit(const EntityNode* entity) = 0;
-  virtual void visit(const BrushNode* brush) = 0;
-  virtual void visit(const PatchNode* patch) = 0;
+  virtual void visit(const WorldNode& worldNode) = 0;
+  virtual void visit(const LayerNode& layerNode) = 0;
+  virtual void visit(const GroupNode& groupNode) = 0;
+  virtual void visit(const EntityNode& entityNode) = 0;
+  virtual void visit(const BrushNode& brushNode) = 0;
+  virtual void visit(const PatchNode& patchNode) = 0;
 };
 
 template <typename L, typename N, typename Enable = void>
@@ -89,9 +89,9 @@ using NodeLambdaInvokeResult_t = typename NodeLambdaInvokeResult<L, N>::type;
 
 template <typename L>
 using NodeLambdaResultType = std::conditional_t<
-  std::is_same_v<NodeLambdaInvokeResult_t<L, WorldNode*>, void>,
+  std::is_same_v<NodeLambdaInvokeResult_t<L, WorldNode&>, void>,
   void,
-  NodeLambdaInvokeResult_t<L, WorldNode*>>;
+  NodeLambdaInvokeResult_t<L, WorldNode&>>;
 
 template <typename L>
 struct NodeLambdaHasResult : std::conditional_t<
@@ -143,25 +143,25 @@ public:
   }
 
 private:
-  void visit(WorldNode* world) override { doVisit(world); }
-  void visit(LayerNode* layer) override { doVisit(layer); }
-  void visit(GroupNode* group) override { doVisit(group); }
-  void visit(EntityNode* entity) override { doVisit(entity); }
-  void visit(BrushNode* brush) override { doVisit(brush); }
-  void visit(PatchNode* patch) override { doVisit(patch); }
+  void visit(WorldNode& worldNode) override { doVisit(worldNode); }
+  void visit(LayerNode& layerNode) override { doVisit(layerNode); }
+  void visit(GroupNode& groupNode) override { doVisit(groupNode); }
+  void visit(EntityNode& entityNode) override { doVisit(entityNode); }
+  void visit(BrushNode& brushNode) override { doVisit(brushNode); }
+  void visit(PatchNode& patchNode) override { doVisit(patchNode); }
 
   template <typename N>
-  void doVisit(N* node)
+  void doVisit(N& node)
   {
-    constexpr bool invokableWithAnyPointerType =
-      std::is_invocable_v<L, int*> || std::is_invocable_v<L, const L&, int*>;
+    constexpr bool invokableWithAnyReferenceType =
+      std::is_invocable_v<L, int&> || std::is_invocable_v<L, const L&, int&>;
     static_assert(
-      !invokableWithAnyPointerType,
-      "Don't use auto* to generate node visitors, this can lead to hard to detect "
+      !invokableWithAnyReferenceType,
+      "Don't use auto& to generate node visitors, this can lead to hard to detect "
       "errors.");
 
-    constexpr bool invokableWithLambdaAndNode = std::is_invocable_v<L, const L&, N*>;
-    constexpr bool invokableWithNode = std::is_invocable_v<L, N*>;
+    constexpr bool invokableWithLambdaAndNode = std::is_invocable_v<L, const L&, N&>;
+    constexpr bool invokableWithNode = std::is_invocable_v<L, N&>;
 
     static_assert(
       !(invokableWithNode && invokableWithLambdaAndNode),
@@ -209,26 +209,26 @@ public:
   }
 
 private:
-  void visit(const WorldNode* world) override { doVisit(world); }
-  void visit(const LayerNode* layer) override { doVisit(layer); }
-  void visit(const GroupNode* group) override { doVisit(group); }
-  void visit(const EntityNode* entity) override { doVisit(entity); }
-  void visit(const BrushNode* brush) override { doVisit(brush); }
-  void visit(const PatchNode* patch) override { doVisit(patch); }
+  void visit(const WorldNode& worldNode) override { doVisit(worldNode); }
+  void visit(const LayerNode& layerNode) override { doVisit(layerNode); }
+  void visit(const GroupNode& groupNode) override { doVisit(groupNode); }
+  void visit(const EntityNode& entityNode) override { doVisit(entityNode); }
+  void visit(const BrushNode& brushNode) override { doVisit(brushNode); }
+  void visit(const PatchNode& patchNode) override { doVisit(patchNode); }
 
   template <typename N>
-  void doVisit(const N* node)
+  void doVisit(const N& node)
   {
-    constexpr bool invokableWithAnyPointerType =
-      std::is_invocable_v<L, int*> || std::is_invocable_v<L, const L&, int*>;
+    constexpr bool invokableWithAnyReferenceType =
+      std::is_invocable_v<L, int&> || std::is_invocable_v<L, const L&, int&>;
     static_assert(
-      !invokableWithAnyPointerType,
-      "Don't use auto* to generate node visitors, this can lead to hard to detect "
+      !invokableWithAnyReferenceType,
+      "Don't use auto& to generate node visitors, this can lead to hard to detect "
       "errors.");
 
     constexpr bool invokableWithLambdaAndNode =
-      std::is_invocable_v<L, const L&, const N*>;
-    constexpr bool invokableWithNode = std::is_invocable_v<L, const N*>;
+      std::is_invocable_v<L, const L&, const N&>;
+    constexpr bool invokableWithNode = std::is_invocable_v<L, const N&>;
 
     static_assert(
       !(invokableWithNode && invokableWithLambdaAndNode),

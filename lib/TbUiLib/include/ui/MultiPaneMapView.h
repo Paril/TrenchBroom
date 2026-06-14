@@ -25,7 +25,6 @@
 #include <vector>
 
 class QWidget;
-class QWidget;
 
 namespace tb::ui
 {
@@ -47,9 +46,6 @@ public:
 protected:
   void addMapView(MapView* mapView);
 
-public: // implement ViewEffectsService interface
-  void flashSelection() override;
-
 public: // implement MapView interface
   void installActivationTracker(MapViewActivationTracker& activationTracker) override;
   bool isCurrent() const override;
@@ -61,6 +57,7 @@ public: // implement MapView interface
   void moveCameraToPosition(const vm::vec3f& position, bool animate) override;
   void moveCameraToCurrentTracePoint() override;
   bool cancelMouseDrag() override;
+  void flashSelection() override;
   void refreshViews() override;
 
 public: // implement MapViewContainer interface

@@ -100,18 +100,18 @@ Node* EntityNode::doClone(const vm::bbox3d& /* worldBounds */) const
   return result.release();
 }
 
-bool EntityNode::doCanAddChild(const Node* child) const
+bool EntityNode::doCanAddChild(const Node& child) const
 {
-  return child->accept(kdl::overload(
-    [](const WorldNode*) { return false; },
-    [](const LayerNode*) { return false; },
-    [](const GroupNode*) { return false; },
-    [](const EntityNode*) { return false; },
-    [](const BrushNode*) { return true; },
-    [](const PatchNode*) { return true; }));
+  return child.accept(kdl::overload(
+    [](const WorldNode&) { return false; },
+    [](const LayerNode&) { return false; },
+    [](const GroupNode&) { return false; },
+    [](const EntityNode&) { return false; },
+    [](const BrushNode&) { return true; },
+    [](const PatchNode&) { return true; }));
 }
 
-bool EntityNode::doCanRemoveChild(const Node* /* child */) const
+bool EntityNode::doCanRemoveChild(const Node&) const
 {
   return true;
 }
@@ -126,13 +126,13 @@ bool EntityNode::doShouldAddToSpacialIndex() const
   return true;
 }
 
-void EntityNode::doChildWasAdded(Node* /* node */)
+void EntityNode::doChildWasAdded(Node&)
 {
   m_entity.setPointEntity(!hasChildren());
   nodePhysicalBoundsDidChange();
 }
 
-void EntityNode::doChildWasRemoved(Node* /* node */)
+void EntityNode::doChildWasRemoved(Node&)
 {
   m_entity.setPointEntity(!hasChildren());
   nodePhysicalBoundsDidChange();
@@ -213,12 +213,12 @@ void EntityNode::doFindNodesContaining(const vm::vec3d& point, std::vector<Node*
 
 void EntityNode::doAccept(NodeVisitor& visitor)
 {
-  visitor.visit(this);
+  visitor.visit(*this);
 }
 
 void EntityNode::doAccept(ConstNodeVisitor& visitor) const
 {
-  visitor.visit(this);
+  visitor.visit(*this);
 }
 
 std::vector<Node*> EntityNode::nodesRequiredForViewSelection()

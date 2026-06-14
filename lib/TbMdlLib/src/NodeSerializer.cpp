@@ -90,13 +90,13 @@ void NodeSerializer::endFile()
 /**
  * Writes the worldspawn entity.
  */
-void NodeSerializer::defaultLayer(const WorldNode& world)
+void NodeSerializer::defaultLayer(const WorldNode& worldNode)
 {
-  auto worldEntity = world.entity();
+  auto worldEntity = worldNode.entity();
 
   // Transfer the color, locked state, and hidden state from the default layer Layer
   // object to worldspawn
-  const auto* defaultLayerNode = world.defaultLayer();
+  const auto* defaultLayerNode = worldNode.defaultLayer();
   const auto& defaultLayer = defaultLayerNode->layer();
   if (const auto color = defaultLayer.color())
   {
@@ -140,50 +140,50 @@ void NodeSerializer::defaultLayer(const WorldNode& world)
 
   if (m_exporting && defaultLayer.omitFromExport())
   {
-    beginEntity(&world, worldEntity.properties(), {});
-    endEntity(&world);
+    beginEntity(worldNode, worldEntity.properties(), {});
+    endEntity(worldNode);
   }
   else
   {
-    entity(&world, worldEntity.properties(), {}, world.defaultLayer());
+    entity(worldNode, worldEntity.properties(), {}, *worldNode.defaultLayer());
   }
 }
 
-void NodeSerializer::customLayer(const LayerNode* layer)
+void NodeSerializer::customLayer(const LayerNode& layerNode)
 {
-  if (!(m_exporting && layer->layer().omitFromExport()))
+  if (!(m_exporting && layerNode.layer().omitFromExport()))
   {
-    entity(layer, layerProperties(layer), {}, layer);
+    entity(layerNode, layerProperties(layerNode), {}, layerNode);
   }
 }
 
 void NodeSerializer::group(
-  const GroupNode* group, const std::vector<EntityProperty>& extraProperties)
+  const GroupNode& groupNode, const std::vector<EntityProperty>& extraProperties)
 {
-  entity(group, groupProperties(group), extraProperties, group);
+  entity(groupNode, groupProperties(groupNode), extraProperties, groupNode);
 }
 
 void NodeSerializer::entity(
-  const Node* node,
+  const Node& node,
   const std::vector<EntityProperty>& properties,
   const std::vector<EntityProperty>& extraProperties,
-  const Node* brushParent)
+  const Node& brushParent)
 {
   beginEntity(node, properties, extraProperties);
 
-  brushParent->visitChildren(kdl::overload(
-    [](const WorldNode*) {},
-    [](const LayerNode*) {},
-    [](const GroupNode*) {},
-    [](const EntityNode*) {},
-    [&](const BrushNode* b) { brush(b); },
-    [&](const PatchNode* p) { patch(p); }));
+  brushParent.visitChildren(kdl::overload(
+    [](const WorldNode&) {},
+    [](const LayerNode&) {},
+    [](const GroupNode&) {},
+    [](const EntityNode&) {},
+    [&](const BrushNode& brushNode) { brush(brushNode); },
+    [&](const PatchNode& patchNode) { patch(patchNode); }));
 
   endEntity(node);
 }
 
 void NodeSerializer::entity(
-  const Node* node,
+  const Node& node,
   const std::vector<EntityProperty>& properties,
   const std::vector<EntityProperty>& extraProperties,
   const std::vector<BrushNode*>& entityBrushes)
@@ -194,7 +194,7 @@ void NodeSerializer::entity(
 }
 
 void NodeSerializer::beginEntity(
-  const Node* node,
+  const Node& node,
   const std::vector<EntityProperty>& properties,
   const std::vector<EntityProperty>& extraAttributes)
 {
@@ -203,13 +203,13 @@ void NodeSerializer::beginEntity(
   entityProperties(extraAttributes);
 }
 
-void NodeSerializer::beginEntity(const Node* node)
+void NodeSerializer::beginEntity(const Node& node)
 {
   m_brushNo = 0;
   doBeginEntity(node);
 }
 
-void NodeSerializer::endEntity(const Node* node)
+void NodeSerializer::endEntity(const Node& node)
 {
   doEndEntity(node);
   ++m_entityNo;
@@ -235,19 +235,19 @@ void NodeSerializer::entityProperty(const EntityProperty& property)
 
 void NodeSerializer::brushes(const std::vector<BrushNode*>& brushNodes)
 {
-  for (auto* brush : brushNodes)
+  for (auto* brushNode : brushNodes)
   {
-    this->brush(brush);
+    brush(*brushNode);
   }
 }
 
-void NodeSerializer::brush(const BrushNode* brushNode)
+void NodeSerializer::brush(const BrushNode& brushNode)
 {
   doBrush(brushNode);
   ++m_brushNo;
 }
 
-void NodeSerializer::patch(const PatchNode* patchNode)
+void NodeSerializer::patch(const PatchNode& patchNode)
 {
   doPatch(patchNode);
   ++m_brushNo;
@@ -275,43 +275,43 @@ std::vector<EntityProperty> NodeSerializer::parentProperties(const Node* node)
 
   auto properties = std::vector<EntityProperty>{};
   node->accept(kdl::overload(
-    [](const WorldNode*) {},
-    [&](const LayerNode* layerNode) {
+    [](const WorldNode&) {},
+    [&](const LayerNode& layerNode) {
       properties.emplace_back(
-        EntityPropertyKeys::TbLayer, kdl::str_to_string(*layerNode->persistentId()));
+        EntityPropertyKeys::TbLayer, kdl::str_to_string(*layerNode.persistentId()));
     },
-    [&](const GroupNode* groupNode) {
+    [&](const GroupNode& groupNode) {
       properties.emplace_back(
-        EntityPropertyKeys::TbGroup, kdl::str_to_string(*groupNode->persistentId()));
+        EntityPropertyKeys::TbGroup, kdl::str_to_string(*groupNode.persistentId()));
     },
-    [](const EntityNode*) {},
-    [](const BrushNode*) {},
-    [](const PatchNode*) {}));
+    [](const EntityNode&) {},
+    [](const BrushNode&) {},
+    [](const PatchNode&) {}));
 
   return properties;
 }
 
-std::vector<EntityProperty> NodeSerializer::layerProperties(const LayerNode* layerNode)
+std::vector<EntityProperty> NodeSerializer::layerProperties(const LayerNode& layerNode)
 {
   std::vector<EntityProperty> result = {
     {EntityPropertyKeys::Classname, EntityPropertyValues::LayerClassname},
     {EntityPropertyKeys::TbGroupType, EntityPropertyValues::GroupTypeLayer},
-    {EntityPropertyKeys::TbLayerName, layerNode->name()},
-    {EntityPropertyKeys::TbLayerId, kdl::str_to_string(*layerNode->persistentId())},
+    {EntityPropertyKeys::TbLayerName, layerNode.name()},
+    {EntityPropertyKeys::TbLayerId, kdl::str_to_string(*layerNode.persistentId())},
   };
 
-  const auto& layer = layerNode->layer();
+  const auto& layer = layerNode.layer();
   if (layer.hasSortIndex())
   {
     result.emplace_back(
       EntityPropertyKeys::TbLayerSortIndex, kdl::str_to_string(layer.sortIndex()));
   }
-  if (layerNode->lockState() == LockState::Locked)
+  if (layerNode.lockState() == LockState::Locked)
   {
     result.emplace_back(
       EntityPropertyKeys::TbLayerLocked, EntityPropertyValues::LayerLockedValue);
   }
-  if (layerNode->hidden())
+  if (layerNode.hidden())
   {
     result.emplace_back(
       EntityPropertyKeys::TbLayerHidden, EntityPropertyValues::LayerHiddenValue);
@@ -325,20 +325,20 @@ std::vector<EntityProperty> NodeSerializer::layerProperties(const LayerNode* lay
   return result;
 }
 
-std::vector<EntityProperty> NodeSerializer::groupProperties(const GroupNode* groupNode)
+std::vector<EntityProperty> NodeSerializer::groupProperties(const GroupNode& groupNode)
 {
   auto result = std::vector<EntityProperty>{
     {EntityPropertyKeys::Classname, EntityPropertyValues::GroupClassname},
     {EntityPropertyKeys::TbGroupType, EntityPropertyValues::GroupTypeGroup},
-    {EntityPropertyKeys::TbGroupName, groupNode->name()},
-    {EntityPropertyKeys::TbGroupId, kdl::str_to_string(*groupNode->persistentId())},
+    {EntityPropertyKeys::TbGroupName, groupNode.name()},
+    {EntityPropertyKeys::TbGroupId, kdl::str_to_string(*groupNode.persistentId())},
   };
 
-  const auto& linkId = groupNode->linkId();
+  const auto& linkId = groupNode.linkId();
   result.emplace_back(EntityPropertyKeys::TbLinkId, kdl::str_to_string(linkId));
 
   // write transformation matrix in column major format
-  const auto& transformation = groupNode->group().transformation();
+  const auto& transformation = groupNode.group().transformation();
   if (transformation != vm::mat4x4d::identity())
   {
     const auto transformationStr = fmt::format(

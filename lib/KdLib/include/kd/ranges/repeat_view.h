@@ -58,7 +58,7 @@ public:
     using iterator_category = std::random_access_iterator_tag;
     using value_type = W;
     using difference_type = std::conditional_t<
-      detail::is_signed_integer_like_v<index_type>,
+      is_signed_integer_like_v<index_type>,
       index_type,
       iota_diff_t<index_type>>;
 
@@ -195,7 +195,7 @@ public:
   constexpr auto size() const
     requires(!std::same_as<Bound, std::unreachable_sentinel_t>)
   {
-    return static_cast<std::make_unsigned_t<Bound>>(bound_);
+    return to_unsigned_like(bound_);
   }
 
 private:
@@ -213,13 +213,13 @@ template <typename W>
 constexpr auto repeat(W&& value)
 {
   return ranges::repeat_view{std::forward<W>(value)};
-};
+}
 
 template <typename W, typename Bound>
 constexpr auto repeat(W&& value, Bound&& bound)
 {
   return ranges::repeat_view{std::forward<W>(value), std::forward<Bound>(bound)};
-};
+}
 
 } // namespace views
 } // namespace ranges
@@ -230,14 +230,14 @@ namespace views
 template <typename W>
 constexpr auto repeat(W&& value)
 {
-  return ranges::repeat_view{std::forward<W>(value)};
-};
+  return ranges::views::repeat(std::forward<W>(value));
+}
 
 template <typename W, typename Bound>
 constexpr auto repeat(W&& value, Bound&& bound)
 {
-  return ranges::repeat_view{std::forward<W>(value), std::forward<Bound>(bound)};
-};
+  return ranges::views::repeat(std::forward<W>(value), std::forward<Bound>(bound));
+}
 
 } // namespace views
 } // namespace kdl

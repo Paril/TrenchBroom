@@ -18,6 +18,7 @@
  */
 
 #include <QList>
+#include <QTemporaryFile>
 
 #include "TestHttpClient.h"
 #include "TestUtils.h"

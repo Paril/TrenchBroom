@@ -22,7 +22,6 @@
 #include "Color.h"
 #include "Macros.h"
 #include "NotifierConnection.h"
-#include "gl/ResourceId.h"
 
 #include <filesystem>
 #include <memory>
@@ -31,6 +30,11 @@
 
 namespace tb
 {
+namespace gl
+{
+class ResourceId;
+} // namespace gl
+
 namespace mdl
 {
 class BrushNode;

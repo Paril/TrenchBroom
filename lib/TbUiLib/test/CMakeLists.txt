@@ -8,13 +8,18 @@ target_sources(TbUiLibTest
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_CameraTool3D.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_ClipTool.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_ClipToolController.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_CompilationDialog.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_CompilationProfileManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_CompilationRunner.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_DrawShapeToolExtensions.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_ViewEditor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_EntityPropertyModel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_ExtrudeTool.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_HandleDragTracker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_InputEvent.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_LaunchGameEngine.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_MapDocument.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_MapWindow.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_MoveHandleDragTracker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_QPathUtils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_QPreferenceStore.cpp
@@ -39,9 +44,6 @@ target_link_libraries(TbUiLibTest PRIVATE
   CompilerConfig
   PrecompileQtHeaders
   PrecompileStdHeaders
-)
-
-target_link_libraries(TbUiLibTest PRIVATE 
   Catch2::Catch2WithMain
   Qt6::Network
   Qt6::OpenGL
@@ -73,7 +75,12 @@ set(TEST_FIXTURE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/fixture)
 set(TEST_FIXTURE_DEST_DIR $<TARGET_FILE_DIR:TbUiLibTest>/fixture)
 
 add_custom_command(TARGET TbUiLibTest POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E rm -rf "${TEST_FIXTURE_DEST_DIR}"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory "${TEST_FIXTURE_SOURCE_DIR}" "${TEST_FIXTURE_DEST_DIR}/test"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory "${TB_RESOURCE_DIR}/games" "${TEST_FIXTURE_DEST_DIR}/games"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory "${TB_RESOURCE_DIR}/games-testing" "${TEST_FIXTURE_DEST_DIR}/games")
+  COMMAND ${CMAKE_COMMAND} -E rm -rf "${TEST_FIXTURE_DEST_DIR}"
+  COMMAND ${CMAKE_COMMAND} -E copy_directory "${TEST_FIXTURE_SOURCE_DIR}" "${TEST_FIXTURE_DEST_DIR}/test"
+  COMMAND ${CMAKE_COMMAND} -E copy_directory "${TB_RESOURCE_DIR}/games" "${TEST_FIXTURE_DEST_DIR}/games"
+  COMMAND ${CMAKE_COMMAND} -E copy_directory "${TB_RESOURCE_DIR}/games-testing" "${TEST_FIXTURE_DEST_DIR}/games"
+  COMMAND ${CMAKE_COMMAND} -E copy_directory "${TB_RESOURCE_DIR}/graphics/images" "$<TARGET_FILE_DIR:TbUiLibTest>/images"
+)
+
+include(Catch)
+catch_discover_tests(TbUiLibTest)

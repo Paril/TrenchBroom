@@ -128,7 +128,7 @@ void doDeselectAll(Map& map)
 void doSelectNodes(const std::vector<Node*>& nodes, Map& map)
 {
   contract_pre(std::ranges::all_of(nodes, [&](const auto* node) {
-    return node->isDescendantOf(&map.worldNode()) || node == &map.worldNode();
+    return node->isDescendantOf(map.worldNode()) || node == &map.worldNode();
   }));
 
   map.selectionWillChangeNotifier();

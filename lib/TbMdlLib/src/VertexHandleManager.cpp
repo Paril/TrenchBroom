@@ -52,18 +52,18 @@ void VertexHandleManager::pick(
   }
 }
 
-void VertexHandleManager::addHandles(const BrushNode* brushNode)
+void VertexHandleManager::addHandles(const BrushNode& brushNode)
 {
-  const auto& brush = brushNode->brush();
+  const auto& brush = brushNode.brush();
   for (const auto* vertex : brush.vertices())
   {
     add(vertex->position());
   }
 }
 
-void VertexHandleManager::removeHandles(const BrushNode* brushNode)
+void VertexHandleManager::removeHandles(const BrushNode& brushNode)
 {
-  const auto& brush = brushNode->brush();
+  const auto& brush = brushNode.brush();
   for (const auto* vertex : brush.vertices())
   {
     assertResult(remove(vertex->position()));
@@ -76,9 +76,9 @@ HitType::Type VertexHandleManager::hitType() const
 }
 
 bool VertexHandleManager::isIncident(
-  const Handle& handle, const BrushNode* brushNode) const
+  const Handle& handle, const BrushNode& brushNode) const
 {
-  const auto& brush = brushNode->brush();
+  const auto& brush = brushNode.brush();
   return brush.hasVertex(handle);
 }
 
@@ -131,18 +131,18 @@ void EdgeHandleManager::pickCenterHandle(
   }
 }
 
-void EdgeHandleManager::addHandles(const BrushNode* brushNode)
+void EdgeHandleManager::addHandles(const BrushNode& brushNode)
 {
-  const auto& brush = brushNode->brush();
+  const auto& brush = brushNode.brush();
   for (const auto* edge : brush.edges())
   {
     add(vm::segment3d{edge->firstVertex()->position(), edge->secondVertex()->position()});
   }
 }
 
-void EdgeHandleManager::removeHandles(const BrushNode* brushNode)
+void EdgeHandleManager::removeHandles(const BrushNode& brushNode)
 {
-  const auto& brush = brushNode->brush();
+  const auto& brush = brushNode.brush();
   for (const auto* edge : brush.edges())
   {
     assertResult(remove(
@@ -155,9 +155,9 @@ HitType::Type EdgeHandleManager::hitType() const
   return HandleHitType;
 }
 
-bool EdgeHandleManager::isIncident(const Handle& handle, const BrushNode* brushNode) const
+bool EdgeHandleManager::isIncident(const Handle& handle, const BrushNode& brushNode) const
 {
-  const auto& brush = brushNode->brush();
+  const auto& brush = brushNode.brush();
   return brush.hasEdge(handle);
 }
 
@@ -214,18 +214,18 @@ void FaceHandleManager::pickCenterHandle(
   }
 }
 
-void FaceHandleManager::addHandles(const BrushNode* brushNode)
+void FaceHandleManager::addHandles(const BrushNode& brushNode)
 {
-  const auto& brush = brushNode->brush();
+  const auto& brush = brushNode.brush();
   for (const auto& face : brush.faces())
   {
     add(face.polygon());
   }
 }
 
-void FaceHandleManager::removeHandles(const BrushNode* brushNode)
+void FaceHandleManager::removeHandles(const BrushNode& brushNode)
 {
-  const auto& brush = brushNode->brush();
+  const auto& brush = brushNode.brush();
   for (const auto& face : brush.faces())
   {
     assertResult(remove(face.polygon()));
@@ -237,9 +237,9 @@ HitType::Type FaceHandleManager::hitType() const
   return HandleHitType;
 }
 
-bool FaceHandleManager::isIncident(const Handle& handle, const BrushNode* brushNode) const
+bool FaceHandleManager::isIncident(const Handle& handle, const BrushNode& brushNode) const
 {
-  const auto& brush = brushNode->brush();
+  const auto& brush = brushNode.brush();
   return brush.hasFace(handle);
 }
 

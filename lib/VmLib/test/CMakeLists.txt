@@ -22,5 +22,13 @@ target_sources(VmLibTest PRIVATE
 
 add_compile_definitions(CATCH_CONFIG_ENABLE_ALL_STRINGMAKERS=1)
 
-target_link_libraries(VmLibTest PRIVATE CompilerConfig PrecompileStdHeaders)
-target_link_libraries(VmLibTest PRIVATE Catch2::Catch2WithMain VmLib)
+target_link_libraries(VmLibTest
+  PRIVATE
+    CompilerConfig
+    PrecompileStdHeaders
+    Catch2::Catch2WithMain
+    VmLib
+)
+
+include(Catch)
+catch_discover_tests(VmLibTest)

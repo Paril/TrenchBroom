@@ -29,6 +29,7 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QPushButton>
+#include <QSettings>
 #include <QStatusBar>
 #include <QString>
 #include <QStringList>
@@ -40,8 +41,8 @@
 
 #include "PreferenceManager.h"
 #include "Preferences.h"
-#include "gl/ContextManager.h"
-#include "gl/Resource.h"
+#include "gl/GlManager.h"
+#include "gl/ResourceManager.h"
 #include "mdl/Autosaver.h"
 #include "mdl/BrushFace.h"
 #include "mdl/BrushNode.h"
@@ -69,6 +70,7 @@
 #include "mdl/Node.h"
 #include "mdl/PasteType.h"
 #include "mdl/PatchNode.h"
+#include "mdl/VisualEffect.h"
 #include "mdl/WorldNode.h"
 #include "ui/Action.h"
 #include "ui/ActionBuilder.h"
@@ -103,9 +105,9 @@
 #include "ui/SignalDelayer.h"
 #include "ui/Splitter.h"
 #include "ui/SwitchableMapViewContainer.h"
-#include "ui/SystemPaths.h"
 #include "ui/VertexTool.h"
 #include "ui/ViewUtils.h"
+#include "ui/WadUtils.h"
 #include "ui/WidgetState.h"
 #include "update/Updater.h"
 
@@ -152,6 +154,12 @@ bool widgetOrChildHasFocus(const QWidget* widget)
   return widget == focusWidget || widget->isAncestorOf(focusWidget);
 }
 
+QString lastCompilationProfileSettingsKey(const std::string& gameName)
+{
+  return QString::fromLatin1("Compilation/LastProfile/%1")
+    .arg(QString::fromStdString(gameName));
+}
+
 } // namespace
 
 using namespace std::chrono_literals;
@@ -161,9 +169,6 @@ MapWindow::MapWindow(AppController& appController, std::unique_ptr<MapDocument> 
   , m_document{std::move(document)}
   , m_lastInputTime{std::chrono::system_clock::now()}
   , m_autosaveTimer{new QTimer{this}}
-  , m_processResourcesTimer{new QTimer{this}}
-  , m_contextManager{std::make_unique<gl::ContextManager>(
-      [](const auto& path) { return SystemPaths::findResourceFile(path); })}
   , m_updateTitleSignalDelayer{new SignalDelayer{500ms, this}}
   , m_updateActionStateSignalDelayer{new SignalDelayer{this}}
   , m_updateStatusBarSignalDelayer{new SignalDelayer{500ms, this}}
@@ -184,12 +189,11 @@ MapWindow::MapWindow(AppController& appController, std::unique_ptr<MapDocument> 
   updateActionState();
   updateUndoRedoActions();
   updateToolBarWidgets();
+  loadLastCompilationProfileName();
 
   m_document->setTargetLogger(m_console);
-  m_document->setViewEffectsService(m_mapView);
 
   m_autosaveTimer->start(1000);
-  m_processResourcesTimer->start(20);
 
   connectObservers();
   bindEvents();
@@ -236,8 +240,6 @@ MapWindow::~MapWindow()
 
   // let's trigger a final autosave before releasing the document
   m_document->triggerAutosave();
-
-  m_document->setViewEffectsService(nullptr);
   m_document.reset();
 
   // FIXME: m_contextManager is deleted via smart pointer; it may release openGL resources
@@ -310,6 +312,7 @@ void MapWindow::createMenus()
   m_recentDocumentsMenu = createMenuResult.recentDocumentsMenu;
   m_undoAction = createMenuResult.undoAction;
   m_redoAction = createMenuResult.redoAction;
+  m_rerunAction = createMenuResult.rerunAction;
 
   addRecentDocumentsMenu();
 }
@@ -415,14 +418,13 @@ void MapWindow::createGui()
   m_infoPanel->setObjectName("MapWindow_InfoPanel");
   m_console = m_infoPanel->console();
 
-  m_mapView =
-    new SwitchableMapViewContainer{m_appController, document(), *m_contextManager};
+  m_mapView = new SwitchableMapViewContainer{m_appController, document()};
   m_currentMapView = m_mapView->firstMapViewBase();
 
   // SwitchableMapViewContainer should have constructed a MapViewBase
   contract_assert(m_currentMapView);
 
-  m_inspector = new Inspector{document(), *m_contextManager};
+  m_inspector = new Inspector{m_appController, document()};
   m_inspector->setObjectName("Inspector");
 
   m_mapView->connectTopWidgets(m_inspector);
@@ -487,6 +489,7 @@ void MapWindow::createToolBar()
     });
 
   m_gridChoice = new QComboBox{};
+  m_gridChoice->setObjectName("MapWindow_GridChoice");
   for (int i = mdl::Grid::MinSize; i <= mdl::Grid::MaxSize; ++i)
   {
     const auto gridSize = mdl::Grid::actualSize(i);
@@ -668,34 +671,34 @@ QString describeSelection(const mdl::Map& map)
   size_t hiddenPatches = 0u;
 
   map.worldNode().accept(kdl::overload(
-    [](auto&& thisLambda, const mdl::WorldNode* worldNode) {
-      worldNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, const mdl::WorldNode& worldNode) {
+      worldNode.visitChildren(thisLambda);
     },
-    [](auto&& thisLambda, const mdl::LayerNode* layerNode) {
-      layerNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, const mdl::LayerNode& layerNode) {
+      layerNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, const mdl::GroupNode* groupNode) {
-      if (!editorContext.visible(*groupNode))
+    [&](auto&& thisLambda, const mdl::GroupNode& groupNode) {
+      if (!editorContext.visible(groupNode))
       {
         ++hiddenGroups;
       }
-      groupNode->visitChildren(thisLambda);
+      groupNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, const mdl::EntityNode* entityNode) {
-      if (!editorContext.visible(*entityNode))
+    [&](auto&& thisLambda, const mdl::EntityNode& entityNode) {
+      if (!editorContext.visible(entityNode))
       {
         ++hiddenEntities;
       }
-      entityNode->visitChildren(thisLambda);
+      entityNode.visitChildren(thisLambda);
     },
-    [&](const mdl::BrushNode* brushNode) {
-      if (!editorContext.visible(*brushNode))
+    [&](const mdl::BrushNode& brushNode) {
+      if (!editorContext.visible(brushNode))
       {
         ++hiddenBrushes;
       }
     },
-    [&](const mdl::PatchNode* patchNode) {
-      if (!editorContext.visible(*patchNode))
+    [&](const mdl::PatchNode& patchNode) {
+      if (!editorContext.visible(patchNode))
       {
         ++hiddenPatches;
       }
@@ -750,6 +753,10 @@ void MapWindow::connectObservers()
   m_notifierConnection +=
     prefs.preferenceDidChangeNotifier.connect(this, &MapWindow::preferenceDidChange);
 
+  auto& resourceManager = m_appController.glManager().resourceManager();
+  m_notifierConnection += resourceManager.resourcesWereProcessedNotifier.connect(
+    this, &MapWindow::resourcesWereProcessed);
+
   m_notifierConnection +=
     m_document->documentWasLoadedNotifier.connect(this, &MapWindow::documentWasLoaded);
   m_notifierConnection +=
@@ -778,6 +785,8 @@ void MapWindow::connectObservers()
     this, &MapWindow::nodeVisibilityDidChange);
   m_notifierConnection += m_document->editorContextDidChangeNotifier.connect(
     this, &MapWindow::editorContextDidChange);
+  m_notifierConnection += m_document->triggerVisualEffectNotifier.connect(
+    this, &MapWindow::triggerVisualEffect);
 
   m_notifierConnection +=
     m_document->transactionDoneNotifier.connect(this, &MapWindow::transactionDone);
@@ -801,7 +810,9 @@ void MapWindow::documentWasLoaded()
   updateTitle();
   updateActionState();
   updateUndoRedoActions();
+  updateToolBarWidgets();
   updateRecentDocumentsMenu();
+  loadLastCompilationProfileName();
 }
 
 void MapWindow::documentWasSaved()
@@ -848,6 +859,11 @@ void MapWindow::preferenceDidChange(const std::filesystem::path& path)
   }
 
   updateShortcuts();
+}
+
+void MapWindow::resourcesWereProcessed(const std::vector<gl::ResourceId>&)
+{
+  updateActionState();
 }
 
 void MapWindow::gridDidChange()
@@ -904,6 +920,16 @@ void MapWindow::editorContextDidChange()
   updateStatusBarDelayed();
 }
 
+void MapWindow::triggerVisualEffect(const mdl::VisualEffect visualEffect)
+{
+  switch (visualEffect)
+  {
+  case mdl::VisualEffect::FlashSelection:
+    m_mapView->flashSelection();
+    break;
+  }
+}
+
 void MapWindow::pointFileDidChange()
 {
   updateActionStateDelayed();
@@ -917,8 +943,6 @@ void MapWindow::portalFileDidChange()
 void MapWindow::bindEvents()
 {
   connect(m_autosaveTimer, &QTimer::timeout, this, &MapWindow::triggerAutosave);
-  connect(
-    m_processResourcesTimer, &QTimer::timeout, this, &MapWindow::triggerProcessResources);
   connect(qApp, &QApplication::focusChanged, this, &MapWindow::focusChange);
   connect(
     m_gridChoice,
@@ -1235,6 +1259,16 @@ void MapWindow::reloadEntityDefinitions()
   mdl::reloadEntityDefinitions(m_document->map());
 }
 
+bool MapWindow::canReloadMaterialCollections() const
+{
+  return !m_appController.glManager().resourceManager().needsProcessing();
+}
+
+bool MapWindow::canReloadEntityDefinitions() const
+{
+  return !m_appController.glManager().resourceManager().needsProcessing();
+}
+
 void MapWindow::closeDocument()
 {
   close();
@@ -1344,7 +1378,7 @@ void MapWindow::pasteAtCursorPosition()
     switch (paste())
     {
     case mdl::PasteType::Node:
-      if (const auto& bounds = map.selectionBounds())
+      if (const auto bounds = map.selectionBounds())
       {
         // The pasted objects must be hidden to prevent the picking done in
         // pasteObjectsDelta from hitting them
@@ -1656,7 +1690,7 @@ bool MapWindow::canRenameSelectedGroups() const
 
 void MapWindow::replaceMaterial()
 {
-  auto dialog = ReplaceMaterialDialog{document(), *m_contextManager, this};
+  auto dialog = ReplaceMaterialDialog{m_appController, document(), this};
   dialog.exec();
 }
 
@@ -2157,8 +2191,106 @@ void MapWindow::showCompileDialog()
   if (!m_compilationDialog)
   {
     m_compilationDialog = new CompilationDialog{m_appController, *m_document, this};
+    connect(
+      m_compilationDialog,
+      &CompilationDialog::compilationProfileStarted,
+      this,
+      [this](const std::string& profileName) {
+        setLastCompilationProfileName(profileName);
+      });
   }
+
+  if (const auto* profile = lastCompilationProfile())
+  {
+    m_compilationDialog->selectProfile(*profile);
+  }
+  else
+  {
+    m_compilationDialog->selectFirstProfile();
+  }
+
   showModelessDialog(m_compilationDialog);
+}
+
+void MapWindow::rerunLastCompilation()
+{
+  if (m_lastCompilationProfileName)
+  {
+    showCompileDialog();
+
+    if (const auto* profile = lastCompilationProfile())
+    {
+      m_compilationDialog->selectProfile(*profile);
+      m_compilationDialog->runSelectedProfile();
+    }
+  }
+}
+
+bool MapWindow::hasLastCompilationProfile() const
+{
+  return lastCompilationProfile() != nullptr;
+}
+
+const mdl::CompilationProfile* MapWindow::lastCompilationProfile() const
+{
+  if (m_lastCompilationProfileName)
+  {
+    const auto& compilationProfiles =
+      m_document->map().gameInfo().compilationConfig.profiles;
+
+    if (const auto iLastCompilationProfile = std::ranges::find_if(
+          compilationProfiles,
+          [&](const auto& profile) {
+            return profile.name == *m_lastCompilationProfileName;
+          });
+        iLastCompilationProfile != compilationProfiles.end())
+    {
+      return &*iLastCompilationProfile;
+    }
+  }
+
+  return nullptr;
+}
+
+void MapWindow::setLastCompilationProfileName(std::string name)
+{
+  m_lastCompilationProfileName = std::move(name);
+
+  const auto key =
+    lastCompilationProfileSettingsKey(m_document->map().gameInfo().gameConfig.name);
+
+  auto settings = QSettings{};
+  settings.setValue(key, QString::fromStdString(*m_lastCompilationProfileName));
+
+  updateRerunAction();
+}
+
+void MapWindow::loadLastCompilationProfileName()
+{
+  const auto key =
+    lastCompilationProfileSettingsKey(m_document->map().gameInfo().gameConfig.name);
+
+  const auto settings = QSettings{};
+  const auto value = settings.value(key);
+
+  m_lastCompilationProfileName =
+    value.isValid() ? std::optional{value.toString().toStdString()} : std::nullopt;
+
+  updateRerunAction();
+}
+
+void MapWindow::updateRerunAction()
+{
+  if (m_rerunAction)
+  {
+    m_rerunAction->setText(
+      m_lastCompilationProfileName
+        ? tr("Re-run \"%1\"...")
+            .arg(QString::fromStdString(*m_lastCompilationProfileName))
+        : tr("Re-run compilation..."));
+  }
+
+  updateActionState();
 }
 
 bool MapWindow::closeCompileDialog()
@@ -2429,47 +2561,17 @@ void MapWindow::dropEvent(QDropEvent* event)
     return;
   }
 
-  auto& map = m_document->map();
-  const auto& gameInfo = map.gameInfo();
-  const auto& wadPropertyKey = gameInfo.gameConfig.materialConfig.property;
-  if (!wadPropertyKey)
+  auto pathQStrs = QStringList{};
+  pathQStrs.reserve(urls.size());
+  for (const auto& url : urls)
   {
-    return;
+    pathQStrs.push_back(url.toLocalFile());
   }
 
-  const auto* wadPathsStr = map.worldNode().entity().property(*wadPropertyKey);
-  auto wadPaths = wadPathsStr ? kdl::str_split(*wadPathsStr, ";")
-                                  | kdl::ranges::to<std::vector<std::filesystem::path>>()
-                              : std::vector<std::filesystem::path>{};
-
-  auto pathDialog = ChoosePathTypeDialog{
-    window(),
-    pathFromQString(urls.front().toLocalFile()),
-    map.path(),
-    pref(gameInfo.gamePathPreference)};
-
-  const auto result = pathDialog.exec();
-  if (result != QDialog::Accepted)
+  if (addWadPaths(pathQStrs, m_document->map(), this))
   {
-    return;
+    event->acceptProposedAction();
   }
-
-  auto wadPathsToAdd = std::vector<std::filesystem::path>{};
-  std::ranges::transform(urls, std::back_inserter(wadPathsToAdd), [&](const auto& url) {
-    return convertToPathType(
-      pathDialog.pathType(),
-      pathFromQString(url.toLocalFile()),
-      map.path(),
-      pref(gameInfo.gamePathPreference));
-  });
-
-  const auto newWadPathsStr = kdl::str_join(
-    kdl::vec_concat(std::move(wadPaths), std::move(wadPathsToAdd))
-      | std::views::transform([](const auto& path) { return path.string(); }),
-    ";");
-  setEntityProperty(map, *wadPropertyKey, newWadPathsStr);
-
-  event->acceptProposedAction();
 }
 
 void MapWindow::changeEvent(QEvent*)
@@ -2552,13 +2654,6 @@ void MapWindow::triggerAutosave()
   {
     m_document->triggerAutosave();
   }
-}
-
-void MapWindow::triggerProcessResources()
-{
-  auto& map = m_document->map();
-  map.processResourcesAsync(tb::gl::ProcessContext{
-    true, [&](const auto&, const auto& error) { logger().error() << error; }});
 }
 
 // DebugPaletteWindow

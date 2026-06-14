@@ -29,7 +29,6 @@
 
 class QLineEdit;
 class QListWidget;
-class QWidget;
 class QAbstractButton;
 
 namespace tb::ui

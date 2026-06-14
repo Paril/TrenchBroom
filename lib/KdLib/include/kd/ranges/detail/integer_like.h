@@ -22,7 +22,9 @@
 
 #include <type_traits>
 
-namespace kdl::ranges::detail
+namespace kdl::ranges
+{
+namespace detail
 {
 
 template <class T>
@@ -38,14 +40,6 @@ public:
 };
 
 template <class T>
-struct is_integer_like : std::integral_constant<bool, is_integer_like_impl<T>::value>
-{
-};
-
-template <class T>
-constexpr bool is_integer_like_v = is_integer_like<T>::value;
-
-template <class T>
 struct is_signed_integer_like_impl
 {
 private:
@@ -59,13 +53,51 @@ public:
   static constexpr bool value = signed_integral_builtin;
 };
 
+} // namespace detail
+
+template <class T>
+struct is_integer_like
+  : std::integral_constant<bool, detail::is_integer_like_impl<T>::value>
+{
+};
+
+template <class T>
+constexpr bool is_integer_like_v = is_integer_like<T>::value;
+
 template <class T>
 struct is_signed_integer_like
-  : std::integral_constant<bool, is_signed_integer_like_impl<T>::value>
+  : std::integral_constant<bool, detail::is_signed_integer_like_impl<T>::value>
 {
 };
 
 template <class T>
 constexpr bool is_signed_integer_like_v = is_signed_integer_like<T>::value;
 
-} // namespace kdl::ranges::detail
+template <class T>
+  requires is_integer_like_v<T>
+struct make_signed_like
+{
+  using type = std::make_signed_t<T>;
+};
+
+template <class T>
+using make_signed_like_t = typename make_signed_like<T>::type;
+
+template <class T>
+  requires is_integer_like_v<T>
+struct make_unsigned_like
+{
+  using type = std::make_unsigned_t<T>;
+};
+
+template <class T>
+using make_unsigned_like_t = typename make_unsigned_like<T>::type;
+
+template <class T>
+  requires is_integer_like_v<T>
+constexpr make_unsigned_like_t<T> to_unsigned_like(T t)
+{
+  return static_cast<make_unsigned_like_t<T>>(t);
+}
+
+} // namespace kdl::ranges

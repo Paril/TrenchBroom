@@ -24,6 +24,8 @@
 
 #include "NotifierConnection.h"
 
+#include <tuple>
+
 class QAbstractButton;
 class QLabel;
 class QLineEdit;
@@ -31,13 +33,15 @@ class QGridLayout;
 
 namespace tb
 {
-namespace gl
+namespace mdl
 {
-class ContextManager;
-}
+enum class UvFitDirection;
+enum class UvJustifyDirection;
+} // namespace mdl
 
 namespace ui
 {
+class AppController;
 class FlagsPopupEditor;
 class MapDocument;
 class SignalDelayer;
@@ -57,11 +61,22 @@ public:
 class FaceAttribsEditor : public QWidget
 {
   Q_OBJECT
+
 private:
   MapDocument& m_document;
 
   Splitter* m_splitter = nullptr;
   UVEditor* m_uvEditor = nullptr;
+
+  QAbstractButton* m_alignButton = nullptr;
+  QAbstractButton* m_justifyUpButton = nullptr;
+  QAbstractButton* m_justifyDownButton = nullptr;
+  QAbstractButton* m_justifyLeftButton = nullptr;
+  QAbstractButton* m_justifyRightButton = nullptr;
+  QAbstractButton* m_fitHButton = nullptr;
+  QAbstractButton* m_fitVButton = nullptr;
+  QAbstractButton* m_autoFitButton = nullptr;
+
   QLabel* m_materialName = nullptr;
   QLabel* m_textureSize = nullptr;
   SpinControl* m_xOffsetEditor = nullptr;
@@ -195,11 +210,16 @@ private:
 
 public:
   FaceAttribsEditor(
-    MapDocument& document, gl::ContextManager& contextManager, QWidget* parent = nullptr);
+    AppController& appController, MapDocument& document, QWidget* parent = nullptr);
 
   bool cancelMouseDrag();
 
 private:
+  void alignClicked();
+  void justifyClicked(mdl::UvJustifyDirection uvJustifyDirection);
+  void fitClicked(mdl::UvFitDirection uvFitDirection);
+  void autoFitClicked();
+
   void xOffsetChanged(double value);
   void yOffsetChanged(double value);
   void rotationChanged(double value);
@@ -208,7 +228,7 @@ private:
   void surfaceFlagChanged(size_t index, int value, int setFlag, int mixedFlag);
   void contentFlagChanged(size_t index, int value, int setFlag, int mixedFlag);
   void surfaceValueChanged(double value);
-  void colorValueChanged(const QString& text);
+  void colorValueChanged();
   void openColorPicker();
 
   void surfaceFlagsUnset();
@@ -262,7 +282,10 @@ private:
   void updateIncrements();
 
 private:
-  void createGui(gl::ContextManager& contextManager);
+  void createGui(AppController& appController);
+  QWidget* createButtonsWidget();
+  QWidget* createAttribsWidget();
+
   void bindEvents();
 
   void connectObservers();
@@ -274,14 +297,11 @@ private:
 
   bool hasSurfaceFlags() const;
   bool hasContentFlags() const;
-  void showSurfaceFlagsEditor();
-  void showContentFlagsEditor();
-  void hideSurfaceFlagsEditor();
-  void hideContentFlagsEditor();
+  void setSurfaceFlagsEditorVisible(bool visible);
+  void setContentFlagsEditorVisible(bool visible);
 
   bool hasColorAttribs() const;
-  void showColorAttribEditor();
-  void hideColorAttribEditor();
+  void setColorAttribEditorVisible(bool visible);
 
   std::tuple<QList<int>, QStringList, QStringList> getSurfaceFlags() const;
   std::tuple<QList<int>, QStringList, QStringList> getContentFlags() const;

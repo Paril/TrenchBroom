@@ -27,6 +27,7 @@
 #include <QProxyStyle>
 #include <QSettings>
 #include <QString>
+#include <QStyleHints>
 #include <QSurfaceFormat>
 #include <QtGlobal>
 
@@ -157,6 +158,7 @@ void loadStyle(QApplication& app)
   {
     app.setStyle(new TrenchBroomProxyStyle{"Fusion"});
     app.setPalette(darkPalette());
+    app.styleHints()->setColorScheme(Qt::ColorScheme::Dark);
   }
   else
   {
@@ -254,6 +256,9 @@ int main(int argc, char* argv[])
   // Needs to be done here before QApplication is created
   // (see: https://doc.qt.io/qt-5/qsurfaceformat.html#setDefaultFormat)
   QSurfaceFormat format;
+  format.setRenderableType(QSurfaceFormat::OpenGL);
+  format.setVersion(2, 1);
+  format.setProfile(QSurfaceFormat::CompatibilityProfile);
   format.setDepthBufferSize(24);
   format.setSamples(4);
   QSurfaceFormat::setDefaultFormat(format);
@@ -310,17 +315,22 @@ int main(int argc, char* argv[])
   QApplication::setOrganizationName("");
   QApplication::setOrganizationDomain("io.github.trenchbroom");
 
+  // QApplication must be created before QPreferenceStore because QPreferenceStore uses
+  // QFileSystemWatcher, which requires a QApplication instance
+  auto app = QApplication{argc, argv};
+
   // PreferenceManager is destroyed by TrenchBroomApp::~TrenchBroomApp()
   PreferenceManager::createInstance(
     std::make_unique<QPreferenceStore>(pathAsQString(SystemPaths::preferenceFilePath())));
 
-  auto app = QApplication{argc, argv};
+  // Style sheets must be loaded before creating the app controller, or they won't apply
+  // to the welcome window, which the app controller creates
+  loadStyleSheets();
+  loadStyle(app);
+
   auto appController = createAppController();
   auto crashReporter = CrashReporter{*appController};
   setContractViolationHandler(crashReporter);
-
-  loadStyleSheets();
-  loadStyle(app);
 
 #ifdef __APPLE__
   app.setQuitOnLastWindowClosed(false);

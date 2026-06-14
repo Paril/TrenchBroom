@@ -33,6 +33,7 @@
 
 #include "kd/contracts.h"
 #include "kd/range_utils.h"
+#include "kd/vector_utils.h"
 
 #include <algorithm>
 
@@ -194,8 +195,7 @@ void moveSelectedNodesToLayer(Map& map, LayerNode* layerNode)
         if (!kdl::vec_contains(nodesToMove, entityNode))
         {
           nodesToMove.push_back(entityNode);
-          nodesToSelect =
-            kdl::vec_concat(std::move(nodesToSelect), entityNode->children());
+          kdl::vec_append(nodesToSelect, entityNode->children());
         }
       }
     }
@@ -204,28 +204,28 @@ void moveSelectedNodesToLayer(Map& map, LayerNode* layerNode)
   for (auto* node : selectedNodes)
   {
     node->accept(kdl::overload(
-      [](WorldNode*) {},
-      [](LayerNode*) {},
-      [&](GroupNode* groupNode) {
-        contract_pre(groupNode->selected());
+      [](WorldNode&) {},
+      [](LayerNode&) {},
+      [&](GroupNode& groupNode) {
+        contract_pre(groupNode.selected());
 
-        if (!groupNode->containedInGroup())
+        if (!groupNode.containedInGroup())
         {
-          nodesToMove.push_back(groupNode);
-          nodesToSelect.push_back(groupNode);
+          nodesToMove.push_back(&groupNode);
+          nodesToSelect.push_back(&groupNode);
         }
       },
-      [&](EntityNode* entityNode) {
-        contract_pre(entityNode->selected());
+      [&](EntityNode& entityNode) {
+        contract_pre(entityNode.selected());
 
-        if (!entityNode->containedInGroup())
+        if (!entityNode.containedInGroup())
         {
-          nodesToMove.push_back(entityNode);
-          nodesToSelect.push_back(entityNode);
+          nodesToMove.push_back(&entityNode);
+          nodesToSelect.push_back(&entityNode);
         }
       },
-      [&](BrushNode* brushNode) { addBrushOrPatchNode(brushNode); },
-      [&](PatchNode* patchNode) { addBrushOrPatchNode(patchNode); }));
+      [&](BrushNode& brushNode) { addBrushOrPatchNode(&brushNode); },
+      [&](PatchNode& patchNode) { addBrushOrPatchNode(&patchNode); }));
   }
 
   if (!nodesToMove.empty())

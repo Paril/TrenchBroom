@@ -19,6 +19,8 @@
 
 #include "render/BrushRendererArrays.h"
 
+#include "gl/GlInterface.h"
+
 #include "kd/contracts.h"
 
 #include <algorithm>
@@ -95,14 +97,13 @@ void IndexHolder::zeroRange(const size_t offsetWithinBlock, const size_t count)
 }
 
 void IndexHolder::render(
-  const gl::PrimType primType, const size_t offset, size_t count) const
+  gl::Gl& gl, const gl::PrimType primType, const size_t offset, size_t count) const
 {
   const auto renderCount = static_cast<GLsizei>(count);
   const auto* renderOffset =
     reinterpret_cast<GLvoid*>(m_vbo->offset() + sizeof(Index) * offset);
 
-  glAssert(
-    glDrawElements(toGL(primType), renderCount, gl::glType<Index>(), renderOffset));
+  gl.drawElements(toGL(primType), renderCount, gl::glType<Index>(), renderOffset);
 }
 
 std::shared_ptr<IndexHolder> IndexHolder::swap(std::vector<IndexHolder::Index>& elements)
@@ -154,32 +155,32 @@ void BrushIndexArray::zeroElementsWithKey(AllocationTracker::Block* key)
   m_indexHolder.zeroRange(pos, size);
 }
 
-void BrushIndexArray::render(const gl::PrimType primType) const
-{
-  contract_pre(m_indexHolder.prepared());
-
-  m_indexHolder.render(primType, 0, m_indexHolder.size());
-}
-
 bool BrushIndexArray::prepared() const
 {
   return m_indexHolder.prepared();
 }
 
-void BrushIndexArray::prepare(gl::VboManager& vboManager)
+void BrushIndexArray::prepare(gl::Gl& gl, gl::VboManager& vboManager)
 {
-  m_indexHolder.prepare(vboManager);
+  m_indexHolder.prepare(gl, vboManager);
   contract_post(m_indexHolder.prepared());
 }
 
-void BrushIndexArray::setupIndices()
+void BrushIndexArray::setup(gl::Gl& gl)
 {
-  m_indexHolder.bindBlock();
+  m_indexHolder.bindBlock(gl);
 }
 
-void BrushIndexArray::cleanupIndices()
+void BrushIndexArray::cleanup(gl::Gl& gl)
 {
-  m_indexHolder.unbindBlock();
+  m_indexHolder.unbindBlock(gl);
+}
+
+void BrushIndexArray::render(gl::Gl& gl, const gl::PrimType primType) const
+{
+  contract_pre(m_indexHolder.prepared());
+
+  m_indexHolder.render(gl, primType, 0, m_indexHolder.size());
 }
 
 // BrushVertexArray
@@ -220,25 +221,25 @@ void BrushVertexArray::deleteVerticesWithKey(AllocationTracker::Block* key)
   // us to re-use the space later
 }
 
-bool BrushVertexArray::setupVertices()
-{
-  return m_vertexHolder.setupVertices();
-}
-
-void BrushVertexArray::cleanupVertices()
-{
-  m_vertexHolder.cleanupVertices();
-}
-
 bool BrushVertexArray::prepared() const
 {
   return m_vertexHolder.prepared();
 }
 
-void BrushVertexArray::prepare(gl::VboManager& vboManager)
+void BrushVertexArray::prepare(gl::Gl& gl, gl::VboManager& vboManager)
 {
-  m_vertexHolder.prepare(vboManager);
+  m_vertexHolder.prepare(gl, vboManager);
   contract_post(m_vertexHolder.prepared());
+}
+
+bool BrushVertexArray::setup(gl::Gl& gl, gl::ShaderProgram& currentProgram)
+{
+  return m_vertexHolder.setup(gl, currentProgram);
+}
+
+void BrushVertexArray::cleanup(gl::Gl& gl, gl::ShaderProgram& currentProgram)
+{
+  m_vertexHolder.cleanup(gl, currentProgram);
 }
 
 } // namespace tb::render

@@ -23,13 +23,21 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QNetworkAccessManager>
+#include <QOffscreenSurface>
+#include <QOpenGLContext>
+#include <QOpenGLFunctions_2_1>
+#include <QSurfaceFormat>
 #include <QTimer>
 
+#include "Logger.h"
 #include "PreferenceManager.h"
 #include "Preferences.h"
 #include "fs/DiskIO.h"
 #include "fs/PathInfo.h"
+#include "gl/FontManager.h"
+#include "gl/GlManager.h"
 #include "gl/ResourceManager.h"
+#include "gl/VboManager.h"
 #include "mdl/EnvironmentConfig.h"
 #include "mdl/GameManager.h"
 #include "mdl/MapHeader.h"
@@ -38,6 +46,8 @@
 #include "ui/CrashDialog.h"
 #include "ui/FileDialogDefaultDir.h"
 #include "ui/GameDialog.h"
+#include "ui/GlFunctions.h"
+#include "ui/GlQt.h"
 #include "ui/MapDocument.h"
 #include "ui/MapWindow.h"
 #include "ui/MapWindowManager.h"
@@ -154,9 +164,11 @@ AppController::AppController(
   : m_taskManager{std::move(taskManager)}
   , m_environmentConfig{std::move(environmentConfig)}
   , m_gameManager{std::move(gameManager)}
-  , m_resourceManager{std::make_unique<gl::ResourceManager>()}
+  , m_glManager{std::make_unique<gl::GlManager>(
+      [](const auto& path) { return SystemPaths::findResourceFile(path); })}
   , m_networkManager{new QNetworkAccessManager{this}}
-  , m_recentDocumentsReloadTimer{new QTimer{this}}
+  , m_reloadRecentDocumentsTimer{new QTimer{this}}
+  , m_processResourcesTimer{new QTimer{this}}
   , m_httpClient{new upd::QtHttpClient{*m_networkManager}}
   , m_updater{new upd::Updater{*m_httpClient, makeUpdateConfig(), this}}
   , m_mapWindowManager{createMapWindowManager(*this)}
@@ -169,7 +181,8 @@ AppController::AppController(
 
   connectObservers();
 
-  m_recentDocumentsReloadTimer->start(1s);
+  m_reloadRecentDocumentsTimer->start(1s);
+  m_processResourcesTimer->start(20ms);
 }
 
 Result<std::unique_ptr<AppController>> AppController::create()
@@ -186,16 +199,19 @@ Result<std::unique_ptr<AppController>> AppController::create()
          });
 }
 
-AppController::~AppController() = default;
+AppController::~AppController()
+{
+  processGlResources();
+}
 
 kdl::task_manager& AppController::taskManager()
 {
   return *m_taskManager;
 }
 
-gl::ResourceManager& AppController::resourceManager()
+gl::GlManager& AppController::glManager()
 {
-  return *m_resourceManager;
+  return *m_glManager;
 }
 
 const mdl::EnvironmentConfig& AppController::environmentConfig() const
@@ -387,7 +403,6 @@ void AppController::debugShowCrashReportDialog()
   dialog.exec();
 }
 
-
 void AppController::connectObservers()
 {
   connect(
@@ -396,10 +411,62 @@ void AppController::connectObservers()
     this,
     [this](const std::filesystem::path& path) { openDocument(path); });
   connect(
-    m_recentDocumentsReloadTimer,
+    m_reloadRecentDocumentsTimer,
     &QTimer::timeout,
     m_recentDocuments,
     &RecentDocuments::reload);
+  connect(
+    m_processResourcesTimer, &QTimer::timeout, this, &AppController::processGlResources);
+}
+
+void AppController::processGlResources()
+{
+  using namespace std::chrono_literals;
+
+  if (m_glManager->initialized())
+  {
+    auto taskRunner = [&](auto task) { return taskManager().run_task(std::move(task)); };
+
+    auto errorHandler = [&](const auto&, const auto& error) {
+      if (auto* topWindow = mapWindowManager().topMapWindow())
+      {
+        topWindow->logger().error() << error;
+      }
+    };
+
+    const auto* shareContext = QOpenGLContext::globalShareContext();
+    const auto offscreenFormat =
+      shareContext != nullptr ? shareContext->format() : QSurfaceFormat::defaultFormat();
+
+    if (!m_offscreenSurface)
+    {
+      m_offscreenSurface = new QOffscreenSurface{nullptr, this};
+      m_offscreenSurface->setFormat(offscreenFormat);
+      m_offscreenSurface->create();
+    }
+
+    if (!m_glContext)
+    {
+      m_glContext = new QOpenGLContext{this};
+      m_glContext->setFormat(offscreenFormat);
+      m_glContext->setShareContext(QOpenGLContext::globalShareContext());
+      m_glContext->create();
+    }
+
+    contract_assert(m_offscreenSurface != nullptr);
+    contract_assert(m_glContext != nullptr);
+    m_glContext->makeCurrent(m_offscreenSurface);
+    auto& glFunctions = getGlFunctions("AppController::processGlResources", m_glContext);
+
+    auto gl = GlQt{glFunctions};
+    auto processContext = tb::gl::ProcessContext{gl, errorHandler};
+
+    m_glManager->resourceManager().process(taskRunner, processContext, 20ms);
+    m_glManager->vboManager().destroyPendingVbos(gl);
+    m_glManager->fontManager().destroyPendingFonts(gl);
+
+    m_glContext->doneCurrent();
+  }
 }
 
 } // namespace tb::ui

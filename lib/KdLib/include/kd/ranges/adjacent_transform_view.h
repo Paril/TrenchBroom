@@ -84,7 +84,7 @@ consteval auto get_adjacent_transform_iter_cat()
   }
   else
   {
-    return get_iter_cat<Base>;
+    return get_iter_cat<Base>();
   }
 }
 

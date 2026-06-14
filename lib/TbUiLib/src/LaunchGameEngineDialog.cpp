@@ -39,6 +39,7 @@
 #include "ui/CompilationVariables.h"
 #include "ui/CurrentGameIndicator.h"
 #include "ui/DialogButtonLayout.h"
+#include "ui/FixedWidthFont.h"
 #include "ui/GameEngineDialog.h"
 #include "ui/GameEngineProfileListBox.h"
 #include "ui/LaunchGameEngine.h"

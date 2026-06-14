@@ -934,12 +934,12 @@ void ClipTool::addBrushesToRenderer(
     for (auto* node : nodes)
     {
       node->accept(kdl::overload(
-        [](const mdl::WorldNode*) {},
-        [](const mdl::LayerNode*) {},
-        [](const mdl::GroupNode*) {},
-        [](const mdl::EntityNode*) {},
-        [&](mdl::BrushNode* brush) { renderer.addBrush(brush); },
-        [](mdl::PatchNode*) {}));
+        [](const mdl::WorldNode&) {},
+        [](const mdl::LayerNode&) {},
+        [](const mdl::GroupNode&) {},
+        [](const mdl::EntityNode&) {},
+        [&](mdl::BrushNode& brushNode) { renderer.addBrush(brushNode); },
+        [](mdl::PatchNode&) {}));
     }
   }
 }

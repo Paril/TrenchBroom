@@ -9,5 +9,15 @@ ${CMAKE_CURRENT_SOURCE_DIR}/src/tst_Resource.cpp
 
 add_compile_definitions(CATCH_CONFIG_ENABLE_ALL_STRINGMAKERS=1)
 
-target_link_libraries(TbGlLibTest PRIVATE CompilerConfig PrecompileStdHeaders)
-target_link_libraries(TbGlLibTest PRIVATE Catch2::Catch2WithMain TbGlLib TbGlTestUtilsLib)
+target_link_libraries(TbGlLibTest
+  PRIVATE
+    CompilerConfig
+    PrecompileStdHeaders
+    Catch2::Catch2WithMain
+    TbBaseTestUtilsLib
+    TbGlLib
+    TbGlTestUtilsLib
+)
+
+include(Catch)
+catch_discover_tests(TbGlLibTest)

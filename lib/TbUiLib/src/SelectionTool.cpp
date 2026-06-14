@@ -407,7 +407,7 @@ bool SelectionTool::mouseDoubleClick(const InputState& inputState)
     if (hit.isMatch())
     {
       const auto hitInGroup =
-        inGroup && mdl::hitToNode(hit)->isDescendantOf(currentGroup);
+        inGroup && mdl::hitToNode(hit)->isDescendantOf(*currentGroup);
       if (!inGroup || hitInGroup)
       {
         // If the hit node is inside a closed group, treat it as a hit on the group insted

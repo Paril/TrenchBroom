@@ -24,6 +24,7 @@
 #include <QCloseEvent>
 #include <QDialogButtonBox>
 #include <QLabel>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QTextEdit>
@@ -37,6 +38,7 @@
 #include "ui/CompilationProfileManager.h"
 #include "ui/CompilationRunner.h"
 #include "ui/DialogButtonLayout.h"
+#include "ui/FixedWidthFont.h"
 #include "ui/LaunchGameEngineDialog.h"
 #include "ui/MapDocument.h" // IWYU pragma: keep
 #include "ui/MapWindow.h"
@@ -62,6 +64,24 @@ CompilationDialog::CompilationDialog(
   updateCompileButtons();
 }
 
+bool CompilationDialog::selectProfile(const mdl::CompilationProfile& profile)
+{
+  return m_profileManager->selectProfile(profile);
+}
+
+void CompilationDialog::selectFirstProfile()
+{
+  m_profileManager->selectFirstProfile();
+}
+
+void CompilationDialog::runSelectedProfile()
+{
+  if (m_profileManager->selectedProfile())
+  {
+    startCompilation(false);
+  }
+}
+
 void CompilationDialog::createGui()
 {
   setWindowIconTB(this);
@@ -75,6 +95,12 @@ void CompilationDialog::createGui()
   m_output = new QTextEdit{};
   m_output->setReadOnly(true);
   m_output->setFont(Fonts::fixedWidthFont());
+  m_output->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(
+    m_output,
+    &QWidget::customContextMenuRequested,
+    this,
+    &CompilationDialog::showContextMenu);
 
   auto* outputLayout = new QVBoxLayout{};
   outputLayout->setContentsMargins(0, 0, 0, 0);
@@ -234,6 +260,8 @@ void CompilationDialog::compilationStarted()
   const auto* profile = m_profileManager->selectedProfile();
   contract_assert(profile != nullptr);
 
+  emit compilationProfileStarted(profile->name);
+
   m_currentRunLabel->setText(QString::fromStdString("Running " + profile->name));
   m_output->setText("");
 
@@ -255,6 +283,14 @@ void CompilationDialog::selectedProfileChanged()
 void CompilationDialog::profileChanged()
 {
   updateCompileButtons();
+}
+
+void CompilationDialog::showContextMenu(const QPoint& pos)
+{
+  auto* menu = m_output->createStandardContextMenu();
+  menu->addSeparator();
+  menu->addAction(tr("Clear"), m_output, &QTextEdit::clear);
+  menu->popup(m_output->mapToGlobal(pos));
 }
 
 void CompilationDialog::saveProfile()

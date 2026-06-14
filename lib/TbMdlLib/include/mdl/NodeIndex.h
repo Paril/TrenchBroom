@@ -22,6 +22,7 @@
 #include "kd/compact_trie_forward.h"
 
 #include <memory>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -39,6 +40,8 @@ private:
 public:
   NodeIndex();
   ~NodeIndex();
+
+  static std::string escapePattern(std::string_view str);
 
   void addNode(Node& node);
   void removeNode(Node& node);

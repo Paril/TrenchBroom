@@ -50,20 +50,27 @@ void SpikeGuideRenderer::clear()
   m_valid = true;
 }
 
-void SpikeGuideRenderer::doPrepareVertices(gl::VboManager& vboManager)
+void SpikeGuideRenderer::prepare(gl::Gl& gl, gl::VboManager& vboManager)
 {
   if (!m_valid)
   {
     validate();
   }
-  m_spikeArray.prepare(vboManager);
+  m_spikeArray.prepare(gl, vboManager);
 }
 
-void SpikeGuideRenderer::doRender(RenderContext& renderContext)
+void SpikeGuideRenderer::render(RenderContext& renderContext)
 {
+  auto& gl = renderContext.gl();
+
   auto shader =
-    gl::ActiveShader{renderContext.shaderManager(), gl::Shaders::VaryingPCShader};
-  m_spikeArray.render(gl::PrimType::Lines);
+    gl::ActiveShader{gl, renderContext.shaderManager(), gl::Shaders::VaryingPCShader};
+
+  if (m_spikeArray.setup(gl, shader.program()))
+  {
+    m_spikeArray.render(gl, gl::PrimType::Lines);
+    m_spikeArray.cleanup(gl, shader.program());
+  }
 }
 
 void SpikeGuideRenderer::addSpike(const vm::ray3d& ray)

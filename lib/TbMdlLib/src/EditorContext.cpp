@@ -177,12 +177,12 @@ void EditorContext::setUVLock(const bool uvLock)
 bool EditorContext::visible(const Node& node) const
 {
   return node.accept(kdl::overload(
-    [&](const WorldNode* worldNode) { return visible(*worldNode); },
-    [&](const LayerNode* layerNode) { return visible(*layerNode); },
-    [&](const GroupNode* groupNode) { return visible(*groupNode); },
-    [&](const EntityNode* entityNode) { return visible(*entityNode); },
-    [&](const BrushNode* brushNode) { return visible(*brushNode); },
-    [&](const PatchNode* patchNode) { return visible(*patchNode); }));
+    [&](const WorldNode& worldNode) { return visible(worldNode); },
+    [&](const LayerNode& layerNode) { return visible(layerNode); },
+    [&](const GroupNode& groupNode) { return visible(groupNode); },
+    [&](const EntityNode& entityNode) { return visible(entityNode); },
+    [&](const BrushNode& brushNode) { return visible(brushNode); },
+    [&](const PatchNode& patchNode) { return visible(patchNode); }));
 }
 
 bool EditorContext::visible(const WorldNode& worldNode) const
@@ -309,12 +309,12 @@ bool EditorContext::editable(const BrushNode& brushNode, const BrushFace&) const
 bool EditorContext::selectable(const Node& node) const
 {
   return node.accept(kdl::overload(
-    [&](const WorldNode* worldNode) { return selectable(*worldNode); },
-    [&](const LayerNode* layerNode) { return selectable(*layerNode); },
-    [&](const GroupNode* groupNode) { return selectable(*groupNode); },
-    [&](const EntityNode* entityNode) { return selectable(*entityNode); },
-    [&](const BrushNode* brushNode) { return selectable(*brushNode); },
-    [&](const PatchNode* patchNode) { return selectable(*patchNode); }));
+    [&](const WorldNode& worldNode) { return selectable(worldNode); },
+    [&](const LayerNode& layerNode) { return selectable(layerNode); },
+    [&](const GroupNode& groupNode) { return selectable(groupNode); },
+    [&](const EntityNode& entityNode) { return selectable(entityNode); },
+    [&](const BrushNode& brushNode) { return selectable(brushNode); },
+    [&](const PatchNode& patchNode) { return selectable(patchNode); }));
 }
 
 bool EditorContext::selectable(const WorldNode&) const

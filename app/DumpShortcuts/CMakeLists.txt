@@ -8,16 +8,17 @@ add_executable(DumpShortcuts
   ${DOC_MANUAL_TARGET_IMAGE_FILES_ABSOLUTE}
 )
 
-target_link_libraries(DumpShortcuts PRIVATE CompilerConfig)
-
-target_link_libraries(DumpShortcuts PRIVATE 
-  KdLib
-  TbBaseLib
-  TbMdlLib
-  TbPreferencesLib
-  TbUiLib
-  Qt6::Widgets
+target_link_libraries(DumpShortcuts 
+  PRIVATE 
+    CompilerConfig
+    KdLib
+    TbBaseLib
+    TbMdlLib
+    TbPreferencesLib
+    TbUiLib
+    Qt6::Widgets
 )
+
 set_target_properties(DumpShortcuts PROPERTIES AUTOMOC TRUE)
 
 if(WIN32)
@@ -28,8 +29,8 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:freetype>" "$<TARGET_FILE_DIR:DumpShortcuts>"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:tinyxml2::tinyxml2>" "$<TARGET_FILE_DIR:DumpShortcuts>"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:miniz::miniz>" "$<TARGET_FILE_DIR:DumpShortcuts>"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:GLEW::GLEW>" "$<TARGET_FILE_DIR:DumpShortcuts>")
-
+    )
+    
     # Run windeployqt which copies the Qt dlls into the deployable folder, along with necessary runtime dlls by the compiler
     if(NOT TB_SKIP_WINDEPLOYQT)
         message(STATUS "windeployqt requested")
@@ -43,6 +44,7 @@ if(WIN32)
                 COMMAND "${TB_WINDEPLOYQT_PATH}"
                         --no-compiler-runtime
                         --no-translations
+						--include-plugins qoffscreen
                         "$<TARGET_FILE_DIR:DumpShortcuts>")
     else()
         message(STATUS "windeployqt skipped")

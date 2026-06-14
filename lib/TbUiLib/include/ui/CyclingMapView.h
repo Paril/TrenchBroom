@@ -26,16 +26,7 @@
 
 class QStackedLayout;
 
-namespace tb
-{
-class Logger;
-
-namespace gl
-{
-class ContextManager;
-}
-
-namespace ui
+namespace tb::ui
 {
 class AppController;
 class MapDocument;
@@ -66,23 +57,15 @@ public:
     AppController& appController,
     MapDocument& document,
     MapViewToolBox& toolBox,
-    gl::ContextManager& contextManager,
     int views,
     QWidget* parent = nullptr);
 
 private:
-  void createGui(
-    AppController& appController,
-    MapViewToolBox& toolBox,
-    gl::ContextManager& contextManager,
-    int views);
+  void createGui(AppController& appController, MapViewToolBox& toolBox, int views);
   void addMapView(MapViewBase* mapView);
 
 private:
   void switchToMapView(MapViewBase* mapView);
-
-public: // implement ViewEffectsService interface
-  void flashSelection() override;
 
 public: // implement MapView interface
   void installActivationTracker(MapViewActivationTracker& activationTracker) override;
@@ -96,6 +79,7 @@ public: // implement MapView interface
   void moveCameraToCurrentTracePoint() override;
 
   bool cancelMouseDrag() override;
+  void flashSelection() override;
   void refreshViews() override;
 
 public: // implement MapViewContainer interface
@@ -113,5 +97,4 @@ public: // implement CameraLinkableView interface
   void linkCamera(CameraLinkHelper& linkHelper) override;
 };
 
-} // namespace ui
-} // namespace tb
+} // namespace tb::ui

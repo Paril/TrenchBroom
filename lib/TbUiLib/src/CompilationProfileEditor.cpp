@@ -33,6 +33,7 @@
 #include "ui/CompilationTaskListBox.h"
 #include "ui/CompilationVariables.h"
 #include "ui/EmptyWidget.h"
+#include "ui/FixedWidthFont.h"
 #include "ui/MapDocument.h"
 #include "ui/MiniToolBarLayout.h"
 #include "ui/MultiCompletionLineEdit.h"

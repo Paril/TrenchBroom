@@ -155,7 +155,6 @@ constexpr void cartesian_iter_swap(Tuple& t1, Tuple& t2, const std::index_sequen
 
 } // namespace detail
 
-
 template <std::ranges::input_range First, std::ranges::forward_range... Vs>
   requires(std::ranges::view<First> && ... && std::ranges::view<Vs>)
 class cartesian_product_view
@@ -193,7 +192,7 @@ public:
     {
     }
 
-    constexpr reference operator*() const
+    constexpr auto operator*() const
     {
       return detail::tuple_transform(
         [](auto& i) -> decltype(auto) { return *i; }, current_);
@@ -211,7 +210,7 @@ public:
       return *this;
     }
 
-    constexpr void operator++(int) { return ++*this; }
+    constexpr void operator++(int) { ++*this; }
 
     constexpr iterator operator++(int)
       requires std::ranges::forward_range<detail::maybe_const<Const, First>>
@@ -354,8 +353,8 @@ public:
     {
     }
 
-    //! If called with default template parameter, recursively generates the next element
-    //! (the tuple of iterators) in cartesian_product_view.
+    // If called with default template parameter, recursively generates the next element
+    // (the tuple of iterators) in cartesian_product_view.
     template <std::size_t N = sizeof...(Vs)>
     constexpr void next()
     {
@@ -372,8 +371,8 @@ public:
       }
     }
 
-    //! If called with default template parameter, recursively generates the previous
-    //! element (the tuple of iterators) in cartesian_product_view.
+    // If called with default template parameter, recursively generates the previous
+    // element (the tuple of iterators) in cartesian_product_view.
     template <std::size_t N = sizeof...(Vs)>
     constexpr void prev()
     {
@@ -389,7 +388,7 @@ public:
       --it;
     }
 
-    //! Returns the "distance" (i.e., number of "hops") between two iterators.
+    // Returns the "distance" (i.e., number of "hops") between two iterators.
     template <typename Tuple>
     constexpr difference_type distance_from(const Tuple& t) const
     {
@@ -501,11 +500,15 @@ public:
   constexpr auto size()
     requires detail::cartesian_product_is_sized<First, Vs...>
   {
-    return const_cast<const cartesian_product_view*>(this)->size();
+    using SizeType = std::uintmax_t;
+
+    return std::apply(
+      [](auto&... b) { return (static_cast<SizeType>(std::ranges::size(b)) * ...); },
+      bases_);
   }
 
   constexpr auto size() const
-    requires detail::cartesian_product_is_sized<First, Vs...>
+    requires detail::cartesian_product_is_sized<const First, const Vs...>
   {
     using SizeType = std::uintmax_t;
 

@@ -23,6 +23,7 @@
 #include "Preferences.h"
 #include "gl/ActiveShader.h"
 #include "gl/Camera.h"
+#include "gl/GlInterface.h"
 #include "gl/Material.h"
 #include "gl/PrimType.h"
 #include "gl/Shaders.h"
@@ -102,17 +103,18 @@ private:
     };
   }
 
-private:
-  void doPrepareVertices(gl::VboManager& vboManager) override
+  void prepare(gl::Gl& gl, gl::VboManager& vboManager) override
   {
-    m_vertexArray.prepare(vboManager);
+    m_vertexArray.prepare(gl, vboManager);
   }
 
-  void doRender(render::RenderContext& renderContext) override
+  void render(render::RenderContext& renderContext) override
   {
+    auto& gl = renderContext.gl();
+
     const auto& offset = m_helper.face()->attributes().offset();
     const auto& scale = m_helper.face()->attributes().scale();
-    const auto toTex = m_helper.face()->toUVCoordSystemMatrix(offset, scale, true);
+    const auto toTex = m_helper.face()->toUVCoordSystemMatrix(offset, scale);
 
     const auto* material = m_helper.face()->material();
     contract_assert(material != nullptr);
@@ -120,10 +122,8 @@ private:
     const auto* texture = material->texture();
     contract_assert(texture != nullptr);
 
-    material->activate(renderContext.minFilterMode(), renderContext.magFilterMode());
-
     auto shader =
-      gl::ActiveShader{renderContext.shaderManager(), gl::Shaders::UVViewShader};
+      gl::ActiveShader{gl, renderContext.shaderManager(), gl::Shaders::UVViewShader};
     shader.set("ApplyMaterial", true);
     shader.set("Color", texture->averageColor());
     shader.set("Brightness", pref(Preferences::Brightness));
@@ -134,12 +134,19 @@ private:
     shader.set("GridScales", scale);
     shader.set("GridMatrix", vm::mat4x4f{toTex});
     shader.set("GridDivider", vm::vec2f{m_helper.subDivisions()});
-    shader.set("CameraZoom", m_helper.cameraZoom());
+    shader.set("CameraZoom", m_helper.camera().zoom());
     shader.set("Material", 0);
 
-    m_vertexArray.render(gl::PrimType::Quads);
+    if (m_vertexArray.setup(gl, shader.program()))
+    {
+      material->activate(
+        gl, renderContext.minFilterMode(), renderContext.magFilterMode());
 
-    material->deactivate();
+      m_vertexArray.render(gl, gl::PrimType::Quads);
+      m_vertexArray.cleanup(gl, shader.program());
+
+      material->deactivate(gl);
+    }
   }
 };
 
@@ -147,8 +154,8 @@ private:
 
 const mdl::HitType::Type UVView::FaceHitType = mdl::HitType::freeType();
 
-UVView::UVView(MapDocument& document, gl::ContextManager& contextManager)
-  : RenderView{contextManager}
+UVView::UVView(AppController& appController, MapDocument& document)
+  : RenderView{appController}
   , m_document{document}
   , m_helper{m_camera}
 {
@@ -186,13 +193,11 @@ void UVView::createTools()
 
 void UVView::connectObservers()
 {
-  auto& map = m_document.map();
-
   m_notifierConnection += m_document.documentWasLoadedNotifier.connect([&] { reload(); });
   m_notifierConnection += m_document.documentDidChangeNotifier.connect([&] { reload(); });
   m_notifierConnection +=
     m_document.selectionDidChangeNotifier.connect([&](const auto&) { reload(); });
-  m_notifierConnection += map.grid().gridDidChangeNotifier.connect([&] { update(); });
+  m_notifierConnection += m_document.gridDidChangeNotifier.connect([&] { update(); });
 
   auto& prefs = PreferenceManager::instance();
   m_notifierConnection +=
@@ -234,12 +239,12 @@ void UVView::updateViewport(int x, int y, int width, int height)
   }
 }
 
-void UVView::renderContents()
+void UVView::renderContents(gl::Gl& gl)
 {
   if (m_helper.valid())
   {
     auto renderContext = render::RenderContext{
-      render::RenderMode::Render2D, m_camera, fontManager(), shaderManager()};
+      gl, render::RenderMode::Render2D, m_camera, fontManager(), shaderManager()};
     renderContext.setFilterMode(
       pref(Preferences::TextureMinFilter), pref(Preferences::TextureMagFilter));
 
@@ -268,6 +273,8 @@ const Color& UVView::getBackgroundColor()
 
 void UVView::setupGL(render::RenderContext& renderContext)
 {
+  auto& gl = renderContext.gl();
+
   const auto& viewport = renderContext.camera().viewport();
   const auto r = devicePixelRatioF();
   const auto x = int(viewport.x * r);
@@ -275,21 +282,21 @@ void UVView::setupGL(render::RenderContext& renderContext)
   const auto width = int(viewport.width * r);
   const auto height = int(viewport.height * r);
 
-  glAssert(glViewport(x, y, width, height));
+  gl.viewport(x, y, width, height);
 
   if (pref(Preferences::EnableMSAA))
   {
-    glAssert(glEnable(GL_MULTISAMPLE));
+    gl.enable(GL_MULTISAMPLE);
   }
   else
   {
-    glAssert(glDisable(GL_MULTISAMPLE));
+    gl.disable(GL_MULTISAMPLE);
   }
 
-  glAssert(glEnable(GL_BLEND));
-  glAssert(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
-  glAssert(glShadeModel(GL_SMOOTH));
-  glAssert(glDisable(GL_DEPTH_TEST));
+  gl.enable(GL_BLEND);
+  gl.blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  gl.shadeModel(GL_SMOOTH);
+  gl.disable(GL_DEPTH_TEST);
 }
 
 void UVView::renderMaterial(render::RenderContext&, render::RenderBatch& renderBatch)
@@ -332,7 +339,7 @@ void UVView::renderUVAxes(render::RenderContext&, render::RenderBatch& renderBat
     m_helper.face()->vAxis() - vm::dot(m_helper.face()->vAxis(), normal) * normal};
   const auto center = vm::vec3f{m_helper.face()->boundsCenter()};
 
-  const auto length = 32.0f / m_helper.cameraZoom();
+  const auto length = 32.0f / m_helper.camera().zoom();
 
   auto edgeRenderer = render::DirectEdgeRenderer{
     gl::VertexArray::move(std::vector{

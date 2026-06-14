@@ -134,7 +134,7 @@ std::partial_ordering operator<=>(
 }
 
 std::optional<EdgeInfo> getEdgeInfo(
-  const mdl::BrushEdge* edge, mdl::BrushNode* brushNode, const vm::ray3d& pickRay)
+  const mdl::BrushEdge* edge, mdl::BrushNode& brushNode, const vm::ray3d& pickRay)
 {
 
   const auto segment = edge->segment();
@@ -144,8 +144,8 @@ std::optional<EdgeInfo> getEdgeInfo(
   const auto rightFaceIndex = edge->secondFace()->payload();
   contract_assert(leftFaceIndex && rightFaceIndex);
 
-  const auto& leftFace = brushNode->brush().face(*leftFaceIndex);
-  const auto& rightFace = brushNode->brush().face(*rightFaceIndex);
+  const auto& leftFace = brushNode.brush().face(*leftFaceIndex);
+  const auto& rightFace = brushNode.brush().face(*rightFaceIndex);
 
   const auto leftDot = vm::dot(leftFace.boundary().normal, pickRay.direction);
   const auto rightDot = vm::dot(rightFace.boundary().normal, pickRay.direction);
@@ -156,8 +156,8 @@ std::optional<EdgeInfo> getEdgeInfo(
     return std::nullopt;
   }
 
-  const auto leftFaceHandle = mdl::BrushFaceHandle{brushNode, *leftFaceIndex};
-  const auto rightFaceHandle = mdl::BrushFaceHandle{brushNode, *rightFaceIndex};
+  const auto leftFaceHandle = mdl::BrushFaceHandle{&brushNode, *leftFaceIndex};
+  const auto rightFaceHandle = mdl::BrushFaceHandle{&brushNode, *rightFaceIndex};
 
   return {{leftFaceHandle, rightFaceHandle, leftDot, rightDot, segment, dist}};
 }
@@ -169,17 +169,17 @@ std::optional<EdgeInfo> findClosestHorizonEdge(
   for (auto* node : nodes)
   {
     node->accept(kdl::overload(
-      [](mdl::WorldNode*) {},
-      [](mdl::LayerNode*) {},
-      [](mdl::GroupNode*) {},
-      [](mdl::EntityNode*) {},
-      [&](mdl::BrushNode* brushNode) {
-        for (const auto* edge : brushNode->brush().edges())
+      [](mdl::WorldNode&) {},
+      [](mdl::LayerNode&) {},
+      [](mdl::GroupNode&) {},
+      [](mdl::EntityNode&) {},
+      [&](mdl::BrushNode& brushNode) {
+        for (const auto* edge : brushNode.brush().edges())
         {
           result = std::min(result, getEdgeInfo(edge, brushNode, pickRay));
         }
       },
-      [](mdl::PatchNode*) {}));
+      [](mdl::PatchNode&) {}));
   }
   return result;
 }
@@ -286,12 +286,12 @@ std::vector<mdl::BrushFaceHandle> collectCoplanarFaces(
   for (auto* node : nodes)
   {
     node->accept(kdl::overload(
-      [](mdl::WorldNode*) {},
-      [](mdl::LayerNode*) {},
-      [](mdl::GroupNode*) {},
-      [](mdl::EntityNode*) {},
-      [&](mdl::BrushNode* brushNode) {
-        const auto& brush = brushNode->brush();
+      [](mdl::WorldNode&) {},
+      [](mdl::LayerNode&) {},
+      [](mdl::GroupNode&) {},
+      [](mdl::EntityNode&) {},
+      [&](mdl::BrushNode& brushNode) {
+        const auto& brush = brushNode.brush();
         for (size_t i = 0; i < brush.faceCount(); ++i)
         {
           const auto& face = brush.face(i);
@@ -300,10 +300,10 @@ std::vector<mdl::BrushFaceHandle> collectCoplanarFaces(
             continue;
           }
 
-          result.emplace_back(brushNode, i);
+          result.emplace_back(&brushNode, i);
         }
       },
-      [](mdl::PatchNode*) {}));
+      [](mdl::PatchNode&) {}));
   }
 
   return result;

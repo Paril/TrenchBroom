@@ -34,6 +34,7 @@ namespace tb
 namespace gl
 {
 class AttrString;
+class Gl;
 class VboManager;
 } // namespace gl
 
@@ -122,9 +123,12 @@ private:
 
   vm::vec2f stringSize(RenderContext& renderContext, const gl::AttrString& string) const;
 
+  void prepare(gl::Gl& gl, gl::VboManager& vboManager) override;
+  void render(RenderContext& renderContext) override;
+
 private:
-  void doPrepareVertices(gl::VboManager& vboManager) override;
-  void prepare(EntryCollection& collection, bool onTop, gl::VboManager& vboManager);
+  void prepare(
+    gl::Gl& gl, EntryCollection& collection, bool onTop, gl::VboManager& vboManager);
 
   void addEntry(
     const Entry& entry,
@@ -132,7 +136,6 @@ private:
     std::vector<TextVertex>& textVertices,
     std::vector<RectVertex>& rectVertices);
 
-  void doRender(RenderContext& renderContext) override;
   void render(EntryCollection& collection, RenderContext& renderContext);
 
   void clear();

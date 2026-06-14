@@ -31,6 +31,8 @@
 #include "mdl/TestUtils.h"
 #include "mdl/WorldNode.h"
 
+#include "kd/path_utils.h"
+
 #include <algorithm>
 #include <optional>
 #include <ranges>
@@ -59,6 +61,8 @@ TEST_CASE("Map_Assets")
       {"builtin:ad.fgd", EntityDefinitionFileSpec::makeBuiltin("ad.fgd")},
       {"builtin:Quake.def", EntityDefinitionFileSpec::makeBuiltin("Quake.def")},
       {"external:/Applications/Quake/Quake.fgd",
+       EntityDefinitionFileSpec::makeExternal("/Applications/Quake/Quake.fgd")},
+      {"external:\\Applications\\Quake\\Quake.fgd",
        EntityDefinitionFileSpec::makeExternal("/Applications/Quake/Quake.fgd")},
     }));
 
@@ -92,6 +96,11 @@ TEST_CASE("Map_Assets")
       {
         EntityDefinitionFileSpec::makeExternal("/Applications/Quake/Quake.fgd"),
         "external:/Applications/Quake/Quake.fgd",
+      },
+      {
+        EntityDefinitionFileSpec::makeExternal(
+          kdl::parse_path(std::string{R"(Applications\Quake\Quake.fgd)"})),
+        "external:Applications/Quake/Quake.fgd",
       },
     }));
 
@@ -270,10 +279,34 @@ TEST_CASE("Map_Assets")
     }
   }
 
+  SECTION("setting wad property reloads collections from wad paths")
+  {
+    using T = std::tuple<std::string, std::vector<std::filesystem::path>>;
+
+    const auto [wadPropertyValue, expectedMaterialCollections] = GENERATE(values<T>({
+      {"cr8_czg.wad", {"cr8_czg.wad"}},
+      {
+        "cr8_czg.wad;folder/cr8_a_excerpt.wad",
+        {"cr8_a_excerpt.wad", "cr8_czg.wad"},
+      },
+    }));
+
+    CAPTURE(wadPropertyValue);
+
+    auto& map = fixture.load("test/mdl/Map/emptyValveMap.map", QuakeFixtureConfig);
+
+    CHECK(setEntityProperty(map, EntityPropertyKeys::Wad, wadPropertyValue));
+
+    CHECK_THAT(
+      map.materialManager().collections()
+        | std::views::transform([](const auto& collection) { return collection.path(); }),
+      RangeEquals(expectedMaterialCollections));
+  }
+
   SECTION("reloadMaterialCollections")
   {
-    auto& map = fixture.load(
-      "fixture/test/mdl/Map/reloadMaterialCollectionsQ2.map", Quake2FixtureConfig);
+    auto& map =
+      fixture.load("test/mdl/Map/reloadMaterialCollectionsQ2.map", Quake2FixtureConfig);
 
     auto materialCollectionsWillChange =
       Observer<>{map.materialCollectionsWillChangeNotifier};

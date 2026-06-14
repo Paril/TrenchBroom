@@ -57,8 +57,8 @@ ColorRange::Type detectColorRange(
   for (auto* node : nodes)
   {
     node->accept(kdl::overload(
-      [&](const EntityNodeBase* entityNode) {
-        if (const auto* value = entityNode->entity().property(propertyKey))
+      [&](const EntityNodeBase& entityNode) {
+        if (const auto* value = entityNode.entity().property(propertyKey))
         {
           setResult(detectColorRange(*value));
         }
@@ -82,10 +82,10 @@ ColorRange::Type detectColorRange(
             propDef->valueType);
         }
       },
-      [](const LayerNode*) {},
-      [](const GroupNode*) {},
-      [](const BrushNode*) {},
-      [](const PatchNode*) {}));
+      [](const LayerNode&) {},
+      [](const GroupNode&) {},
+      [](const BrushNode&) {},
+      [](const PatchNode&) {}));
   }
   return result;
 }

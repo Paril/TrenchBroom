@@ -67,12 +67,12 @@ TEST_CASE("EntityNodeTest.canAddChild")
     {0, 2, 0}, {1, 2, 1}, {2, 2, 0} }, "material"}};
   // clang-format on
 
-  CHECK_FALSE(entityNode.canAddChild(&worldNode));
-  CHECK_FALSE(entityNode.canAddChild(&layerNode));
-  CHECK_FALSE(entityNode.canAddChild(&groupNode));
-  CHECK_FALSE(entityNode.canAddChild(&entityNode));
-  CHECK(entityNode.canAddChild(&brushNode));
-  CHECK(entityNode.canAddChild(&patchNode));
+  CHECK_FALSE(entityNode.canAddChild(worldNode));
+  CHECK_FALSE(entityNode.canAddChild(layerNode));
+  CHECK_FALSE(entityNode.canAddChild(groupNode));
+  CHECK_FALSE(entityNode.canAddChild(entityNode));
+  CHECK(entityNode.canAddChild(brushNode));
+  CHECK(entityNode.canAddChild(patchNode));
 }
 
 TEST_CASE("EntityNodeTest.canRemoveChild")
@@ -94,12 +94,12 @@ TEST_CASE("EntityNodeTest.canRemoveChild")
     {0, 2, 0}, {1, 2, 1}, {2, 2, 0} }, "material"}};
   // clang-format on
 
-  CHECK(entityNode.canRemoveChild(&worldNode));
-  CHECK(worldNode.canRemoveChild(&layerNode));
-  CHECK(entityNode.canRemoveChild(&groupNode));
-  CHECK(entityNode.canRemoveChild(&entityNode));
-  CHECK(entityNode.canRemoveChild(&brushNode));
-  CHECK(entityNode.canRemoveChild(&patchNode));
+  CHECK(entityNode.canRemoveChild(worldNode));
+  CHECK(worldNode.canRemoveChild(layerNode));
+  CHECK(entityNode.canRemoveChild(groupNode));
+  CHECK(entityNode.canRemoveChild(entityNode));
+  CHECK(entityNode.canRemoveChild(brushNode));
+  CHECK(entityNode.canRemoveChild(patchNode));
 }
 
 TEST_CASE("EntityNodeTest.setPointEntity")

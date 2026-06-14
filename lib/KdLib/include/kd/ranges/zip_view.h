@@ -27,6 +27,9 @@
 #include <ranges>
 #include <tuple>
 
+// This file can only be used with C++20 or later.
+static_assert(__cplusplus >= 202002L);
+
 namespace kdl
 {
 namespace ranges
@@ -85,24 +88,6 @@ constexpr auto abs_min_diff(const std::tuple<T...>& lhs, const std::tuple<U...>&
   return abs_min_diff_impl(lhs, rhs, std::make_index_sequence<sizeof...(T)>());
 }
 
-template <std::size_t N, typename... I, typename... J>
-constexpr auto iter_swap_impl(const std::tuple<I...>& lhs, const std::tuple<J...>& rhs)
-  requires(sizeof...(I) == sizeof...(J))
-{
-  if (N < sizeof...(I))
-  {
-    std::ranges::iter_swap(std::get<N>(lhs), std::get<N>(rhs));
-    iter_swap_impl<N + 1>(lhs, rhs);
-  }
-}
-
-template <typename... I, typename... J>
-constexpr auto iter_swap(const std::tuple<I...>& lhs, const std::tuple<J...>& rhs)
-  requires(sizeof...(I) == sizeof...(J))
-{
-  iter_swap_impl<0>(lhs, rhs);
-}
-
 template <bool Const, typename... Views>
 using zip_difference_type_t = std::common_type_t<
   std::ranges::range_difference_t<detail::maybe_const<Const, Views>>...>;
@@ -137,7 +122,7 @@ public:
 
     constexpr explicit iterator(iterator<!Const> other)
       requires Const
-               && (std::convertible_to<std::ranges::iterator_t<Views>, std::ranges::iterator_t<std::conditional_t<!Const, const Views, Views>>> && ...)
+               && (std::convertible_to<std::ranges::iterator_t<Views>, std::ranges::iterator_t<detail::maybe_const<Const, Views>>> && ...)
       : current_{std::move(other.current_)}
     {
     }
@@ -304,11 +289,16 @@ public:
           std::ranges::iterator_t<detail::maybe_const<Const, Views>>>
         && ...)
     {
-      detail::iter_swap(lhs, rhs);
+      [&]<std::size_t... Is>(std::index_sequence<Is...>) {
+        (std::ranges::iter_swap(std::get<Is>(lhs.current_), std::get<Is>(rhs.current_)),
+         ...);
+      }(std::make_index_sequence<sizeof...(Views)>{});
     }
 
   private:
     friend class zip_view;
+    template <bool>
+    friend class iterator;
 
     constexpr explicit iterator(iter_tuple current)
       : current_{std::move(current)}
@@ -329,7 +319,7 @@ public:
 
     constexpr explicit sentinel(sentinel<!Const> s)
       requires Const
-               && (std::convertible_to<std::ranges::sentinel_t<Views>, std::ranges::sentinel_t<detail::maybe_const<!Const, Views>>> && ...)
+               && (std::convertible_to<std::ranges::sentinel_t<Views>, std::ranges::sentinel_t<detail::maybe_const<Const, Views>>> && ...)
       : end_{std::move(s.end_)}
     {
     }
@@ -374,6 +364,8 @@ public:
 
   private:
     friend class zip_view;
+    template <bool>
+    friend class sentinel;
 
     constexpr explicit sentinel(sentinel_tuple end)
       : end_{std::move(end)}

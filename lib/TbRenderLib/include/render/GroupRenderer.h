@@ -74,16 +74,16 @@ public:
    * Adds a group. Calling with an already-added group is allowed, but ignored (not
    * guaranteed to invalidate it).
    */
-  void addGroup(const mdl::GroupNode* group);
+  void addGroup(const mdl::GroupNode& groupNode);
   /**
    * Removes a group. Calling with an unknown group is allowed, but ignored.
    */
-  void removeGroup(const mdl::GroupNode* group);
+  void removeGroup(const mdl::GroupNode& groupNode);
   /**
    * Causes cached renderer data to be rebuilt for the given group (on the next render()
    * call).
    */
-  void invalidateGroup(const mdl::GroupNode* group);
+  void invalidateGroup(const mdl::GroupNode& groupNode);
 
   void setOverrideColors(bool overrideColors);
 

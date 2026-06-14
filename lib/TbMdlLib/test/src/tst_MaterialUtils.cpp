@@ -19,6 +19,7 @@
 
 #include "Logger.h"
 #include "Matchers.h"
+#include "TestEnvironment.h"
 #include "fs/DiskFileSystem.h"
 #include "fs/TestEnvironment.h"
 #include "mdl/CatchConfig.h"
@@ -63,6 +64,9 @@ TEST_CASE("findMaterialFile")
   env.createFile("textures/test.png", "");
   env.createFile("textures/test.jpg", "");
   env.createFile("textures/other.txt", "");
+  env.createFile("textures/other.png", "");
+  env.createFile("textures/mixed.skin", "");
+  env.createFile("textures/mixed.jpg", "");
 
   const auto extensions = std::vector<std::filesystem::path>{".png", ".jpg"};
 
@@ -82,16 +86,18 @@ TEST_CASE("findMaterialFile")
   CHECK(
     findMaterialFile(diskFS, "textures/other.png", extensions)
     == Result<std::filesystem::path>{std::filesystem::path{"textures/other.png"}});
+  CHECK(
+    findMaterialFile(diskFS, "textures/mixed.skin", extensions)
+    == Result<std::filesystem::path>{std::filesystem::path{"textures/mixed.jpg"}});
 }
 
 TEST_CASE("loadDefaultMaterial")
 {
-  auto fs = std::make_shared<fs::DiskFileSystem>(
-    std::filesystem::current_path()
-    / "fixture/test/mdl/MaterialUtils/loadDefaultMaterial");
+  auto fs =
+    fs::DiskFileSystem{getFixtureRoot() / "test/mdl/MaterialUtils/loadDefaultMaterial"};
   NullLogger logger;
 
-  auto material = loadDefaultMaterial(*fs, "some_name", logger);
+  auto material = loadDefaultMaterial(fs, "some_name", logger);
   CHECK(material.name() == "some_name");
 }
 
@@ -99,8 +105,7 @@ TEST_CASE("makeReadTextureErrorHandler")
 {
   auto logger = NullLogger{};
   auto diskFS = fs::DiskFileSystem{
-    std::filesystem::current_path()
-    / "fixture/test/mdl/MaterialUtils/makeReadTextureErrorHandler"};
+    getFixtureRoot() / "test/mdl/MaterialUtils/makeReadTextureErrorHandler"};
 
   const auto file = diskFS.openFile("textures/corruptPngTest.png") | kdl::value();
   auto reader = file->reader().buffer();

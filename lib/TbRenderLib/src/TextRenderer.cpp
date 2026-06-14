@@ -23,6 +23,7 @@
 #include "gl/AttrString.h"
 #include "gl/Camera.h"
 #include "gl/FontManager.h"
+#include "gl/GlInterface.h"
 #include "gl/PrimType.h"
 #include "gl/Shaders.h"
 #include "gl/TextureFont.h"
@@ -187,14 +188,36 @@ vm::vec2f TextRenderer::stringSize(
   return vm::round(font.measure(string));
 }
 
-void TextRenderer::doPrepareVertices(gl::VboManager& vboManager)
+void TextRenderer::prepare(gl::Gl& gl, gl::VboManager& vboManager)
 {
-  prepare(m_entries, false, vboManager);
-  prepare(m_entriesOnTop, true, vboManager);
+  prepare(gl, m_entries, false, vboManager);
+  prepare(gl, m_entriesOnTop, true, vboManager);
+}
+
+void TextRenderer::render(RenderContext& renderContext)
+{
+  auto& gl = renderContext.gl();
+
+  const auto& viewport = renderContext.camera().viewport();
+  const auto projection = vm::ortho_matrix(
+    0.0f,
+    1.0f,
+    static_cast<float>(viewport.x),
+    static_cast<float>(viewport.height),
+    static_cast<float>(viewport.width),
+    static_cast<float>(viewport.y));
+  const auto view = vm::view_matrix(vm::vec3f{0, 0, -1}, vm::vec3f{0, 1, 0});
+  auto ortho = ReplaceTransformation{renderContext.transformation(), projection, view};
+
+  render(m_entries, renderContext);
+
+  gl.disable(GL_DEPTH_TEST);
+  render(m_entriesOnTop, renderContext);
+  gl.enable(GL_DEPTH_TEST);
 }
 
 void TextRenderer::prepare(
-  EntryCollection& collection, const bool onTop, gl::VboManager& vboManager)
+  gl::Gl& gl, EntryCollection& collection, const bool onTop, gl::VboManager& vboManager)
 {
   auto textVertices = std::vector<TextVertex>{};
   textVertices.reserve(collection.textVertexCount);
@@ -210,8 +233,8 @@ void TextRenderer::prepare(
   collection.textArray = gl::VertexArray::move(std::move(textVertices));
   collection.rectArray = gl::VertexArray::move(std::move(rectVertices));
 
-  collection.textArray.prepare(vboManager);
-  collection.rectArray.prepare(vboManager);
+  collection.textArray.prepare(gl, vboManager);
+  collection.rectArray.prepare(gl, vboManager);
 }
 
 void TextRenderer::addEntry(
@@ -249,45 +272,37 @@ void TextRenderer::addEntry(
   }
 }
 
-void TextRenderer::doRender(RenderContext& renderContext)
-{
-  const auto& viewport = renderContext.camera().viewport();
-  const auto projection = vm::ortho_matrix(
-    0.0f,
-    1.0f,
-    static_cast<float>(viewport.x),
-    static_cast<float>(viewport.height),
-    static_cast<float>(viewport.width),
-    static_cast<float>(viewport.y));
-  const auto view = vm::view_matrix(vm::vec3f{0, 0, -1}, vm::vec3f{0, 1, 0});
-  auto ortho = ReplaceTransformation{renderContext.transformation(), projection, view};
-
-  render(m_entries, renderContext);
-
-  glAssert(glDisable(GL_DEPTH_TEST));
-  render(m_entriesOnTop, renderContext);
-  glAssert(glEnable(GL_DEPTH_TEST));
-}
-
 void TextRenderer::render(EntryCollection& collection, RenderContext& renderContext)
 {
+  auto& gl = renderContext.gl();
+
   auto& fontManager = renderContext.fontManager();
   auto& font = fontManager.font(m_fontDescriptor);
 
-  glAssert(glDisable(GL_TEXTURE_2D));
+  gl.disable(GL_TEXTURE_2D);
 
-  auto backgroundShader =
-    gl::ActiveShader{renderContext.shaderManager(), gl::Shaders::TextBackgroundShader};
-  collection.rectArray.render(gl::PrimType::Triangles);
+  auto backgroundShader = gl::ActiveShader{
+    gl, renderContext.shaderManager(), gl::Shaders::TextBackgroundShader};
 
-  glAssert(glEnable(GL_TEXTURE_2D));
+  if (collection.rectArray.setup(gl, backgroundShader.program()))
+  {
+    collection.rectArray.render(gl, gl::PrimType::Triangles);
+    collection.rectArray.cleanup(gl, backgroundShader.program());
+  }
+
+  gl.enable(GL_TEXTURE_2D);
 
   auto textShader =
-    gl::ActiveShader{renderContext.shaderManager(), gl::Shaders::ColoredTextShader};
+    gl::ActiveShader{gl, renderContext.shaderManager(), gl::Shaders::ColoredTextShader};
   textShader.set("Texture", 0);
-  font.activate();
-  collection.textArray.render(gl::PrimType::Quads);
-  font.deactivate();
+
+  if (collection.textArray.setup(gl, textShader.program()))
+  {
+    font.activate(gl);
+    collection.textArray.render(gl, gl::PrimType::Quads);
+    collection.textArray.cleanup(gl, textShader.program());
+    font.deactivate(gl);
+  }
 }
 
 } // namespace tb::render

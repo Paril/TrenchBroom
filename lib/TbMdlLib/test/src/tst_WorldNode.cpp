@@ -62,12 +62,12 @@ TEST_CASE("WorldNodeTest.canAddChild")
     {0, 2, 0}, {1, 2, 1}, {2, 2, 0} }, "material"}};
   // clang-format on
 
-  CHECK_FALSE(worldNode.canAddChild(&worldNode));
-  CHECK(worldNode.canAddChild(&layerNode));
-  CHECK_FALSE(worldNode.canAddChild(&groupNode));
-  CHECK_FALSE(worldNode.canAddChild(&entityNode));
-  CHECK_FALSE(worldNode.canAddChild(&brushNode));
-  CHECK_FALSE(worldNode.canAddChild(&patchNode));
+  CHECK_FALSE(worldNode.canAddChild(worldNode));
+  CHECK(worldNode.canAddChild(layerNode));
+  CHECK_FALSE(worldNode.canAddChild(groupNode));
+  CHECK_FALSE(worldNode.canAddChild(entityNode));
+  CHECK_FALSE(worldNode.canAddChild(brushNode));
+  CHECK_FALSE(worldNode.canAddChild(patchNode));
 }
 
 TEST_CASE("WorldNodeTest.canRemoveChild")
@@ -89,13 +89,13 @@ TEST_CASE("WorldNodeTest.canRemoveChild")
     {0, 2, 0}, {1, 2, 1}, {2, 2, 0} }, "material"}};
   // clang-format on
 
-  CHECK_FALSE(worldNode.canRemoveChild(&worldNode));
-  CHECK(worldNode.canRemoveChild(&layerNode));
-  CHECK_FALSE(worldNode.canRemoveChild(worldNode.defaultLayer()));
-  CHECK_FALSE(worldNode.canRemoveChild(&groupNode));
-  CHECK_FALSE(worldNode.canRemoveChild(&entityNode));
-  CHECK_FALSE(worldNode.canRemoveChild(&brushNode));
-  CHECK_FALSE(worldNode.canRemoveChild(&patchNode));
+  CHECK_FALSE(worldNode.canRemoveChild(worldNode));
+  CHECK(worldNode.canRemoveChild(layerNode));
+  CHECK_FALSE(worldNode.canRemoveChild(*worldNode.defaultLayer()));
+  CHECK_FALSE(worldNode.canRemoveChild(groupNode));
+  CHECK_FALSE(worldNode.canRemoveChild(entityNode));
+  CHECK_FALSE(worldNode.canRemoveChild(brushNode));
+  CHECK_FALSE(worldNode.canRemoveChild(patchNode));
 }
 
 TEST_CASE("WorldNodeTest.nodeTreeUpdates")

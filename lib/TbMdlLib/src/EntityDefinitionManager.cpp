@@ -56,11 +56,9 @@ void EntityDefinitionManager::clear()
 }
 
 const EntityDefinition* EntityDefinitionManager::definition(
-  const EntityNodeBase* node) const
+  const EntityNodeBase& node) const
 {
-  contract_pre(node != nullptr);
-
-  return definition(node->entity().classname());
+  return definition(node.entity().classname());
 }
 
 const EntityDefinition* EntityDefinitionManager::definition(

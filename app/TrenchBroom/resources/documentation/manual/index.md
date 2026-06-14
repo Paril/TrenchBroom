@@ -204,11 +204,11 @@ Right        #action(Controls/Camera/Move right)
 Up           #action(Controls/Camera/Move up)
 Down         #action(Controls/Camera/Move down)
 
-To adjust the movement speed of the these keyboard shortcuts, you can either go the [preferences](#mouse_input) and adjust the corresponding slider, or you can turn the mouse wheel while holding the right mouse button in the 3D view.
+To adjust the movement speed of these keyboard shortcuts, you can either go the [preferences](#mouse_input) and adjust the corresponding slider, or you can turn the mouse wheel while holding the right mouse button in the 3D view.
 
 ### Orbiting
 
-The camera orbit mode allows you to rotate the camera about a selectable point. To get an idea as to what this means, imagine that you define a point in the map by clicking on a brush. The point where you clicked will be the center of your camera orbit. Now image a sphere whose center is the point where you just clicked and whose radius is the distance between the camera and the point. Orbiting will move the camera on the surface of that sphere while adjusting the camera's direction so that you keep looking at the same point. Visually, this is the same as rotating the entire map about the orbit center. Of course, you are not actually rotating anything - only the camera's position and direction are modified. Note that, since up and down are always fixed, you cannot cross the north and south poles of the orbit sphere.
+The camera orbit mode allows you to rotate the camera about a selectable point. To get an idea as to what this means, imagine that you define a point in the map by clicking on a brush. The point where you clicked will be the center of your camera orbit. Now imagine a sphere whose center is the point where you just clicked and whose radius is the distance between the camera and the point. Orbiting will move the camera on the surface of that sphere while adjusting the camera's direction so that you keep looking at the same point. Visually, this is the same as rotating the entire map about the orbit center. Of course, you are not actually rotating anything - only the camera's position and direction are modified. Note that, since up and down are always fixed, you cannot cross the north and south poles of the orbit sphere.
 
 Camera orbit mode is very useful if you are editing a brush because it allows you to view this brush from all sides quickly. Its best to try it and see for yourself how useful it is. To invoke the orbit mode, click and drag with the right mouse button while holding #key(Alt). The orbit center is the point in the map which you initially clicked. Dragging sideways will orbit the camera horizontally and dragging up and down will orbit the camera vertically. You can change the orbit radius during the orbit with the scroll wheel.
 
@@ -258,15 +258,15 @@ A similar operation can be found under #menu(Menu/Edit/Select Tall), but this pa
 
 If you have selected a single brush that belongs to an entity or group, and you wish to select every other object belonging to that entity or group, you can choose #menu(Menu/Edit/Select Siblings). The same effect can be achieved by left double clicking on a brush that belongs to an entity or group. The menu command #menu(Menu/Edit/Select by Line Number) is useful for diagnostic purposes. If an external program such as a map compiler presents you with an error message and a line number indicating where in the map file that error occurred, you can use this menu command to have TrenchBroom select the offending object for you.
 
-Choose #menu(Menu/Edit/Select Inverse) from the menu to invert the selection, i.e. select everything that is currently unselected (excluding hidden and locked objects).
+Choose #menu(Menu/Edit/Invert Selection) from the menu to invert the selection, i.e. select everything that is currently unselected (excluding hidden and locked objects).
 
-Finally, you can deselect everything by left clicking in the void, or by choosing #menu(Menu/Edit/Select None).
+Finally, you can deselect everything by left clicking in the void, or by choosing #menu(Menu/Edit/Deselect All).
 
 ## Selecting Brush Faces
 
 ![Selected brush face](images/BrushFaceSelection.png)
 
-To select a brush face, you need to hold #key(Shift) and left click it in the 3D viewport. You can select multiple brush faces by additionally holding #key(Ctrl). To select all faces of a brush, you can left double click that brush while holding #key(Shift). If you additionally hold #key(Ctrl), the faces are added to the current selection. To paint select brush faces, first select one brush face, then left drag while holding #key(Ctrl) and #key(Shift). To deselect all brush faces, simply click in the void or choose #menu(Menu/Edit/Select None).
+To select a brush face, you need to hold #key(Shift) and left click it in the 3D viewport. You can select multiple brush faces by additionally holding #key(Ctrl). To select all faces of a brush, you can left double click that brush while holding #key(Shift). If you additionally hold #key(Ctrl), the faces are added to the current selection. To paint select brush faces, first select one brush face, then left drag while holding #key(Ctrl) and #key(Shift). To deselect all brush faces, simply click in the void or choose #menu(Menu/Edit/Deselect All).
 
 # Editing
 
@@ -455,6 +455,7 @@ This way of creating brushes only allows you to the simple shapes listed in the 
 Shape                  Description
 -----                  -----------
 Cuboid                 Creates a cuboid shape
+Stairs                 Creates stairs
 Cylinder               Creates a cylinder with a variable number of sides; potentially hollow
 Cone                   Creates a cone with a variable number of sides
 Spheroid (UV)          Creates a spheroid shape made up of triangles and quads with two poles
@@ -974,6 +975,23 @@ Select the material you wish to replace in the left material browser. This brows
 ### Setting Face Attributes
 
 Face attributes control how materials are mapped onto brush faces. At the very least, every face has the attributes offset, scale, and angle. The offset allows you to shift a material on a face, the scale factors stretch the material, and by changing the angle you can rotate the material. Additionally, some engines have further attributes. Quake 2 adds surface flags and a surface value, and additional content flags. All of these values can be changed in different ways: There is a face attribute editor that allows you to enter the values directly, you can use keyboard shortcuts in the 3D viewport, or you can use the UV editor.
+
+#### Aligning, Justifying and Fitting Textures {#align_justify_fit_textures}
+
+To quickly align, justify or fit a texture to a brush face, you can select the face and use the buttons below the UV editor.
+
+Operation    Behavior
+---------    --------
+Align        Rotate the texture to make it parallel to a face edge.
+Justify      Change the offset to justify the texture to the face's bounding box in the selected direction.
+Fit          Change the scale to fit the texture (or a multiple of it) onto the face while keeping it justified.
+
+
+![Align, justify and fit buttons](images/AlignJustifyFit.png) Click one of the four triangle buttons to justify the texture against the face's bounding box. If the texture size in the chosen direction is a multiple of the face size along the same axis, you can press the justify button multiple times to step through different options. This can be helpful to justify a texture from a texture atlas. Hold shift when clicking to step through the options in the opposite direction.
+
+The lower three buttons are used to align and fit the texture. Click on the leftmost button to align the texture to the face edges. Click repeatedly to cycle through the face edges. Hold shift while clicking to cycle in the opposite direction. The two remaining buttons fit the texture horizontally and vertically. Again, you can click again to cycle through different fitting options. Repeated clicks cycle through integer fit factors, increasing the repeat count (or, below 1, the corresponding integer divisor) one step at a time. Again, hold shift to cycle through the options in the opposite direction.
+
+The button in the center of the four justification arrows auto fits the texture, i.e. it aligns, justifies and fits the texture.
 
 #### The Face Attribute Editor {#face_attribute_editor}
 
@@ -2925,12 +2943,16 @@ If you have an idea for a nice feature that you're missing in TrenchBroom, then 
 
 ## Reporting Bugs {#reporting_bugs}
 
-You can submit bug reports at the [TrenchBroom issue tracker]. Be sure to include the the following information:
+You can submit bug reports at the [TrenchBroom issue tracker]. Be sure to include the following information:
 
 - *TrenchBroom version*: e.g., "*"Version 2.0.0 f335082 D" see below
 - *Operation system and version*: e.g. "Windows 7 64bit"
 - *Crash report and the map file*: When TrenchBroom crashes, it saves a crash report and the map file automatically. These files are placed in the folder containing the current map file, or in your documents folder if the current map hasn't been saved yet. For example, if the map file you are editing has the name "rtz_q1.map", the crash report will be named "rtz_q1-crash.txt", and the saved map file will be named "rtz_q1-crash.map". Existing files are not overwritten - TrenchBroom creates new file names by attaching a number at the end. Please choose the files with the highest numbers when reporting a bug.
 - *Exact steps to reproduce*: It is really helpful if you can provide exact info on how to reproduce the problem. Sometimes this can be difficult to describe, so you can attach screenshots or make screencasts if necessary. If you cannot reproduce the problem, please submit a bug report either way. The cause of the problem can often be deduced anyway.
+
+## Contributing
+
+Please see the [TrenchBroom CONTRIBUTING.md] file for more details.
 
 ### The Version Information
 
@@ -2954,6 +2976,7 @@ Open the "About TrenchBroom" dialog from the menu. The light gray text on the le
 
 [TrenchBroom on GitHub]: https://github.com/TrenchBroom/TrenchBroom/
 [TrenchBroom issue tracker]: https://github.com/TrenchBroom/TrenchBroom/issues/
+[TrenchBroom CONTRIBUTING.md]: https://github.com/TrenchBroom/TrenchBroom/blob/master/CONTRIBUTING.md
 [TrenchBroom Discord]: https://discord.gg/WGf9uve
 [func_msgboard]: https://celephais.net/board/
 [Quake Tools]: https://joshua.itch.io/quake-tools

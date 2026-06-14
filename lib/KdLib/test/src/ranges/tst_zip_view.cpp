@@ -37,34 +37,42 @@ namespace kdl
 
 TEST_CASE("zip")
 {
-  using namespace Catch::Matchers;
+  using Catch::Matchers::RangeEquals;
 
   SECTION("iterator / sentinel")
   {
     SECTION("required types")
     {
-      auto i = std::istringstream{"4 3 2 1"};
-      auto iv = std::ranges::istream_view<int>(i);
+      SECTION("input range")
+      {
+        auto i = std::istringstream{"4 3 2 1"};
+        auto iv = std::ranges::istream_view<int>(i);
 
-      const auto v = std::vector<int>{1, 2, 3, 4};
-      const auto w = std::array<float, 3>{5.0f, 6.0f, 7.0f};
+        const auto v = std::vector<int>{1, 2, 3, 4};
 
-      auto zf = views::zip(iv, v);
-      using iter_type_zf = decltype(zf.begin());
+        auto z = views::zip(iv, v);
+        using iter_type_z = decltype(z.begin());
 
-      static_assert(
-        std::is_same_v<iter_type_zf::iterator_concept, std::input_iterator_tag>);
+        static_assert(
+          std::is_same_v<iter_type_z::iterator_concept, std::input_iterator_tag>);
+      }
 
-      const auto zr = views::zip(v, w);
-      using iter_type_zr = decltype(zr.begin());
+      SECTION("random access range")
+      {
+        const auto v = std::vector<int>{1, 2, 3, 4};
+        const auto w = std::array<float, 3>{5.0f, 6.0f, 7.0f};
 
-      static_assert(
-        std::is_same_v<iter_type_zr::iterator_concept, std::random_access_iterator_tag>);
-      static_assert(
-        std::is_same_v<iter_type_zr::iterator_category, std::input_iterator_tag>);
-      static_assert(std::is_same_v<iter_type_zr::value_type, std::tuple<int, float>>);
+        const auto z = views::zip(v, w);
+        using iter_type_z = decltype(z.begin());
 
-      static_assert(std::random_access_iterator<std::ranges::iterator_t<decltype(zr)>>);
+        static_assert(
+          std::is_same_v<iter_type_z::iterator_concept, std::random_access_iterator_tag>);
+        static_assert(
+          std::is_same_v<iter_type_z::iterator_category, std::input_iterator_tag>);
+        static_assert(std::is_same_v<iter_type_z::value_type, std::tuple<int, float>>);
+
+        static_assert(std::random_access_iterator<std::ranges::iterator_t<decltype(z)>>);
+      }
     }
 
     SECTION("arithmetic")
@@ -171,6 +179,20 @@ TEST_CASE("zip")
     }
   }
 
+  SECTION("differently sized ranges")
+  {
+    const auto empty = std::vector<int>{};
+    const auto one = std::vector<int>{1};
+    const auto two = std::vector<int>{2, 3};
+
+    CHECK_THAT(views::zip(empty, one), RangeEquals(std::vector<std::tuple<int, int>>{}));
+    CHECK_THAT(views::zip(one, empty), RangeEquals(std::vector<std::tuple<int, int>>{}));
+    CHECK_THAT(
+      views::zip(one, two), RangeEquals(std::vector<std::tuple<int, int>>{{1, 2}}));
+    CHECK_THAT(
+      views::zip(two, one), RangeEquals(std::vector<std::tuple<int, int>>{{2, 1}}));
+  }
+
   SECTION("input ranges")
   {
     auto s = std::istringstream{"1 2 3 4"};
@@ -181,7 +203,7 @@ TEST_CASE("zip")
     {
       auto z = views::zip(v, w);
 
-      // does not work because std::convertible_to is not satisfied (fixed in C++23)
+      // Note: this is broken due to std::convertible_to (fixed in C++23)
       // static_assert(std::ranges::input_range<decltype(z)>);
 
       CHECK_THAT(
@@ -246,21 +268,33 @@ TEST_CASE("zip")
       const auto z = views::zip(v, l);
       CHECK_THAT(z, RangeEquals(std::vector<std::tuple<int, int>>{{1, 3}, {2, 4}}));
     }
+  }
 
-    SECTION("move-only value types")
-    {
-      auto move_only = std::vector<std::unique_ptr<int>>{};
-      move_only.push_back(std::make_unique<int>(1));
+  SECTION("move-only value types")
+  {
+    auto move_only = std::vector<std::unique_ptr<int>>{};
+    move_only.push_back(std::make_unique<int>(1));
 
-      auto copyable = std::vector<float>{2.0};
-      auto z = views::zip(move_only, copyable);
+    auto copyable = std::vector<float>{2.0};
+    auto z = views::zip(move_only, copyable);
 
-      CHECK_THAT(
-        z,
-        RangeEquals(std::vector<std::tuple<std::unique_ptr<int>&, float&>>{
-          {move_only[0], copyable[0]},
-        }));
-    }
+    CHECK_THAT(
+      z,
+      RangeEquals(std::vector<std::tuple<std::unique_ptr<int>&, float&>>{
+        {move_only[0], copyable[0]},
+      }));
+  }
+
+  SECTION("iter_swap")
+  {
+    auto v = std::vector<int>{1, 2, 3};
+    auto w = std::vector<std::string>{"a", "b", "c"};
+    auto z = views::zip(v, w);
+
+    std::ranges::iter_swap(z.begin(), std::next(z.begin(), 2));
+
+    CHECK_THAT(v, RangeEquals(std::vector<int>{3, 2, 1}));
+    CHECK_THAT(w, RangeEquals(std::vector<std::string>{"c", "b", "a"}));
   }
 }
 

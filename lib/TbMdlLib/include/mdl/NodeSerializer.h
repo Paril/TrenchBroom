@@ -95,35 +95,35 @@ public:
 
 public:
   void defaultLayer(const WorldNode& world);
-  void customLayer(const LayerNode* layer);
-  void group(const GroupNode* group, const std::vector<EntityProperty>& parentProperties);
+  void customLayer(const LayerNode& layer);
+  void group(const GroupNode& group, const std::vector<EntityProperty>& parentProperties);
 
   void entity(
-    const Node* node,
+    const Node& node,
     const std::vector<EntityProperty>& properties,
     const std::vector<EntityProperty>& parentProperties,
-    const Node* brushParent);
+    const Node& brushParent);
   void entity(
-    const Node* node,
+    const Node& node,
     const std::vector<EntityProperty>& properties,
     const std::vector<EntityProperty>& parentProperties,
     const std::vector<BrushNode*>& entityBrushes);
 
 private:
   void beginEntity(
-    const Node* node,
+    const Node& node,
     const std::vector<EntityProperty>& properties,
     const std::vector<EntityProperty>& extraAttributes);
-  void beginEntity(const Node* node);
-  void endEntity(const Node* node);
+  void beginEntity(const Node& node);
+  void endEntity(const Node& node);
 
   void entityProperties(const std::vector<EntityProperty>& properties);
   void entityProperty(const EntityProperty& property);
 
   void brushes(const std::vector<BrushNode*>& brushNodes);
-  void brush(const BrushNode* brushNode);
+  void brush(const BrushNode& brushNode);
 
-  void patch(const PatchNode* patchNode);
+  void patch(const PatchNode& patchNode);
 
 public:
   void brushFaces(const std::vector<BrushFace>& faces);
@@ -135,8 +135,8 @@ public:
   std::vector<EntityProperty> parentProperties(const Node* groupNode);
 
 private:
-  std::vector<EntityProperty> layerProperties(const LayerNode* layerNode);
-  std::vector<EntityProperty> groupProperties(const GroupNode* groupNode);
+  std::vector<EntityProperty> layerProperties(const LayerNode& layerNode);
+  std::vector<EntityProperty> groupProperties(const GroupNode& groupNode);
 
 protected:
   std::string escapeEntityProperties(const std::string& str) const;
@@ -146,14 +146,14 @@ private:
     const std::vector<const Node*>& nodes, kdl::task_manager& taskManager) = 0;
   virtual void doEndFile() = 0;
 
-  virtual void doBeginEntity(const Node* node) = 0;
-  virtual void doEndEntity(const Node* node) = 0;
+  virtual void doBeginEntity(const Node& node) = 0;
+  virtual void doEndEntity(const Node& node) = 0;
   virtual void doEntityProperty(const EntityProperty& property) = 0;
 
-  virtual void doBrush(const BrushNode* brushNode) = 0;
+  virtual void doBrush(const BrushNode& brushNode) = 0;
   virtual void doBrushFace(const BrushFace& face) = 0;
 
-  virtual void doPatch(const PatchNode* patchNode) = 0;
+  virtual void doPatch(const PatchNode& patchNode) = 0;
 };
 
 } // namespace tb::mdl

@@ -28,6 +28,8 @@
 
 class QMenu;
 class QNetworkAccessManager;
+class QOffscreenSurface;
+class QOpenGLContext;
 class QTimer;
 
 namespace kdl
@@ -45,8 +47,8 @@ namespace tb
 {
 namespace gl
 {
-class ResourceManager;
-}
+class GlManager;
+} // namespace gl
 
 namespace mdl
 {
@@ -70,10 +72,14 @@ private:
   std::unique_ptr<mdl::EnvironmentConfig> m_environmentConfig;
   std::unique_ptr<mdl::GameManager> m_gameManager;
 
-  std::unique_ptr<gl::ResourceManager> m_resourceManager;
+  std::unique_ptr<gl::GlManager> m_glManager;
+
+  QOpenGLContext* m_glContext = nullptr;
+  QOffscreenSurface* m_offscreenSurface = nullptr;
 
   QNetworkAccessManager* m_networkManager = nullptr;
-  QTimer* m_recentDocumentsReloadTimer = nullptr;
+  QTimer* m_reloadRecentDocumentsTimer = nullptr;
+  QTimer* m_processResourcesTimer = nullptr;
 
   upd::HttpClient* m_httpClient = nullptr;
   upd::Updater* m_updater = nullptr;
@@ -103,7 +109,7 @@ public:
 
   kdl::task_manager& taskManager();
 
-  gl::ResourceManager& resourceManager();
+  gl::GlManager& glManager();
 
   const mdl::EnvironmentConfig& environmentConfig() const;
 
@@ -134,6 +140,8 @@ public:
 
 private:
   void connectObservers();
+
+  void processGlResources();
 };
 
 } // namespace ui

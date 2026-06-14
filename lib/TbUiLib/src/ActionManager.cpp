@@ -902,7 +902,9 @@ void ActionManager::createFileMenu()
     ActionContext::Any,
     QKeySequence{Qt::Key_F5},
     [](auto& context) { context.mapWindow().reloadMaterialCollections(); },
-    [](const auto& context) { return context.hasDocument(); },
+    [](const auto& context) {
+      return context.hasDocument() && context.mapWindow().canReloadMaterialCollections();
+    },
   }));
   fileMenu.addItem(addAction(Action{
     "Menu/File/Reload Entity Definitions",
@@ -910,7 +912,9 @@ void ActionManager::createFileMenu()
     ActionContext::Any,
     QKeySequence{Qt::Key_F6},
     [](auto& context) { context.mapWindow().reloadEntityDefinitions(); },
-    [](const auto& context) { return context.hasDocument(); },
+    [](const auto& context) {
+      return context.hasDocument() && context.mapWindow().canReloadEntityDefinitions();
+    },
   }));
   fileMenu.addSeparator();
   fileMenu.addItem(addAction(Action{
@@ -1178,8 +1182,8 @@ void ActionManager::createEditMenu()
   }));
   texturesMenu.addSeparator();
   texturesMenu.addItem(addAction(Action{
-    "Menu/Edit/Replace Texture...",
-    QObject::tr("Replace Texture..."),
+    "Menu/Edit/Replace Material...",
+    QObject::tr("Replace Material..."),
     ActionContext::Any,
     QKeySequence{},
     [](auto& context) { context.mapWindow().replaceMaterial(); },
@@ -1855,6 +1859,19 @@ void ActionManager::createRunMenu()
     [](auto& context) { context.mapWindow().showLaunchEngineDialog(); },
     [](const auto& context) { return context.hasDocument(); },
   }));
+  runMenu.addSeparator();
+  runMenu.addItem(
+    addAction(Action{
+      "Menu/Run/Rerun...",
+      QObject::tr("Re-run compilation..."),
+      ActionContext::Any,
+      QKeySequence{},
+      [](auto& context) { context.mapWindow().rerunLastCompilation(); },
+      [](const auto& context) {
+        return context.hasDocument() && context.mapWindow().hasLastCompilationProfile();
+      },
+    }),
+    MenuEntryType::Rerun);
 }
 
 void ActionManager::createDebugMenu()

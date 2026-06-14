@@ -272,6 +272,18 @@ TEST_CASE("scalar.trunc")
   CER_CHECK(trunc(0.6) == approx(0.0));
   CER_CHECK(trunc(1.0) == approx(+1.0));
   CER_CHECK(trunc(1.1) == approx(+1.0));
+
+  constexpr auto huge = 1.05513e154;
+  CER_CHECK(trunc(huge) == huge);
+  CER_CHECK(trunc(-huge) == -huge);
+
+  constexpr auto int64_limit = 9223372036854775808.0;
+  CER_CHECK(trunc(int64_limit) == int64_limit);
+  CER_CHECK(trunc(-int64_limit) == -int64_limit);
+
+  CER_CHECK(is_inf(trunc(std::numeric_limits<double>::infinity())));
+  CER_CHECK(is_inf(trunc(-std::numeric_limits<double>::infinity())));
+  CER_CHECK(is_nan(trunc(nan<double>())));
 }
 
 TEST_CASE("scalar.mix")
@@ -337,6 +349,34 @@ TEST_CASE("scalar.round_down")
   CER_CHECK(round_down(0.6) == approx(0.0));
   CER_CHECK(round_down(1.0) == approx(+1.0));
   CER_CHECK(round_down(1.1) == approx(+1.0));
+}
+
+TEST_CASE("scalar.next_integer")
+{
+  CER_CHECK(next_integer(-1.1) == approx(-2.0));
+  CER_CHECK(next_integer(-1.0) == approx(-2.0));
+  CER_CHECK(next_integer(-0.7) == approx(-1.0));
+  CER_CHECK(next_integer(-0.5) == approx(-1.0));
+  CER_CHECK(next_integer(-0.4) == approx(-1.0));
+  CER_CHECK(next_integer(0.0) == approx(0.0));
+  CER_CHECK(next_integer(0.4) == approx(+1.0));
+  CER_CHECK(next_integer(0.6) == approx(+1.0));
+  CER_CHECK(next_integer(1.0) == approx(+2.0));
+  CER_CHECK(next_integer(1.1) == approx(+2.0));
+}
+
+TEST_CASE("scalar.prev_integer")
+{
+  CER_CHECK(prev_integer(-1.1) == approx(-1.0));
+  CER_CHECK(prev_integer(-1.0) == approx(0.0));
+  CER_CHECK(prev_integer(-0.7) == approx(0.0));
+  CER_CHECK(prev_integer(-0.5) == approx(0.0));
+  CER_CHECK(prev_integer(-0.4) == approx(0.0));
+  CER_CHECK(prev_integer(0.0) == approx(0.0));
+  CER_CHECK(prev_integer(0.4) == approx(0.0));
+  CER_CHECK(prev_integer(0.6) == approx(0.0));
+  CER_CHECK(prev_integer(1.0) == approx(+0.0));
+  CER_CHECK(prev_integer(1.1) == approx(+1.0));
 }
 
 TEST_CASE("scalar.snap")

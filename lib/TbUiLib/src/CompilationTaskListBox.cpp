@@ -34,6 +34,7 @@
 #include "ui/BorderLine.h"
 #include "ui/CompilationVariables.h"
 #include "ui/FileDialogDefaultDir.h"
+#include "ui/FixedWidthFont.h"
 #include "ui/MapDocument.h"
 #include "ui/MultiCompletionLineEdit.h"
 #include "ui/TitledPanel.h"

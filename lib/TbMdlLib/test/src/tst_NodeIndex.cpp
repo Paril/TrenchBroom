@@ -48,6 +48,30 @@ TEST_CASE("NodeIndex")
 {
   auto i = NodeIndex{};
 
+  SECTION("escapePattern")
+  {
+    CHECK(NodeIndex::escapePattern("") == "");
+    CHECK(NodeIndex::escapePattern("plain") == "plain");
+    CHECK(NodeIndex::escapePattern("literal*?%\\") == "literal\\*\\?\\%\\\\");
+
+    auto literalEntityNode = EntityNode{Entity{{
+      {"literal*?%\\", "value"},
+    }}};
+    auto wildcardEntityNode = EntityNode{Entity{{
+      {"literalXYZ", "value"},
+    }}};
+
+    i.addNode(literalEntityNode);
+    i.addNode(wildcardEntityNode);
+
+    CHECK_THAT(
+      i.findNodes("literal*"),
+      UnorderedEquals(std::vector<Node*>{&literalEntityNode, &wildcardEntityNode}));
+    CHECK_THAT(
+      i.findNodes(NodeIndex::escapePattern("literal*?%\\")),
+      UnorderedEquals(std::vector<Node*>{&literalEntityNode}));
+  }
+
   SECTION("Indexing nodes")
   {
     SECTION("WorldNode")

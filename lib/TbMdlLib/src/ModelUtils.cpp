@@ -43,19 +43,19 @@ HitType::Type nodeHitType()
 LayerNode* findContainingLayer(Node* node)
 {
   return node->accept(kdl::overload(
-    [](WorldNode*) -> LayerNode* { return nullptr; },
-    [](LayerNode* layer) -> LayerNode* { return layer; },
-    [](auto&& thisLambda, GroupNode* group) -> LayerNode* {
-      return group->visitParent(thisLambda).value_or(nullptr);
+    [](WorldNode&) -> LayerNode* { return nullptr; },
+    [](LayerNode& layerNode) -> LayerNode* { return &layerNode; },
+    [](auto&& thisLambda, GroupNode& groupNode) -> LayerNode* {
+      return groupNode.visitParent(thisLambda).value_or(nullptr);
     },
-    [](auto&& thisLambda, EntityNode* entity) -> LayerNode* {
-      return entity->visitParent(thisLambda).value_or(nullptr);
+    [](auto&& thisLambda, EntityNode& entityNode) -> LayerNode* {
+      return entityNode.visitParent(thisLambda).value_or(nullptr);
     },
-    [](auto&& thisLambda, BrushNode* brush) -> LayerNode* {
-      return brush->visitParent(thisLambda).value_or(nullptr);
+    [](auto&& thisLambda, BrushNode& brushNode) -> LayerNode* {
+      return brushNode.visitParent(thisLambda).value_or(nullptr);
     },
-    [](auto&& thisLambda, PatchNode* patch) -> LayerNode* {
-      return patch->visitParent(thisLambda).value_or(nullptr);
+    [](auto&& thisLambda, PatchNode& patchNode) -> LayerNode* {
+      return patchNode.visitParent(thisLambda).value_or(nullptr);
     }));
 }
 
@@ -76,17 +76,17 @@ GroupNode* findContainingGroup(Node* node)
 {
   return node
     ->visitParent(kdl::overload(
-      [](WorldNode*) -> GroupNode* { return nullptr; },
-      [](LayerNode*) -> GroupNode* { return nullptr; },
-      [](GroupNode* group) -> GroupNode* { return group; },
-      [](auto&& thisLambda, EntityNode* entity) -> GroupNode* {
-        return entity->visitParent(thisLambda).value_or(nullptr);
+      [](WorldNode&) -> GroupNode* { return nullptr; },
+      [](LayerNode&) -> GroupNode* { return nullptr; },
+      [](GroupNode& groupNode) -> GroupNode* { return &groupNode; },
+      [](auto&& thisLambda, EntityNode& entityNode) -> GroupNode* {
+        return entityNode.visitParent(thisLambda).value_or(nullptr);
       },
-      [](auto&& thisLambda, BrushNode* brush) -> GroupNode* {
-        return brush->visitParent(thisLambda).value_or(nullptr);
+      [](auto&& thisLambda, BrushNode& brushNode) -> GroupNode* {
+        return brushNode.visitParent(thisLambda).value_or(nullptr);
       },
-      [](auto&& thisLambda, PatchNode* patch) -> GroupNode* {
-        return patch->visitParent(thisLambda).value_or(nullptr);
+      [](auto&& thisLambda, PatchNode& patchNode) -> GroupNode* {
+        return patchNode.visitParent(thisLambda).value_or(nullptr);
       }))
     .value_or(nullptr);
 }
@@ -100,25 +100,25 @@ GroupNode* findOutermostClosedGroup(Node* node)
 {
   return node
     ->visitParent(kdl::overload(
-      [](WorldNode*) -> GroupNode* { return nullptr; },
-      [](LayerNode*) -> GroupNode* { return nullptr; },
-      [](auto&& thisLambda, GroupNode* group) -> GroupNode* {
-        if (GroupNode* parentResult = group->visitParent(thisLambda).value_or(nullptr))
+      [](WorldNode&) -> GroupNode* { return nullptr; },
+      [](LayerNode&) -> GroupNode* { return nullptr; },
+      [](auto&& thisLambda, GroupNode& groupNode) -> GroupNode* {
+        if (auto* parentResult = groupNode.visitParent(thisLambda).value_or(nullptr))
         {
           return parentResult;
         }
         // we didn't find a result searching the parent chain, so either return
         // this group (if it's closed) or nullptr to indicate no result
-        return group->closed() ? group : nullptr;
+        return groupNode.closed() ? &groupNode : nullptr;
       },
-      [](auto&& thisLambda, EntityNode* entity) -> GroupNode* {
-        return entity->visitParent(thisLambda).value_or(nullptr);
+      [](auto&& thisLambda, EntityNode& entityNode) -> GroupNode* {
+        return entityNode.visitParent(thisLambda).value_or(nullptr);
       },
-      [](auto&& thisLambda, BrushNode* brush) -> GroupNode* {
-        return brush->visitParent(thisLambda).value_or(nullptr);
+      [](auto&& thisLambda, BrushNode& brushNode) -> GroupNode* {
+        return brushNode.visitParent(thisLambda).value_or(nullptr);
       },
-      [](auto&& thisLambda, PatchNode* patch) -> GroupNode* {
-        return patch->visitParent(thisLambda).value_or(nullptr);
+      [](auto&& thisLambda, PatchNode& patchNode) -> GroupNode* {
+        return patchNode.visitParent(thisLambda).value_or(nullptr);
       }))
     .value_or(nullptr);
 }
@@ -158,19 +158,19 @@ std::vector<GroupNode*> collectGroups(const std::vector<Node*>& nodes)
   Node::visitAll(
     nodes,
     kdl::overload(
-      [](auto&& thisLambda, const WorldNode* worldNode) {
-        worldNode->visitChildren(thisLambda);
+      [](auto&& thisLambda, const WorldNode& worldNode) {
+        worldNode.visitChildren(thisLambda);
       },
-      [](auto&& thisLambda, const LayerNode* layerNode) {
-        layerNode->visitChildren(thisLambda);
+      [](auto&& thisLambda, const LayerNode& layerNode) {
+        layerNode.visitChildren(thisLambda);
       },
-      [&](auto&& thisLambda, GroupNode* groupNode) {
-        result.push_back(groupNode);
-        groupNode->visitChildren(thisLambda);
+      [&](auto&& thisLambda, GroupNode& groupNode) {
+        result.push_back(&groupNode);
+        groupNode.visitChildren(thisLambda);
       },
-      [](const EntityNode*) {},
-      [](const BrushNode*) {},
-      [](const PatchNode*) {}));
+      [](const EntityNode&) {},
+      [](const BrushNode&) {},
+      [](const PatchNode&) {}));
   return result;
 }
 
@@ -181,28 +181,28 @@ std::vector<GroupNode*> collectContainingGroups(const std::vector<Node*>& nodes)
   Node::visitAll(
     nodes,
     kdl::overload(
-      [](const WorldNode*) {},
-      [](const LayerNode*) {},
-      [&](GroupNode* groupNode) {
-        if (auto* containingGroupNode = groupNode->containingGroup())
+      [](const WorldNode&) {},
+      [](const LayerNode&) {},
+      [&](GroupNode& groupNode) {
+        if (auto* containingGroupNode = groupNode.containingGroup())
         {
           result.push_back(containingGroupNode);
         }
       },
-      [&](EntityNode* entityNode) {
-        if (auto* containingGroupNode = entityNode->containingGroup())
+      [&](EntityNode& entityNode) {
+        if (auto* containingGroupNode = entityNode.containingGroup())
         {
           result.push_back(containingGroupNode);
         }
       },
-      [&](BrushNode* brushNode) {
-        if (auto* containingGroupNode = brushNode->containingGroup())
+      [&](BrushNode& brushNode) {
+        if (auto* containingGroupNode = brushNode.containingGroup())
         {
           result.push_back(containingGroupNode);
         }
       },
-      [&](PatchNode* patchNode) {
-        if (auto* containingGroupNode = patchNode->containingGroup())
+      [&](PatchNode& patchNode) {
+        if (auto* containingGroupNode = patchNode.containingGroup())
         {
           result.push_back(containingGroupNode);
         }
@@ -243,12 +243,12 @@ static std::vector<Node*> collectMatchingNodes(
 {
   auto result = std::vector<Node*>{};
 
-  const auto collectIfMatching = [&](auto* node) {
+  const auto collectIfMatching = [&](auto& node) {
     for (const auto* brush : brushes)
     {
       if (predicate(node, brush))
       {
-        result.push_back(node);
+        result.push_back(&node);
         return;
       }
     }
@@ -257,38 +257,40 @@ static std::vector<Node*> collectMatchingNodes(
   for (auto* node : nodes)
   {
     node->accept(kdl::overload(
-      [](auto&& thisLambda, WorldNode* world) { world->visitChildren(thisLambda); },
-      [](auto&& thisLambda, LayerNode* layer) { layer->visitChildren(thisLambda); },
-      [&](auto&& thisLambda, GroupNode* group) {
-        if (group->opened() || group->hasOpenedDescendant())
+      [](
+        auto&& thisLambda, WorldNode& worldNode) { worldNode.visitChildren(thisLambda); },
+      [](
+        auto&& thisLambda, LayerNode& layerNode) { layerNode.visitChildren(thisLambda); },
+      [&](auto&& thisLambda, GroupNode& groupNode) {
+        if (groupNode.opened() || groupNode.hasOpenedDescendant())
         {
-          group->visitChildren(thisLambda);
+          groupNode.visitChildren(thisLambda);
         }
         else
         {
-          collectIfMatching(group);
+          collectIfMatching(groupNode);
         }
       },
-      [&](auto&& thisLambda, EntityNode* entity) {
-        if (entity->hasChildren())
+      [&](auto&& thisLambda, EntityNode& entityNode) {
+        if (entityNode.hasChildren())
         {
-          entity->visitChildren(thisLambda);
+          entityNode.visitChildren(thisLambda);
         }
         else
         {
-          collectIfMatching(entity);
+          collectIfMatching(entityNode);
         }
       },
-      [&](BrushNode* brush) {
+      [&](BrushNode& brushNode) {
         // if `brush` is one of the search query nodes, don't count it as touching
-        if (!kdl::vec_contains(brushes, brush))
+        if (!kdl::vec_contains(brushes, &brushNode))
         {
-          collectIfMatching(brush);
+          collectIfMatching(brushNode);
         }
       },
-      [&](PatchNode* patch) {
+      [&](PatchNode& patchNode) {
         // if `patch` is one of the search query nodes, don't count it as touching
-        collectIfMatching(patch);
+        collectIfMatching(patchNode);
       }));
   }
 
@@ -296,25 +298,27 @@ static std::vector<Node*> collectMatchingNodes(
 }
 
 std::vector<Node*> collectTouchingNodes(
-  const std::vector<Node*>& nodes, const std::vector<BrushNode*>& brushes)
+  const std::vector<Node*>& nodes, const std::vector<BrushNode*>& brushNodes)
 {
-  return collectMatchingNodes(nodes, brushes, [](const auto* node, const auto* brush) {
-    return brush->intersects(node);
-  });
+  return collectMatchingNodes(
+    nodes, brushNodes, [](const auto& node, const auto& brushNode) {
+      return brushNode->intersects(node);
+    });
 }
 
 std::vector<Node*> collectContainedNodes(
-  const std::vector<Node*>& nodes, const std::vector<BrushNode*>& brushes)
+  const std::vector<Node*>& nodes, const std::vector<BrushNode*>& brushNodes)
 {
-  return collectMatchingNodes(nodes, brushes, [](const auto* node, const auto* brush) {
-    return brush->contains(node);
-  });
+  return collectMatchingNodes(
+    nodes, brushNodes, [](const auto& node, const auto& brushNode) {
+      return brushNode->contains(node);
+    });
 }
 
 std::vector<Node*> collectSelectedNodes(const std::vector<Node*>& nodes)
 {
   return collectNodesAndDescendants(
-    nodes, [](const auto* node) { return node->selected(); });
+    nodes, [](const auto& node) { return node.selected(); });
 }
 
 std::vector<Node*> collectSelectableNodes(
@@ -325,41 +329,39 @@ std::vector<Node*> collectSelectableNodes(
   for (auto* node : nodes)
   {
     node->accept(kdl::overload(
-      [&](auto&& thisLambda, WorldNode* worldNode) {
-        worldNode->visitChildren(thisLambda);
-      },
-      [&](auto&& thisLambda, LayerNode* layerNode) {
-        layerNode->visitChildren(thisLambda);
-      },
-      [&](auto&& thisLambda, GroupNode* groupNode) {
-        if (editorContext.selectable(*groupNode))
+      [&](
+        auto&& thisLambda, WorldNode& worldNode) { worldNode.visitChildren(thisLambda); },
+      [&](
+        auto&& thisLambda, LayerNode& layerNode) { layerNode.visitChildren(thisLambda); },
+      [&](auto&& thisLambda, GroupNode& groupNode) {
+        if (editorContext.selectable(groupNode))
         {
           // implies that any containing group is opened and that group itself is closed
           // therefore we don't need to visit the group's children
-          result.push_back(groupNode);
+          result.push_back(&groupNode);
         }
         else
         {
-          groupNode->visitChildren(thisLambda);
+          groupNode.visitChildren(thisLambda);
         }
       },
-      [&](auto&& thisLambda, EntityNode* entityNode) {
-        if (editorContext.selectable(*entityNode))
+      [&](auto&& thisLambda, EntityNode& entityNode) {
+        if (editorContext.selectable(entityNode))
         {
-          result.push_back(entityNode);
+          result.push_back(&entityNode);
         }
-        entityNode->visitChildren(thisLambda);
+        entityNode.visitChildren(thisLambda);
       },
-      [&](BrushNode* brushNode) {
-        if (editorContext.selectable(*brushNode))
+      [&](BrushNode& brushNode) {
+        if (editorContext.selectable(brushNode))
         {
-          result.push_back(brushNode);
+          result.push_back(&brushNode);
         }
       },
-      [&](PatchNode* patchNode) {
-        if (editorContext.selectable(*patchNode))
+      [&](PatchNode& patchNode) {
+        if (editorContext.selectable(patchNode))
         {
-          result.push_back(patchNode);
+          result.push_back(&patchNode);
         }
       }));
   }
@@ -390,12 +392,12 @@ vm::bbox3d computeLogicalBounds(
   Node::visitAll(
     nodes,
     kdl::overload(
-      [](const WorldNode*) {},
-      [](const LayerNode*) {},
-      [&](const GroupNode* group) { builder.add(group->logicalBounds()); },
-      [&](const EntityNode* entity) { builder.add(entity->logicalBounds()); },
-      [&](const BrushNode* brush) { builder.add(brush->logicalBounds()); },
-      [&](const PatchNode* patch) { builder.add(patch->logicalBounds()); }));
+      [](const WorldNode&) {},
+      [](const LayerNode&) {},
+      [&](const GroupNode& groupNode) { builder.add(groupNode.logicalBounds()); },
+      [&](const EntityNode& entityNode) { builder.add(entityNode.logicalBounds()); },
+      [&](const BrushNode& brushNode) { builder.add(brushNode.logicalBounds()); },
+      [&](const PatchNode& patchNode) { builder.add(patchNode.logicalBounds()); }));
   return builder.initialized() ? builder.bounds() : defaultBounds;
 }
 
@@ -406,12 +408,12 @@ vm::bbox3d computePhysicalBounds(
   Node::visitAll(
     nodes,
     kdl::overload(
-      [](const WorldNode*) {},
-      [](const LayerNode*) {},
-      [&](const GroupNode* group) { builder.add(group->physicalBounds()); },
-      [&](const EntityNode* entity) { builder.add(entity->physicalBounds()); },
-      [&](const BrushNode* brush) { builder.add(brush->physicalBounds()); },
-      [&](const PatchNode* patch) { builder.add(patch->physicalBounds()); }));
+      [](const WorldNode&) {},
+      [](const LayerNode&) {},
+      [&](const GroupNode& groupNode) { builder.add(groupNode.physicalBounds()); },
+      [&](const EntityNode& entityNode) { builder.add(entityNode.physicalBounds()); },
+      [&](const BrushNode& brushNode) { builder.add(brushNode.physicalBounds()); },
+      [&](const PatchNode& patchNode) { builder.add(patchNode.physicalBounds()); }));
   return builder.initialized() ? builder.bounds() : defaultBounds;
 }
 
@@ -422,12 +424,12 @@ std::vector<BrushNode*> filterBrushNodes(const std::vector<Node*>& nodes)
   for (Node* node : nodes)
   {
     node->accept(kdl::overload(
-      [](WorldNode*) {},
-      [](LayerNode*) {},
-      [](GroupNode*) {},
-      [](EntityNode*) {},
-      [&](BrushNode* brushNode) { result.push_back(brushNode); },
-      [](PatchNode*) {}));
+      [](WorldNode&) {},
+      [](LayerNode&) {},
+      [](GroupNode&) {},
+      [](EntityNode&) {},
+      [&](BrushNode& brushNode) { result.push_back(&brushNode); },
+      [](PatchNode&) {}));
   }
   return result;
 }
@@ -439,12 +441,12 @@ std::vector<EntityNode*> filterEntityNodes(const std::vector<Node*>& nodes)
   for (Node* node : nodes)
   {
     node->accept(kdl::overload(
-      [](WorldNode*) {},
-      [](LayerNode*) {},
-      [](GroupNode*) {},
-      [&](EntityNode* entityNode) { result.push_back(entityNode); },
-      [](BrushNode*) {},
-      [](PatchNode*) {}));
+      [](WorldNode&) {},
+      [](LayerNode&) {},
+      [](GroupNode&) {},
+      [&](EntityNode& entityNode) { result.push_back(&entityNode); },
+      [](BrushNode&) {},
+      [](PatchNode&) {}));
   }
   return result;
 }

@@ -125,12 +125,12 @@ void printPatchNode(
 void printNode(const Node& node, const std::string& indent, std::ostream& str)
 {
   node.accept(kdl::overload(
-    [&](const WorldNode* worldNode) { printWorldNode(*worldNode, indent, str); },
-    [&](const LayerNode* layerNode) { printLayerNode(*layerNode, indent, str); },
-    [&](const GroupNode* groupNode) { printGroupNode(*groupNode, indent, str); },
-    [&](const EntityNode* entityNode) { printEntityNode(*entityNode, indent, str); },
-    [&](const BrushNode* brushNode) { printBrushNode(*brushNode, indent, str); },
-    [&](const PatchNode* patchNode) { printPatchNode(*patchNode, indent, str); }));
+    [&](const WorldNode& worldNode) { printWorldNode(worldNode, indent, str); },
+    [&](const LayerNode& layerNode) { printLayerNode(layerNode, indent, str); },
+    [&](const GroupNode& groupNode) { printGroupNode(groupNode, indent, str); },
+    [&](const EntityNode& entityNode) { printEntityNode(entityNode, indent, str); },
+    [&](const BrushNode& brushNode) { printBrushNode(brushNode, indent, str); },
+    [&](const PatchNode& patchNode) { printPatchNode(patchNode, indent, str); }));
 }
 
 void printNodes(

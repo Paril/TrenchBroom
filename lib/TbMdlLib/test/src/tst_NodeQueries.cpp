@@ -80,36 +80,36 @@ TEST_CASE("NodeQueries")
 
   SECTION("findNode")
   {
-    CHECK(findNode<WorldNode>({}, [](const WorldNode*) { return false; }) == nullptr);
-    CHECK(findNode<WorldNode>({}, [](const WorldNode*) { return true; }) == nullptr);
+    CHECK(findNode<WorldNode>({}, [](const WorldNode&) { return false; }) == nullptr);
+    CHECK(findNode<WorldNode>({}, [](const WorldNode&) { return true; }) == nullptr);
     CHECK(
-      findNode<WorldNode>({&worldNode}, [](const WorldNode*) { return true; })
+      findNode<WorldNode>({&worldNode}, [](const WorldNode&) { return true; })
       == &worldNode);
     CHECK(
-      findNode<WorldNode>({&worldNode}, [](const WorldNode*) { return false; })
+      findNode<WorldNode>({&worldNode}, [](const WorldNode&) { return false; })
       == nullptr);
     CHECK(
-      findNode<GroupNode>({&worldNode}, [](const GroupNode*) { return true; })
+      findNode<GroupNode>({&worldNode}, [](const GroupNode&) { return true; })
       == nullptr);
   }
 
   SECTION("findNodeOrDescendant")
   {
     CHECK(
-      findNodeOrDescendant<WorldNode>({}, [](const WorldNode*) { return false; })
+      findNodeOrDescendant<WorldNode>({}, [](const WorldNode&) { return false; })
       == nullptr);
     CHECK(
-      findNodeOrDescendant<WorldNode>({}, [](const WorldNode*) { return true; })
+      findNodeOrDescendant<WorldNode>({}, [](const WorldNode&) { return true; })
       == nullptr);
     CHECK(
-      findNodeOrDescendant<WorldNode>({&worldNode}, [](const WorldNode*) { return true; })
+      findNodeOrDescendant<WorldNode>({&worldNode}, [](const WorldNode&) { return true; })
       == &worldNode);
     CHECK(
       findNodeOrDescendant<WorldNode>(
-        {&worldNode}, [](const WorldNode*) { return false; })
+        {&worldNode}, [](const WorldNode&) { return false; })
       == nullptr);
     CHECK(
-      findNodeOrDescendant<GroupNode>({&worldNode}, [](const GroupNode*) { return true; })
+      findNodeOrDescendant<GroupNode>({&worldNode}, [](const GroupNode&) { return true; })
       == outerGroupNode);
   }
 
@@ -121,7 +121,7 @@ TEST_CASE("NodeQueries")
       collectNodes({outerGroupNode, entityNode})
       == std::vector<Node*>{outerGroupNode, entityNode});
     CHECK(
-      collectNodes({outerGroupNode, entityNode}, [&](const EntityNode*) { return true; })
+      collectNodes({outerGroupNode, entityNode}, [&](const EntityNode&) { return true; })
       == std::vector<Node*>{entityNode});
   }
 
@@ -152,7 +152,7 @@ TEST_CASE("NodeQueries")
       UnorderedEquals(
         std::vector<Node*>{&worldNode, layerNode, outerGroupNode, innerGroupNode}));
     CHECK_THAT(
-      collectAncestors({brushNode, patchNode}, [](const LayerNode*) { return true; }),
+      collectAncestors({brushNode, patchNode}, [](const LayerNode&) { return true; }),
       UnorderedEquals(std::vector<Node*>{layerNode}));
   }
 
@@ -167,7 +167,7 @@ TEST_CASE("NodeQueries")
         &worldNode, layerNode, outerGroupNode, innerGroupNode, brushNode, patchNode}));
     CHECK_THAT(
       collectNodesAndAncestors(
-        {brushNode, patchNode}, [](const GroupNode*) { return true; }),
+        {brushNode, patchNode}, [](const GroupNode&) { return true; }),
       UnorderedEquals(std::vector<Node*>{outerGroupNode, innerGroupNode}));
   }
 
@@ -200,7 +200,7 @@ TEST_CASE("NodeQueries")
       UnorderedEquals(
         std::vector<Node*>{innerGroupNode, entityNode, brushNode, patchNode}));
     CHECK_THAT(
-      collectDescendants({&worldNode}, [](const GroupNode*) { return true; }),
+      collectDescendants({&worldNode}, [](const GroupNode&) { return true; }),
       UnorderedEquals(std::vector<Node*>{outerGroupNode, innerGroupNode}));
   }
 
@@ -218,7 +218,7 @@ TEST_CASE("NodeQueries")
         outerGroupNode, innerGroupNode, entityNode, brushNode, patchNode}));
     CHECK_THAT(
       collectNodesAndDescendants(
-        {innerGroupNode, outerGroupNode}, [](const GroupNode*) { return true; }),
+        {innerGroupNode, outerGroupNode}, [](const GroupNode&) { return true; }),
       UnorderedEquals(std::vector<Node*>{outerGroupNode, innerGroupNode}));
   }
 }

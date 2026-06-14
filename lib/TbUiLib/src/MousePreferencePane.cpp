@@ -21,6 +21,7 @@
 
 #include <QCheckBox>
 #include <QLabel>
+#include <QSignalBlocker>
 
 #include "PreferenceManager.h"
 #include "Preferences.h"
@@ -151,8 +152,7 @@ void MousePreferencePane::createGui()
       new QLabel{"Turn mouse wheel while holding right mouse button in 3D view to "
                  "adjust speed on the fly."}));
 
-  setLayout(layout);
-  setMinimumWidth(400);
+  createScrollableContent(layout);
 }
 
 void MousePreferencePane::bindEvents()
@@ -287,6 +287,29 @@ void MousePreferencePane::doResetToDefaults()
 
 void MousePreferencePane::updateControls()
 {
+  auto lookSpeedBlocker = QSignalBlocker{m_lookSpeedSlider};
+  auto invertLookHAxisBlocker = QSignalBlocker{m_invertLookHAxisCheckBox};
+  auto invertLookVAxisBlocker = QSignalBlocker{m_invertLookVAxisCheckBox};
+
+  auto panSpeedBlocker = QSignalBlocker{m_panSpeedSlider};
+  auto invertPanHAxisBlocker = QSignalBlocker{m_invertPanHAxisCheckBox};
+  auto invertPanVAxisBlocker = QSignalBlocker{m_invertPanVAxisCheckBox};
+
+  auto moveSpeedBlocker = QSignalBlocker{m_moveSpeedSlider};
+  auto invertMouseWheelBlocker = QSignalBlocker{m_invertMouseWheelCheckBox};
+  auto enableAltMoveBlocker = QSignalBlocker{m_enableAltMoveCheckBox};
+  auto invertAltMoveAxisBlocker = QSignalBlocker{m_invertAltMoveAxisCheckBox};
+  auto moveInCursorDirBlocker = QSignalBlocker{m_moveInCursorDirCheckBox};
+
+  auto forwardKeyBlocker = QSignalBlocker{m_forwardKeyEditor};
+  auto backwardKeyBlocker = QSignalBlocker{m_backwardKeyEditor};
+  auto leftKeyBlocker = QSignalBlocker{m_leftKeyEditor};
+  auto rightKeyBlocker = QSignalBlocker{m_rightKeyEditor};
+  auto upKeyBlocker = QSignalBlocker{m_upKeyEditor};
+  auto downKeyBlocker = QSignalBlocker{m_downKeyEditor};
+
+  auto flyMoveSpeedBlocker = QSignalBlocker{m_flyMoveSpeedSlider};
+
   auto& prefs = PreferenceManager::instance();
 
   m_lookSpeedSlider->setRatio(prefs.getPendingValue(Preferences::CameraLookSpeed));

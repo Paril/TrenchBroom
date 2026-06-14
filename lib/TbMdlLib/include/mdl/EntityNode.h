@@ -67,14 +67,14 @@ private: // implement Node interface
 
   Node* doClone(const vm::bbox3d& worldBounds) const override;
 
-  bool doCanAddChild(const Node* child) const override;
-  bool doCanRemoveChild(const Node* child) const override;
+  bool doCanAddChild(const Node& child) const override;
+  bool doCanRemoveChild(const Node& child) const override;
   bool doRemoveIfEmpty() const override;
 
   bool doShouldAddToSpacialIndex() const override;
 
-  void doChildWasAdded(Node* node) override;
-  void doChildWasRemoved(Node* node) override;
+  void doChildWasAdded(Node& node) override;
+  void doChildWasRemoved(Node& node) override;
 
   void doNodePhysicalBoundsDidChange() override;
   void doChildPhysicalBoundsDidChange() override;

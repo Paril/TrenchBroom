@@ -19,10 +19,10 @@
 */
 
 #include "kd/ranges/adjacent_transform_view.h"
-#include "kd/ranges/to.h"
 
 #include <forward_list>
 #include <memory>
+#include <type_traits>
 #include <vector>
 
 #include <catch2/catch_test_macros.hpp>
@@ -33,7 +33,7 @@ namespace kdl
 
 TEST_CASE("adjacent_transform")
 {
-  using namespace Catch::Matchers;
+  using Catch::Matchers::RangeEquals;
 
   const auto f = [](auto x, auto y, auto z) { return x * y * z; };
 
@@ -80,6 +80,19 @@ TEST_CASE("adjacent_transform")
         static_assert(
           std::is_same_v<iterator_type::iterator_category, std::input_iterator_tag>);
         static_assert(std::is_same_v<iterator_type::value_type, int>);
+      }
+
+      SECTION("reference-returning transform")
+      {
+        auto v = std::vector{1, 2, 3, 4};
+        const auto take_first = [](auto& a, auto&) -> auto& { return a; };
+        auto a = v | views::adjacent_transform<2>(take_first);
+
+        using iterator_type = decltype(a.begin());
+        static_assert(std::is_lvalue_reference_v<decltype(*a.begin())>);
+        static_assert(
+          std::
+            is_same_v<iterator_type::iterator_category, std::random_access_iterator_tag>);
       }
     }
 
@@ -153,51 +166,52 @@ TEST_CASE("adjacent_transform")
     }
   }
 
+  SECTION("move-only value types")
+  {
+    using move_only = std::unique_ptr<int>;
+
+    auto v = std::vector<move_only>{};
+    v.push_back(std::make_unique<int>(1));
+    v.push_back(std::make_unique<int>(2));
+    v.push_back(std::make_unique<int>(3));
+
+    const auto g = [](const auto& x, const auto& y) { return *x + *y; };
+    auto t = v | views::pairwise_transform(g);
+
+    CHECK_THAT(t, RangeEquals(std::vector<int>{3, 5}));
+  }
+
   SECTION("pairwise_transform")
   {
     const auto g = [](auto x, auto y) { return x * y; };
 
     const auto v = std::vector{1, 2, 3, 4};
-    auto a = v | views::pairwise_transform(g);
+    auto t = v | views::pairwise_transform(g);
 
-    CHECK(a[0] == 2);
-    CHECK(a[1] == 6);
-    CHECK(a[2] == 12);
+    CHECK_THAT(t, RangeEquals(std::vector<int>{2, 6, 12}));
   }
 
   SECTION("examples")
   {
     const auto v = std::vector{1, 2, 3, 4};
-    const auto var_sum = [](auto&&... x) { return (x + ...); };
-
-    CHECK(
-      (v | views::adjacent_transform<1>(var_sum) | ranges::to<std::vector>())
-      == std::vector{1, 2, 3, 4});
-    CHECK(
-      (v | views::adjacent_transform<2>(var_sum) | ranges::to<std::vector>())
-      == std::vector{3, 5, 7});
-    CHECK(
-      (v | views::adjacent_transform<3>(var_sum) | ranges::to<std::vector>())
-      == std::vector{6, 9});
-    CHECK(
-      (v | views::adjacent_transform<4>(var_sum) | ranges::to<std::vector>())
-      == std::vector{10});
-    CHECK(
-      (v | views::adjacent_transform<5>(var_sum) | ranges::to<std::vector>())
-      == std::vector<int>{});
-  }
-
-  SECTION("move-only values")
-  {
-    auto v = std::vector<std::unique_ptr<int>>{};
-    v.push_back(std::make_unique<int>(1));
-    v.push_back(std::make_unique<int>(2));
-    v.push_back(std::make_unique<int>(3));
-
-    const auto var_sum = [](auto&&... x) { return (*x + ...); };
+    const auto sum = [](auto&&... x) { return (x + ...); };
 
     CHECK_THAT(
-      v | views::adjacent_transform<2>(var_sum), RangeEquals(std::vector<int>{3, 5}));
+      v | views::adjacent_transform<1>(sum), RangeEquals(std::vector{1, 2, 3, 4}));
+    CHECK_THAT(v | views::adjacent_transform<2>(sum), RangeEquals(std::vector{3, 5, 7}));
+    CHECK_THAT(v | views::adjacent_transform<3>(sum), RangeEquals(std::vector{6, 9}));
+    CHECK_THAT(v | views::adjacent_transform<4>(sum), RangeEquals(std::vector{10}));
+    CHECK_THAT(v | views::adjacent_transform<5>(sum), RangeEquals(std::vector<int>{}));
+  }
+
+  SECTION("empty base")
+  {
+    const auto sum = [](auto&&... x) { return (x + ...); };
+    const auto v = std::vector<int>{};
+    auto a = v | views::adjacent_transform<3>(sum);
+
+    CHECK(a.size() == 0);
+    CHECK(a.begin() == a.end());
   }
 }
 

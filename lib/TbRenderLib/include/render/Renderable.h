@@ -25,8 +25,9 @@ namespace tb
 {
 namespace gl
 {
+class Gl;
 class VboManager;
-}
+} // namespace gl
 
 namespace render
 {
@@ -38,10 +39,7 @@ public:
   Renderable();
   virtual ~Renderable();
 
-  void render(RenderContext& renderContext);
-
-private:
-  virtual void doRender(RenderContext& renderContext) = 0;
+  virtual void render(RenderContext& renderContext) = 0;
 
   defineCopyAndMove(Renderable);
 };
@@ -52,10 +50,7 @@ public:
   DirectRenderable();
   ~DirectRenderable() override;
 
-  void prepareVertices(gl::VboManager& vboManager);
-
-private:
-  virtual void doPrepareVertices(gl::VboManager& vboManager) = 0;
+  virtual void prepare(gl::Gl& gl, gl::VboManager& vboManager) = 0;
 
   defineCopyAndMove(DirectRenderable);
 };
@@ -66,7 +61,7 @@ public:
   IndexedRenderable();
   ~IndexedRenderable() override;
 
-  virtual void prepareVerticesAndIndices(gl::VboManager& vboManager) = 0;
+  virtual void prepare(gl::Gl& gl, gl::VboManager& vboManager) = 0;
 
   defineCopyAndMove(IndexedRenderable);
 };

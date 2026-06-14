@@ -40,6 +40,7 @@
 #include "mdl/WorldNode.h"
 
 #include "kd/map_utils.h"
+#include "kd/ranges/concat_view.h"
 #include "kd/ranges/to.h"
 
 #include <map>
@@ -251,11 +252,11 @@ TEST_CASE("Map_Selection")
 
       addNodes(map, {{parentForNodes(map), {brushNode1, brushNode2, brushNode3}}});
 
-      REQUIRE(brushNode1->intersects(brushNode2));
-      REQUIRE(brushNode2->intersects(brushNode1));
+      REQUIRE(brushNode1->intersects(*brushNode2));
+      REQUIRE(brushNode2->intersects(*brushNode1));
 
-      REQUIRE(!brushNode1->intersects(brushNode3));
-      REQUIRE(!brushNode3->intersects(brushNode1));
+      REQUIRE(!brushNode1->intersects(*brushNode3));
+      REQUIRE(!brushNode3->intersects(*brushNode1));
 
       selectNodes(map, {brushNode1});
       selectTouchingNodes(map, false);
@@ -369,8 +370,8 @@ TEST_CASE("Map_Selection")
         vm::translation_matrix(vm::vec3d{100.0, 0.0, 0.0}),
         map.worldBounds());
 
-      REQUIRE(!brushNode1->intersects(brushNode2));
-      REQUIRE(!brushNode1->intersects(brushNode3));
+      REQUIRE(!brushNode1->intersects(*brushNode2));
+      REQUIRE(!brushNode1->intersects(*brushNode3));
 
       addNodes(map, {{parentForNodes(map), {brushNode1, brushNode2, brushNode3}}});
       selectNodes(map, {brushNode1});
@@ -862,13 +863,15 @@ TEST_CASE("Map_Selection")
 
       selectBrushFacesWithMaterial(map, name);
 
-      const auto expectedBrushFaces = kdl::vec_concat(
-        toHandles(brushNodeM1),
-        toHandles(entityBrushNodeM1),
-        toHandles(groupedBrushNodeM1),
-        toHandles(brushNodeM13) | std::views::filter([](const auto& handle) {
-          return handle.face().attributes().materialName() == "material1";
-        }) | kdl::ranges::to<std::vector>());
+      const auto expectedBrushFaces =
+        kdl::views::concat(
+          toHandles(brushNodeM1),
+          toHandles(entityBrushNodeM1),
+          toHandles(groupedBrushNodeM1),
+          toHandles(brushNodeM13) | std::views::filter([](const auto& handle) {
+            return handle.face().attributes().materialName() == "material1";
+          }) | kdl::ranges::to<std::vector>())
+        | kdl::ranges::to<std::vector>();
 
       CHECK_THAT(map.selection().brushFaces, UnorderedEquals(expectedBrushFaces));
     }
@@ -877,13 +880,15 @@ TEST_CASE("Map_Selection")
     {
       selectBrushFacesWithMaterial(map, "material1");
 
-      const auto expectedBrushFaces = kdl::vec_concat(
-        toHandles(brushNodeM1),
-        toHandles(entityBrushNodeM1),
-        toHandles(groupedBrushNodeM1),
-        toHandles(brushNodeM13) | std::views::filter([](const auto& handle) {
-          return handle.face().attributes().materialName() == "material1";
-        }) | kdl::ranges::to<std::vector>());
+      const auto expectedBrushFaces =
+        kdl::views::concat(
+          toHandles(brushNodeM1),
+          toHandles(entityBrushNodeM1),
+          toHandles(groupedBrushNodeM1),
+          toHandles(brushNodeM13) | std::views::filter([](const auto& handle) {
+            return handle.face().attributes().materialName() == "material1";
+          }) | kdl::ranges::to<std::vector>())
+        | kdl::ranges::to<std::vector>();
 
       CHECK_THAT(map.selection().brushFaces, UnorderedEquals(expectedBrushFaces));
     }

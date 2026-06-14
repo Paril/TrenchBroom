@@ -99,24 +99,24 @@ void doSwapNodeContents(
     auto& contents = pair.second.get();
 
     pair.second = node->accept(kdl::overload(
-      [&](WorldNode* worldNode) {
-        return NodeContents{worldNode->setEntity(std::get<Entity>(std::move(contents)))};
+      [&](WorldNode& worldNode) {
+        return NodeContents{worldNode.setEntity(std::get<Entity>(std::move(contents)))};
       },
-      [&](LayerNode* layerNode) {
-        return NodeContents(layerNode->setLayer(std::get<Layer>(std::move(contents))));
+      [&](LayerNode& layerNode) {
+        return NodeContents(layerNode.setLayer(std::get<Layer>(std::move(contents))));
       },
-      [&](GroupNode* groupNode) {
-        return NodeContents{groupNode->setGroup(std::get<Group>(std::move(contents)))};
+      [&](GroupNode& groupNode) {
+        return NodeContents{groupNode.setGroup(std::get<Group>(std::move(contents)))};
       },
-      [&](EntityNode* entityNode) {
-        return NodeContents{entityNode->setEntity(std::get<Entity>(std::move(contents)))};
+      [&](EntityNode& entityNode) {
+        return NodeContents{entityNode.setEntity(std::get<Entity>(std::move(contents)))};
       },
-      [&](BrushNode* brushNode) {
-        return NodeContents{brushNode->setBrush(std::get<Brush>(std::move(contents)))};
+      [&](BrushNode& brushNode) {
+        return NodeContents{brushNode.setBrush(std::get<Brush>(std::move(contents)))};
       },
-      [&](PatchNode* patchNode) {
+      [&](PatchNode& patchNode) {
         return NodeContents{
-          patchNode->setPatch(std::get<BezierPatch>(std::move(contents)))};
+          patchNode.setPatch(std::get<BezierPatch>(std::move(contents)))};
       }));
   }
 }

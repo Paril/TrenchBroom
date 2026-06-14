@@ -65,7 +65,7 @@ template <typename T>
 auto getFilePosition(const T& info)
 {
   const auto startLine = info.startLocation.line;
-  const auto lineCount = info.endLocation->line - startLine;
+  const auto lineCount = info.endLocation->line - startLine + 1;
   return std::tuple{startLine, lineCount};
 }
 
@@ -692,30 +692,30 @@ void validateDuplicateLayersAndGroups(
     if (nodeInfo)
     {
       nodeInfo->node->accept(kdl::overload(
-        [](WorldNode*) {},
-        [&](LayerNode* layerNode) {
-          const auto persistentId = *layerNode->persistentId();
+        [](WorldNode&) {},
+        [&](LayerNode& layerNode) {
+          const auto persistentId = *layerNode.persistentId();
           if (!layerIds.emplace(persistentId).second)
           {
             status.error(
-              FileLocation{layerNode->lineNumber()},
+              FileLocation{layerNode.lineNumber()},
               fmt::format("Skipping duplicate layer with ID '{}'", persistentId));
             nodeInfo.reset();
           }
         },
-        [&](GroupNode* groupNode) {
-          const auto persistentId = *groupNode->persistentId();
+        [&](GroupNode& groupNode) {
+          const auto persistentId = *groupNode.persistentId();
           if (!groupIds.emplace(persistentId).second)
           {
             status.error(
-              FileLocation{groupNode->lineNumber()},
+              FileLocation{groupNode.lineNumber()},
               fmt::format("Skipping duplicate group with ID '{}'", persistentId));
             nodeInfo.reset();
           }
         },
-        [](EntityNode*) {},
-        [](BrushNode*) {},
-        [](PatchNode*) {}));
+        [](EntityNode&) {},
+        [](BrushNode&) {},
+        [](PatchNode&) {}));
     }
   }
 }
@@ -827,18 +827,18 @@ std::unordered_map<Node*, Node*> buildNodeToParentMap(
     if (nodeInfo)
     {
       nodeInfo->node->accept(kdl::overload(
-        [](WorldNode*) {},
-        [&](LayerNode* layerNode) {
-          const auto persistentId = *layerNode->persistentId();
-          assertResult(layerIdMap.emplace(persistentId, layerNode).second);
+        [](WorldNode&) {},
+        [&](LayerNode& layerNode) {
+          const auto persistentId = *layerNode.persistentId();
+          assertResult(layerIdMap.emplace(persistentId, &layerNode).second);
         },
-        [&](GroupNode* groupNode) {
-          const auto persistentId = *groupNode->persistentId();
-          assertResult(groupIdMap.emplace(persistentId, groupNode).second);
+        [&](GroupNode& groupNode) {
+          const auto persistentId = *groupNode.persistentId();
+          assertResult(groupIdMap.emplace(persistentId, &groupNode).second);
         },
-        [](EntityNode*) {},
-        [](BrushNode*) {},
-        [](PatchNode*) {}));
+        [](EntityNode&) {},
+        [](BrushNode&) {},
+        [](PatchNode&) {}));
     }
   }
 
@@ -980,14 +980,14 @@ void MapReader::createNodes(ParserStatus& status, kdl::task_manager& taskManager
         parentNodeIt != std::end(nodeToParentMap) ? parentNodeIt->second : defaultParent;
 
       node->accept(kdl::overload(
-        [&](WorldNode*) {
+        [&](WorldNode&) {
           // this should not happen since we already cleared out any world nodes
         },
-        [&](LayerNode*) { onLayerNode(std::move(node), status); },
-        [&](GroupNode*) { onNode(parentNode, std::move(node), status); },
-        [&](EntityNode*) { onNode(parentNode, std::move(node), status); },
-        [&](BrushNode*) { onNode(parentNode, std::move(node), status); },
-        [&](PatchNode*) { onNode(parentNode, std::move(node), status); }));
+        [&](LayerNode&) { onLayerNode(std::move(node), status); },
+        [&](GroupNode&) { onNode(parentNode, std::move(node), status); },
+        [&](EntityNode&) { onNode(parentNode, std::move(node), status); },
+        [&](BrushNode&) { onNode(parentNode, std::move(node), status); },
+        [&](PatchNode&) { onNode(parentNode, std::move(node), status); }));
     }
   }
 }

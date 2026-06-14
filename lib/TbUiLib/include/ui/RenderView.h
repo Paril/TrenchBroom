@@ -19,40 +19,40 @@
 
 #pragma once
 
-#include <GL/glew.h> // must be included here, before QOpenGLWidget
-
 #include <QElapsedTimer>
 #include <QOpenGLWidget>
 
 #include "Color.h"
+#include "NotifierConnection.h"
 #include "ui/InputEvent.h"
 
 #include <string>
 
-#undef Bool
-#undef Status
-#undef CursorShape
+class QOpenGLFunctions_2_1;
 
 namespace tb
 {
 namespace gl
 {
-class ContextManager;
 class FontManager;
+class Gl;
 class ShaderManager;
 class VboManager;
 } // namespace gl
 
 namespace ui
 {
+class AppController;
 
 class RenderView : public QOpenGLWidget, public InputEventProcessor
 {
   Q_OBJECT
 private:
   Color m_focusColor;
-  gl::ContextManager* m_glContext;
+  AppController& m_appController;
   InputEventRecorder m_eventRecorder;
+
+  NotifierConnection m_notifierConnection;
 
 private: // FPS counter
   // stats since the last counter update
@@ -66,7 +66,7 @@ protected:
   std::string m_currentFPS;
 
 protected:
-  explicit RenderView(gl::ContextManager& contextManager, QWidget* parent = nullptr);
+  explicit RenderView(AppController& appController, QWidget* parent = nullptr);
 
 public:
   ~RenderView() override;
@@ -97,8 +97,10 @@ protected: // QOpenGLWidget overrides
 private:
   void render();
   void processInput();
-  void clearBackground();
-  void renderFocusIndicator();
+  void clearBackground(gl::Gl& gl);
+  void renderFocusIndicator(gl::Gl& gl);
+
+  QOpenGLFunctions_2_1& glFunctions();
 
 protected:
   // called by initializeGL by default
@@ -108,7 +110,7 @@ private:
   virtual const Color& getBackgroundColor();
   virtual void updateViewport(int x, int y, int width, int height);
   virtual bool shouldRenderFocusIndicator() const = 0;
-  virtual void renderContents() = 0;
+  virtual void renderContents(gl::Gl& gl) = 0;
 };
 
 } // namespace ui

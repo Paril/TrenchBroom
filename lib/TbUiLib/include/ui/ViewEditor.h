@@ -28,7 +28,6 @@
 #include <vector>
 
 class QCheckBox;
-class QWidget;
 class QButtonGroup;
 
 namespace tb

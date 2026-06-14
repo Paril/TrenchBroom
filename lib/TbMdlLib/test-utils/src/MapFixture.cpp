@@ -20,8 +20,11 @@
 #include "mdl/MapFixture.h"
 
 #include "Logger.h"
+#include "TestEnvironment.h"
 #include "gl/Resource.h"
 #include "gl/ResourceManager.h"
+#include "gl/TestGl.h"
+#include "gl/TestUtils.h"
 #include "mdl/Map.h"
 #include "mdl/TestUtils.h"
 
@@ -68,9 +71,11 @@ Map& MapFixture::load(const std::filesystem::path& path, MapFixtureConfig config
 {
   m_config = std::move(config);
 
-  const auto absPath = path.is_absolute() ? path : std::filesystem::current_path() / path;
+  const auto absPath = path.is_absolute() ? path : getFixtureRoot() / path;
 
   const auto mapFormat = m_config->mapFormat.value_or(MapFormat::Unknown);
+
+  auto gl = gl::TestGl{};
 
   contract_assert(
     Map::loadMap(
@@ -86,7 +91,8 @@ Map& MapFixture::load(const std::filesystem::path& path, MapFixtureConfig config
     | kdl::transform([&](auto map) {
         m_map = std::move(map);
         m_map->setIsCommandCollationEnabled(false);
-        m_map->processResourcesSync(gl::ProcessContext{false, [](auto, auto) {}});
+        gl::processResourcesSync(
+          *m_resourceManager, gl::ProcessContext{gl, [](auto, auto) {}});
       })
     | kdl::is_success());
 

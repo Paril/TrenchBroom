@@ -28,15 +28,9 @@ class QScrollBar;
 class QDrag;
 class QMimeData;
 
-namespace tb
+namespace tb::ui
 {
-namespace gl
-{
-class ContextManager;
-}
-
-namespace ui
-{
+class AppController;
 
 class CellView : public RenderView
 {
@@ -64,7 +58,7 @@ private:
   void validate();
 
 public:
-  explicit CellView(gl::ContextManager& contextManager, QScrollBar* scrollBar = nullptr);
+  explicit CellView(AppController& appController, QScrollBar* scrollBar = nullptr);
   void invalidate();
   void clear();
   void resizeEvent(QResizeEvent* event) override;
@@ -76,6 +70,7 @@ public:
   template <class L>
   void scrollToCell(L&& visitor)
   {
+    validate();
 
     for (const auto& group : m_layout.groups())
     {
@@ -118,16 +113,16 @@ private:
 
 private:
   QRect visibleRect() const;
-  void renderContents() override;
-  void setupGL();
+  void renderContents(gl::Gl& gl) override;
+  void setupGL(gl::Gl& gl);
 
-  void renderTitleBackgrounds(float y, float height);
-  void renderTitleStrings(float y, float height);
+  void renderTitleBackgrounds(gl::Gl& gl, float y, float height);
+  void renderTitleStrings(gl::Gl& gl, float y, float height);
 
   virtual void doInitLayout(Layout& layout) = 0;
   virtual void doReloadLayout(Layout& layout) = 0;
   virtual void doClear();
-  virtual void doRender(Layout& layout, float y, float height) = 0;
+  virtual void doRender(gl::Gl& gl, Layout& layout, float y, float height) = 0;
   virtual void doLeftClick(Layout& layout, float x, float y);
   virtual void doContextMenu(Layout& layout, float x, float y, QContextMenuEvent* event);
 
@@ -144,5 +139,4 @@ public: // implement InputEventProcessor interface
   void processEvent(const CancelEvent& event) override;
 };
 
-} // namespace ui
-} // namespace tb
+} // namespace tb::ui

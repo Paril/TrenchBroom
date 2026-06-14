@@ -14,8 +14,14 @@ target_sources(UpdateLibTest PRIVATE
 
 add_compile_definitions(CATCH_CONFIG_ENABLE_ALL_STRINGMAKERS=1)
 
-target_link_libraries(UpdateLibTest PRIVATE CompilerConfig)
-target_link_libraries(UpdateLibTest PRIVATE UpdateLib Catch2::Catch2WithMain Qt6::Test)
+target_link_libraries(UpdateLibTest
+  PRIVATE
+    CompilerConfig
+    UpdateLib
+    Catch2::Catch2WithMain
+    Qt6::Network
+    Qt6::Test
+)
 
 set_target_properties(UpdateLibTest PROPERTIES AUTOMOC TRUE)
 
@@ -25,3 +31,6 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:UpdateLibTest>/fixture"
   COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/fixture" "$<TARGET_FILE_DIR:UpdateLibTest>/fixture"
 )
+
+include(Catch)
+catch_discover_tests(UpdateLibTest)

@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.12)
-
 add_library(TbGlLib STATIC)
 
 target_sources(TbGlLib
@@ -7,7 +5,6 @@ target_sources(TbGlLib
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ActiveShader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/AttrString.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Camera.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ContextManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/FontDescriptor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/FontFactory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/FontGlyph.cpp
@@ -15,7 +12,10 @@ target_sources(TbGlLib
     ${CMAKE_CURRENT_SOURCE_DIR}/src/FontManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/FontTexture.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/FreeTypeFontFactory.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/GL.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/GlManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/GlInterface.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/GlUtils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/GlDebug.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/IndexArray.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/IndexArrayMap.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/IndexArrayMapBuilder.cpp
@@ -49,9 +49,18 @@ target_sources(TbGlLib
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(TbGlLib PRIVATE CompilerConfig PrecompileStdHeaders)
-target_link_libraries(TbGlLib PRIVATE GLEW::GLEW OpenGL::GL freetype)
-target_link_libraries(TbGlLib PUBLIC TbBaseLib TbFsLib KdLib VmLib fmt::fmt-header-only)
+target_link_libraries(TbGlLib
+  PRIVATE
+    CompilerConfig
+    PrecompileStdHeaders
+    freetype
+  PUBLIC
+    fmt::fmt-header-only
+    KdLib
+    TbBaseLib
+    TbFsLib
+    VmLib
+)
 
 add_subdirectory(test)
 add_subdirectory(test-utils)

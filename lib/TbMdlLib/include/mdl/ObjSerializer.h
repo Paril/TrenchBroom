@@ -146,14 +146,14 @@ private:
     const std::vector<const Node*>& rootNodes, kdl::task_manager& taskManager) override;
   void doEndFile() override;
 
-  void doBeginEntity(const Node* node) override;
-  void doEndEntity(const Node* node) override;
+  void doBeginEntity(const Node& node) override;
+  void doEndEntity(const Node& node) override;
   void doEntityProperty(const EntityProperty& property) override;
 
-  void doBrush(const BrushNode* brush) override;
+  void doBrush(const BrushNode& brushNode) override;
   void doBrushFace(const BrushFace& face) override;
 
-  void doPatch(const PatchNode* patchNode) override;
+  void doPatch(const PatchNode& patchNode) override;
 };
 
 } // namespace mdl

@@ -61,6 +61,14 @@ public:
   explicit CompilationDialog(
     AppController& appController, MapDocument& document, QWidget* parent = nullptr);
 
+  bool selectProfile(const mdl::CompilationProfile& profile);
+  void selectFirstProfile();
+
+  void runSelectedProfile();
+
+signals:
+  void compilationProfileStarted(const std::string& profileName);
+
 private:
   void createGui();
 
@@ -77,6 +85,7 @@ private slots:
 
   void selectedProfileChanged();
   void profileChanged();
+  void showContextMenu(const QPoint& pos);
 
 private:
   void saveProfile();

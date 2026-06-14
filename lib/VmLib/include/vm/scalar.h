@@ -440,6 +440,18 @@ constexpr T smoothstep(const T e0, const T e1, const T v)
 template <typename T>
 constexpr T trunc(const T v)
 {
+  if (is_nan(v) || is_inf(v))
+  {
+    return v;
+  }
+
+  constexpr auto min_v = static_cast<T>(std::numeric_limits<int64_t>::lowest());
+  constexpr auto max_exclusive_v = -min_v;
+  if (v < min_v || v >= max_exclusive_v)
+  {
+    return v;
+  }
+
   return static_cast<T>(static_cast<int64_t>(v));
 }
 
@@ -570,6 +582,42 @@ constexpr T round_down(const T v)
   // we keep this function for consistency because there is no equivalent function to
   // roundUp
   return v > static_cast<T>(0.0) ? floor(v) : ceil(v);
+}
+
+/**
+ * Returns the nearest integer that is strictly farther from 0 than the given value.
+ * Given a positive value, this function returns the smallest integer greater than the
+ * given value, and given a negative value, this function returns the largest integer less
+ * than the given value. Returns 0 if the given value is 0.
+ *
+ * @tparam T the argument type, which must be a floating point type
+ * @param x the value
+ * @return the nearest integer strictly farther from 0 than the given value, or 0 if the
+ * given value is 0
+ */
+template <typename T>
+constexpr T next_integer(const T x)
+{
+  static_assert(std::is_floating_point_v<T>, "T must be a floating point type");
+  return x > T(0) ? floor(x) + T(1) : x < T(0) ? ceil(x) - T(1) : T(0);
+}
+
+/**
+ * Returns the nearest integer that is strictly closer to 0 than the given value. Given
+ * a positive value, this function returns the largest integer less than the given value,
+ * and given a negative value, this function returns the smallest integer greater than
+ * the given value. Returns 0 if the given value is 0.
+ *
+ * @tparam T the argument type, which must be a floating point type
+ * @param x the value
+ * @return the nearest integer strictly closer to 0 than the given value, or 0 if the
+ * given value is 0
+ */
+template <typename T>
+constexpr T prev_integer(const T x)
+{
+  static_assert(std::is_floating_point_v<T>, "T must be a floating point type");
+  return x > T(0) ? ceil(x) - T(1) : x < T(0) ? floor(x) + T(1) : T(0);
 }
 
 /**

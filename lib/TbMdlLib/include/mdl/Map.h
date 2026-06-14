@@ -88,6 +88,8 @@ class UVCoordSystemSnapshot;
 class VertexHandleManager;
 class WorldNode;
 
+enum class VisualEffect;
+
 struct EnvironmentConfig;
 struct GameInfo;
 struct SelectionChange;
@@ -171,8 +173,6 @@ public: // notification
   Notifier<> groupWasOpenedNotifier;
   Notifier<> groupWasClosedNotifier;
 
-  Notifier<const std::vector<gl::ResourceId>&> resourcesWereProcessedNotifier;
-
   Notifier<> materialCollectionsWillChangeNotifier;
   Notifier<> materialCollectionsDidChangeNotifier;
 
@@ -183,6 +183,8 @@ public: // notification
 
   Notifier<> modsWillChangeNotifier;
   Notifier<> modsDidChangeNotifier;
+
+  Notifier<VisualEffect> triggerVisualEffectNotifier;
 
 private:
   NotifierConnection m_notifierConnection;
@@ -235,6 +237,9 @@ public: // misc
   Logger& logger();
 
   kdl::task_manager& taskManager();
+
+  gl::ResourceManager& resourceManager();
+  const gl::ResourceManager& resourceManager() const;
 
   EntityDefinitionManager& entityDefinitionManager();
   const EntityDefinitionManager& entityDefinitionManager() const;
@@ -394,11 +399,6 @@ private: // entity link management
   void clearEntityLinks();
   void addEntityLinks(const std::vector<Node*>& nodes, bool recurse);
   void removeEntityLinks(const std::vector<Node*>& nodes, bool recurse);
-
-public: // resource processing
-  void processResourcesSync(const gl::ProcessContext& processContext);
-  void processResourcesAsync(const gl::ProcessContext& processContext);
-  bool needsResourceProcessing() const;
 
 public: // command processing
   bool canUndoCommand() const;

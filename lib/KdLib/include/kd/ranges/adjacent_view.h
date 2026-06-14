@@ -127,7 +127,7 @@ public:
 
     friend constexpr bool operator==(const iterator& lhs, const iterator& rhs)
     {
-      return lhs.current_.back() == rhs.current_.back();
+      return lhs.current_.front() == rhs.current_.front();
     }
 
     friend constexpr bool operator<(const iterator& lhs, const iterator& rhs)
@@ -219,9 +219,10 @@ public:
     {
       if (std::distance(begin, end) >= static_cast<difference_type>(N))
       {
-        for (std::size_t i = 0; i < N; ++i)
+        current_[0] = begin;
+        for (std::size_t i = 1; i < N; ++i)
         {
-          current_[i] = std::next(begin, static_cast<difference_type>(i));
+          current_[i] = std::ranges::next(current_[i - 1]);
         }
       }
       else
@@ -247,7 +248,7 @@ public:
           }
           else
           {
-            current_[i] = std::ranges::next(end, length - offset);
+            current_[i] = std::ranges::next(begin, length - offset);
           }
         }
       }
@@ -322,9 +323,17 @@ public:
   = default;
 
   constexpr explicit adjacent_view(V base)
-    : base_{base}
+    : base_{std::move(base)}
   {
   }
+
+  constexpr V base() const&
+    requires std::copy_constructible<V>
+  {
+    return base_;
+  }
+
+  constexpr V base() && { return std::move(base_); }
 
   constexpr auto begin()
     requires(!detail::simple_view<V>)
@@ -369,13 +378,21 @@ public:
   constexpr auto size()
     requires std::ranges::sized_range<V>
   {
-    return std::ranges::size(base_);
+    using ST = decltype(std::ranges::size(base_));
+    using CT = std::common_type_t<ST, std::size_t>;
+    auto sz = static_cast<CT>(std::ranges::size(base_));
+    sz -= std::min<CT>(sz, N - 1);
+    return static_cast<ST>(sz);
   }
 
   constexpr auto size() const
     requires std::ranges::sized_range<const V>
   {
-    return std::ranges::size(base_);
+    using ST = decltype(std::ranges::size(base_));
+    using CT = std::common_type_t<ST, std::size_t>;
+    auto sz = static_cast<CT>(std::ranges::size(base_));
+    sz -= std::min<CT>(sz, N - 1);
+    return static_cast<ST>(sz);
   }
 
 private:
@@ -406,7 +423,7 @@ struct adjacent_view_fn
 } // namespace detail
 
 template <std::size_t N>
-inline detail::adjacent_view_fn<N> adjacent;
+constexpr detail::adjacent_view_fn<N> adjacent;
 
 } // namespace views
 } // namespace ranges

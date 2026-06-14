@@ -23,18 +23,23 @@
 #include <algorithm>
 #include <ranges>
 
+// This file can only be used with C++20 or later.
+static_assert(__cplusplus >= 202002L);
+
 #ifdef _MSC_VER
 // MSVC issues an unreachable code warning if the given function throws.
 #pragma warning(push)
 #pragma warning(disable : 4702)
 #endif
 
-namespace kdl::ranges
+namespace kdl
+{
+namespace ranges
 {
 namespace detail
 {
 
-//*! Determine if C::reserve exists and can be called with a size
+// Determine if C::reserve exists and can be called with a size
 template <typename C>
 constexpr bool reservable_container =
   std::ranges::sized_range<C> && requires(C& c, std::ranges::range_size_t<C> n) {
@@ -43,7 +48,7 @@ constexpr bool reservable_container =
     { c.max_size() } -> std::same_as<decltype(n)>;
   };
 
-//! Is it possible to append to C via push_back or inserting at the end?
+// Is it possible to append to C via push_back or inserting at the end?
 template <typename C, typename Reference>
 constexpr bool container_appendable = requires(C& c, Reference&& ref) {
   requires(
@@ -53,7 +58,7 @@ constexpr bool container_appendable = requires(C& c, Reference&& ref) {
     || requires { c.insert(c.end(), std::forward<Reference>(ref)); });
 };
 
-//! Create a function that appends an element to the given container c.
+// Create a function that appends an element to the given container c.
 template <typename C>
 constexpr auto container_appender(C& c)
 {
@@ -77,7 +82,7 @@ constexpr auto container_appender(C& c)
   };
 }
 
-//! Used for type constexpr if conditions, see below
+// Used for type constexpr if conditions, see below
 template <typename R>
 struct dummy_iterator
 {
@@ -106,6 +111,11 @@ concept input_iterator_range =
 
 } // namespace detail
 
+#if defined(_MSC_VER)
+#pragma warning(push, 0)
+#pragma warning(disable : 4702) // unreachable code
+#endif
+
 template <typename C, std::ranges::input_range R, typename... Args>
   requires(!std::ranges::view<C>)
 constexpr C to(R&& r, Args&&... args)
@@ -120,12 +130,8 @@ constexpr C to(R&& r, Args&&... args)
     {
       return C(std::forward<R>(r), std::forward<Args>(args)...);
     }
-    // std::from_range_t is only available in C++23
-    // else if constexpr (std::constructible_from<C, std::from_range_t, R, Args...>)
-    // {
-    //   return C(std::from_range, std::forward<R>(r), std::forward<Args>(args)...);
-    // }
-    if constexpr (
+    // Note: std::from_range is only available in C++23, so we can't support it
+    else if constexpr (
       std::ranges::common_range<R> && detail::input_iterator_range<R>
       && std::constructible_from<
         C,
@@ -151,6 +157,8 @@ constexpr C to(R&& r, Args&&... args)
   }
   else
   {
+    static_assert(std::ranges::input_range<std::ranges::range_reference_t<C>>);
+
     return to<C>(
       std::ranges::ref_view(r) | std::views::transform([](auto&& elem) {
         return to<std::ranges::range_value_t<C>>(std::forward<decltype(elem)>(elem));
@@ -158,6 +166,10 @@ constexpr C to(R&& r, Args&&... args)
       std::forward<Args>(args)...);
   }
 }
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 template <template <typename...> typename C, std::ranges::input_range R, typename... Args>
 constexpr auto to(R&& r, Args&&... args)
@@ -167,19 +179,11 @@ constexpr auto to(R&& r, Args&&... args)
   if constexpr (requires { C(std::declval<R>(), std::declval<Args>()...); })
   {
     // By "calling" C(...), we can use C's deduction guides to deduce the value type,
-    // and the full type of C is passed on the the previous overload of to using decltype
+    // and the full type of C is passed on to the previous overload of to using decltype
     return to<decltype(C(std::declval<R>(), std::declval<Args>()...))>(
       std::forward<R>(r), std::forward<Args>(args)...);
   }
-  // std::from_range is only available in C++23
-  // else if constexpr (requires {
-  //                      C(std::from_range, std::declval<R>(), std::declval<Args>()...);
-  //                    })
-  // {
-  //   return to<decltype(C(std::from_range, std::declval<R>(),
-  //   std::declval<Args>()...))>(
-  //     std::forward<R>(r), std::forward<Args>(args)...);
-  // }
+  // Note: std::from_range is only available in C++23, so we can't support it
   else
   {
     static_assert(requires {
@@ -198,53 +202,63 @@ constexpr auto to(R&& r, Args&&... args)
 namespace detail
 {
 
-//! Helper struct for the case when the collection type isn't complete and we need to
-//! deduce its type parameters
+// Helper struct for the case when the collection type isn't complete and we need to
+// deduce its type parameters
 template <template <typename...> typename T>
 struct wrap_c
 {
 };
 
-//! Restores the fully specified type of the collection incl. the type arguments
+// Restores the fully specified type of the collection incl. the type arguments
 template <typename C, typename R, typename... Args>
 struct unwrap_c
 {
-  //! The fully specified type of the collection to pass to ranges::to
+  // The fully specified type of the collection to pass to ranges::to
   using type = C;
 };
 
-//! Deduces the type parameters of C when C isn't complete
+// Deduces the type parameters of C when C isn't complete
 template <template <typename...> typename C, typename R, typename... Args>
 struct unwrap_c<wrap_c<C>, R, Args...>
 {
-  //! The fully specified type of the collection to pass to ranges::to
+  // The fully specified type of the collection to pass to ranges::to
   using type = std::remove_cvref_t<std::remove_pointer_t<decltype(C(
     std::declval<detail::dummy_iterator<R>>(),
     std::declval<detail::dummy_iterator<R>>(),
     std::declval<Args>()...))>>;
 };
 
-//! A helper struct that, when called, constructs an instance of C (with its type
-//! parameters deduced if necessary and fills it with the values taken from the given
-//! range.
+// A helper struct that, when called, constructs an instance of C (with its type
+// parameters deduced if necessary) and fills it with the values taken from the given
+// range.
 template <typename C, typename... Args>
 struct to_fn
 {
-  //! Deduce the full type of the collection instantiate; this also restores any missing
-  //! type parameters when these were omitted (e.g. ranges::to<std::vector>())
+  // Deduce the full type of the collection to instantiate; this also restores any
+  // missing type parameters when these were omitted (e.g. ranges::to<std::vector>())
   template <typename R>
   using Actual_C = typename unwrap_c<C, R, Args...>::type;
 
   template <typename R>
   auto operator()(R&& r)
   {
-    return to<Actual_C<R>, R, Args...>(std::forward<R>(r), std::forward<Args>(args)...);
+    return std::apply(
+      [&](auto&&... unpacked) {
+        return to<Actual_C<R>>(
+          std::forward<R>(r), std::forward<decltype(unpacked)>(unpacked)...);
+      },
+      args);
   }
 
   template <typename R>
   auto operator()(R&& r) const
   {
-    return to<Actual_C<R>, R, Args...>(std::forward<R>(r), std::forward<Args>(args)...);
+    return std::apply(
+      [&](auto&&... unpacked) {
+        return to<Actual_C<R>>(
+          std::forward<R>(r), std::forward<decltype(unpacked)>(unpacked)...);
+      },
+      args);
   }
 
   std::tuple<Args...> args;
@@ -287,4 +301,5 @@ constexpr auto to(Args&&... args)
 #pragma warning(pop)
 #endif
 
-} // namespace kdl::ranges
+} // namespace ranges
+} // namespace kdl

@@ -92,7 +92,7 @@ public:
   constexpr auto size()
     requires std::ranges::sized_range<V>
   {
-    return const_cast<const as_rvalue_view*>(this)->size();
+    return std::ranges::size(base_);
   }
 
   constexpr auto size() const

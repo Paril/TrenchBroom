@@ -45,30 +45,30 @@ void isolateSelectedNodes(Map& map)
   auto selectedNodes = std::vector<Node*>{};
   auto unselectedNodes = std::vector<Node*>{};
 
-  const auto collectNode = [&](auto* node) {
-    if (node->transitivelySelected() || node->descendantSelected())
+  const auto collectNode = [&](auto& node) {
+    if (node.transitivelySelected() || node.descendantSelected())
     {
-      selectedNodes.push_back(node);
+      selectedNodes.push_back(&node);
     }
     else
     {
-      unselectedNodes.push_back(node);
+      unselectedNodes.push_back(&node);
     }
   };
 
   map.worldNode().accept(kdl::overload(
-    [](auto&& thisLambda, WorldNode* world) { world->visitChildren(thisLambda); },
-    [](auto&& thisLambda, LayerNode* layer) { layer->visitChildren(thisLambda); },
-    [&](auto&& thisLambda, GroupNode* group) {
-      collectNode(group);
-      group->visitChildren(thisLambda);
+    [](auto&& thisLambda, WorldNode& worldNode) { worldNode.visitChildren(thisLambda); },
+    [](auto&& thisLambda, LayerNode& layerNode) { layerNode.visitChildren(thisLambda); },
+    [&](auto&& thisLambda, GroupNode& groupNode) {
+      collectNode(groupNode);
+      groupNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, EntityNode* entity) {
-      collectNode(entity);
-      entity->visitChildren(thisLambda);
+    [&](auto&& thisLambda, EntityNode& entityNode) {
+      collectNode(entityNode);
+      entityNode.visitChildren(thisLambda);
     },
-    [&](BrushNode* brush) { collectNode(brush); },
-    [&](PatchNode* patch) { collectNode(patch); }));
+    [&](BrushNode& brushNode) { collectNode(brushNode); },
+    [&](PatchNode& patchNode) { collectNode(patchNode); }));
 
   auto transaction = Transaction{map, "Isolate Objects"};
   map.executeAndStore(SetVisibilityCommand::hide(unselectedNodes));

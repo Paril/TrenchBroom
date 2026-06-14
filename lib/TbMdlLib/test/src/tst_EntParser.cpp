@@ -17,6 +17,7 @@
  along with TrenchBroom. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "TestEnvironment.h"
 #include "TestParserStatus.h"
 #include "el/TestUtils.h"
 #include "fs/DiskIO.h"
@@ -38,7 +39,7 @@ TEST_CASE("EntParser")
 {
   SECTION("parseIncludedEntFiles")
   {
-    const auto basePath = std::filesystem::current_path() / "fixture/games/";
+    const auto basePath = getFixtureRoot() / "games/";
     const auto cfgFiles =
       fs::Disk::find(
         basePath, fs::TraversalMode::Recursive, fs::makeExtensionPathMatcher({".ent"}))
@@ -180,6 +181,38 @@ Updated: 2011-03-02
           },
         },
       });
+  }
+
+  SECTION("parseDuplicatePointEntityDefinitionKeepsLast")
+  {
+    const std::string file = R"(
+<?xml version="1.0"?>
+<classes>
+  <point name="_skybox" color="1 0 0" box="-1 -1 -1 1 1 1"></point>
+  <point name="_skybox" color="0 1 0" box="-2 -2 -2 2 2 2"></point>
+</classes>
+)";
+
+    auto parser = EntParser{file, RgbaF{1.0f, 1.0f, 1.0f, 1.0f}};
+    auto status = TestParserStatus{};
+
+    CHECK(
+      parser.parseDefinitions(status)
+      == std::vector<mdl::EntityDefinition>{
+        {
+          "_skybox",
+          RgbF{0.0f, 1.0f, 0.0f},
+          "",
+          {},
+          mdl::PointEntityDefinition{
+            {{-2, -2, -2}, {+2, +2, +2}},
+            {},
+            {},
+          },
+        },
+      });
+    CHECK(status.countStatus(LogLevel::Warn) == 1u);
+    CHECK(status.countStatus(LogLevel::Error) == 0u);
   }
 
   SECTION("parseSimpleGroupEntityDefinition")

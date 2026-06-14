@@ -156,9 +156,9 @@ protected:
 public: // tree management
   size_t depth() const;
   Node* parent() const;
-  bool isAncestorOf(const Node* node) const;
+  bool isAncestorOf(const Node& node) const;
   bool isAncestorOf(const std::vector<Node*>& nodes) const;
-  bool isDescendantOf(const Node* node) const;
+  bool isDescendantOf(const Node& node) const;
   bool isDescendantOf(const std::vector<Node*>& nodes) const;
   std::vector<Node*> findDescendants(const std::vector<Node*>& nodes) const;
 
@@ -205,20 +205,20 @@ public:
 
   void removeChild(Node* child);
 
-  bool canAddChild(const Node* child) const;
-  bool canRemoveChild(const Node* child) const;
+  bool canAddChild(const Node& child) const;
+  bool canRemoveChild(const Node& child) const;
 
   template <typename I>
   bool canAddChildren(I cur, I end) const
   {
-    return std::all_of(cur, end, [&](const auto* child) { return canAddChild(child); });
+    return std::all_of(cur, end, [&](const auto* child) { return canAddChild(*child); });
   }
 
   template <typename I>
   bool canRemoveChildren(I cur, I end) const
   {
     return std::all_of(
-      cur, end, [&](const auto* child) { return canRemoveChild(child); });
+      cur, end, [&](const auto* child) { return canRemoveChild(*child); });
   }
 
 private:
@@ -226,15 +226,15 @@ private:
   void doRemoveChild(Node* child);
   void clearChildren();
 
-  void childWillBeAdded(Node* node);
-  void childWasAdded(Node* node);
-  void childWillBeRemoved(Node* node);
-  void childWasRemoved(Node* node);
+  void childWillBeAdded(Node& node);
+  void childWasAdded(Node& node);
+  void childWillBeRemoved(Node& node);
+  void childWasRemoved(Node& node);
 
-  void descendantWillBeAdded(Node* newParent, Node* node, size_t depth);
-  void descendantWasAdded(Node* node, size_t depth);
-  void descendantWillBeRemoved(Node* node, size_t depth);
-  void descendantWasRemoved(Node* oldParent, Node* node, size_t depth);
+  void descendantWillBeAdded(Node& newParent, Node& node, size_t depth);
+  void descendantWasAdded(Node& node, size_t depth);
+  void descendantWillBeRemoved(Node& node, size_t depth);
+  void descendantWasRemoved(Node& oldParent, Node& node, size_t depth);
 
   void incDescendantCount(size_t delta);
   void decDescendantCount(size_t delta);
@@ -273,13 +273,13 @@ protected: // notification for parents
   void nodePhysicalBoundsDidChange();
 
 private:
-  void childWillChange(Node* node);
-  void childDidChange(Node* node);
-  void descendantWillChange(Node* node);
-  void descendantDidChange(Node* node);
+  void childWillChange(Node& node);
+  void childDidChange(Node& node);
+  void descendantWillChange(Node& node);
+  void descendantDidChange(Node& node);
 
-  void childPhysicalBoundsDidChange(Node* node);
-  void descendantPhysicalBoundsDidChange(Node* node, size_t depth);
+  void childPhysicalBoundsDidChange(Node& node);
+  void descendantPhysicalBoundsDidChange(Node& node, size_t depth);
 
 public: // selection
   bool selected() const;
@@ -345,6 +345,7 @@ public: // picking
 
 public: // file position
   size_t lineNumber() const;
+  size_t lineCount() const;
   void setFilePosition(size_t lineNumber, size_t lineCount) const;
   bool containsLine(size_t lineNumber) const;
 
@@ -498,21 +499,21 @@ private: // subclassing interface
   virtual Node* doClone(const vm::bbox3d& worldBounds) const = 0;
   virtual Node* doCloneRecursively(const vm::bbox3d& worldBounds) const;
 
-  virtual bool doCanAddChild(const Node* child) const = 0;
-  virtual bool doCanRemoveChild(const Node* child) const = 0;
+  virtual bool doCanAddChild(const Node& child) const = 0;
+  virtual bool doCanRemoveChild(const Node& child) const = 0;
   virtual bool doRemoveIfEmpty() const = 0;
 
   virtual bool doShouldAddToSpacialIndex() const = 0;
 
-  virtual void doChildWillBeAdded(Node* node);
-  virtual void doChildWasAdded(Node* node);
-  virtual void doChildWillBeRemoved(Node* node);
-  virtual void doChildWasRemoved(Node* node);
+  virtual void doChildWillBeAdded(Node& node);
+  virtual void doChildWasAdded(Node& node);
+  virtual void doChildWillBeRemoved(Node& node);
+  virtual void doChildWasRemoved(Node& node);
 
-  virtual void doDescendantWillBeAdded(Node* newParent, Node* node, size_t depth);
-  virtual void doDescendantWasAdded(Node* node, size_t depth);
-  virtual void doDescendantWillBeRemoved(Node* node, size_t depth);
-  virtual void doDescendantWasRemoved(Node* oldParent, Node* node, size_t depth);
+  virtual void doDescendantWillBeAdded(Node& newParent, Node& node, size_t depth);
+  virtual void doDescendantWasAdded(Node& node, size_t depth);
+  virtual void doDescendantWillBeRemoved(Node& node, size_t depth);
+  virtual void doDescendantWasRemoved(Node& oldParent, Node& node, size_t depth);
 
   virtual void doParentWillChange();
   virtual void doParentDidChange();
@@ -521,12 +522,12 @@ private: // subclassing interface
 
   virtual void doNodePhysicalBoundsDidChange();
   virtual void doChildPhysicalBoundsDidChange();
-  virtual void doDescendantPhysicalBoundsDidChange(Node* node);
+  virtual void doDescendantPhysicalBoundsDidChange(Node& node);
 
-  virtual void doChildWillChange(Node* node);
-  virtual void doChildDidChange(Node* node);
-  virtual void doDescendantWillChange(Node* node);
-  virtual void doDescendantDidChange(Node* node);
+  virtual void doChildWillChange(Node& node);
+  virtual void doChildDidChange(Node& node);
+  virtual void doDescendantWillChange(Node& node);
+  virtual void doDescendantDidChange(Node& node);
 
   virtual bool doSelectable() const = 0;
 

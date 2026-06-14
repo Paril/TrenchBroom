@@ -25,10 +25,12 @@
 #include "gl/ActiveShader.h"
 #include "gl/FontDescriptor.h"
 #include "gl/FontManager.h"
-#include "gl/GL.h"
+#include "gl/GlInterface.h"
+#include "gl/GlUtils.h"
 #include "gl/MaterialIndexRangeRenderer.h"
 #include "gl/MaterialRenderFunc.h"
 #include "gl/PrimType.h"
+#include "gl/ResourceId.h"
 #include "gl/Shaders.h"
 #include "gl/TextureFont.h"
 #include "gl/VertexArray.h"
@@ -60,8 +62,8 @@ namespace tb::ui
 {
 
 EntityBrowserView::EntityBrowserView(
-  QScrollBar* scrollBar, gl::ContextManager& contextManager, MapDocument& document)
-  : CellView{contextManager, scrollBar}
+  AppController& appController, QScrollBar* scrollBar, MapDocument& document)
+  : CellView{appController, scrollBar}
   , m_document{document}
   , m_sortOrder{mdl::EntityDefinitionSortOrder::Name}
 {
@@ -181,7 +183,6 @@ QString EntityBrowserView::dndData(const Cell& cell)
 void EntityBrowserView::resourcesWereProcessed(const std::vector<gl::ResourceId>&)
 {
   invalidate();
-  update();
 }
 
 void EntityBrowserView::addEntitiesToLayout(
@@ -212,6 +213,8 @@ void EntityBrowserView::addEntityToLayout(
   Layout& layout, const mdl::EntityDefinition& definition, const gl::FontDescriptor& font)
 {
   auto& map = m_document.map();
+  const auto name =
+    m_group ? std::string{mdl::getShortName(definition)} : definition.name;
 
   if (
     (!m_hideUnused || definition.usageCount() > 0)
@@ -221,9 +224,8 @@ void EntityBrowserView::addEntityToLayout(
     const auto& pointEntityDefinition = *definition.pointEntityDefinition;
 
     const auto maxCellWidth = layout.maxCellWidth();
-    const auto actualFont =
-      fontManager().selectFontSize(font, definition.name, maxCellWidth, 5);
-    const auto actualSize = fontManager().font(actualFont).measure(definition.name);
+    const auto actualFont = fontManager().selectFontSize(font, name, maxCellWidth, 5);
+    const auto actualSize = fontManager().font(actualFont).measure(name);
     const auto spec =
       mdl::safeGetModelSpecification(map.logger(), definition.name, [&]() {
         return pointEntityDefinition.modelDefinition.defaultModelSpecification();
@@ -277,7 +279,7 @@ void EntityBrowserView::addEntityToLayout(
         bounds,
         transform,
         modelScale},
-      definition.name,
+      name,
       rotatedBoundsSize.y(),
       rotatedBoundsSize.z(),
       actualSize.x(),
@@ -287,7 +289,8 @@ void EntityBrowserView::addEntityToLayout(
 
 void EntityBrowserView::doClear() {}
 
-void EntityBrowserView::doRender(Layout& layout, const float y, const float height)
+void EntityBrowserView::doRender(
+  gl::Gl& gl, Layout& layout, const float y, const float height)
 {
   const auto viewLeft = static_cast<float>(0);
   const auto viewTop = static_cast<float>(size().height());
@@ -298,10 +301,10 @@ void EntityBrowserView::doRender(Layout& layout, const float y, const float heig
     vm::ortho_matrix(-1024.0f, 1024.0f, viewLeft, viewTop, viewRight, viewBottom);
   const auto view =
     vm::view_matrix(CameraDirection, CameraUp) * vm::translation_matrix(CameraPosition);
-  auto transformation = render::Transformation{projection, view};
+  auto transformation = render::Transformation{gl, projection, view};
 
-  renderBounds(layout, y, height);
-  renderModels(layout, y, height, transformation);
+  renderBounds(gl, layout, y, height);
+  renderModels(gl, layout, y, height, transformation);
 }
 
 bool EntityBrowserView::shouldRenderFocusIndicator() const
@@ -314,7 +317,8 @@ const Color& EntityBrowserView::getBackgroundColor()
   return pref(Preferences::BrowserBackgroundColor);
 }
 
-void EntityBrowserView::renderBounds(Layout& layout, const float y, const float height)
+void EntityBrowserView::renderBounds(
+  gl::Gl& gl, Layout& layout, const float y, const float height)
 {
   using BoundsVertex = gl::VertexTypes::P3C4::Vertex;
   auto vertices = std::vector<BoundsVertex>{};
@@ -349,25 +353,30 @@ void EntityBrowserView::renderBounds(Layout& layout, const float y, const float 
     }
   }
 
-  auto shader = gl::ActiveShader{shaderManager(), gl::Shaders::VaryingPCShader};
+  auto shader = gl::ActiveShader{gl, shaderManager(), gl::Shaders::VaryingPCShader};
   auto vertexArray = gl::VertexArray::move(std::move(vertices));
 
-  vertexArray.prepare(vboManager());
-  vertexArray.render(gl::PrimType::Lines);
+  vertexArray.prepare(gl, vboManager());
+  if (vertexArray.setup(gl, shader.program()))
+  {
+    vertexArray.render(gl, gl::PrimType::Lines);
+    vertexArray.cleanup(gl, shader.program());
+  }
 }
 
 void EntityBrowserView::renderModels(
+  gl::Gl& gl,
   Layout& layout,
   const float y,
   const float height,
   render::Transformation& transformation)
 {
-  glAssert(glFrontFace(GL_CW));
+  gl.frontFace(GL_CW);
 
   auto& entityModelManager = m_document.map().entityModelManager();
-  entityModelManager.prepare(vboManager());
+  entityModelManager.prepare(gl, vboManager());
 
-  auto shader = gl::ActiveShader{shaderManager(), gl::Shaders::EntityModelShader};
+  auto shader = gl::ActiveShader{gl, shaderManager(), gl::Shaders::EntityModelShader};
   shader.set("ApplyTinting", false);
   shader.set("Brightness", pref(Preferences::Brightness));
   shader.set("GrayScale", false);
@@ -401,7 +410,7 @@ void EntityBrowserView::renderModels(
 
               auto renderFunc = gl::DefaultMaterialRenderFunc{
                 pref(Preferences::TextureMinFilter), pref(Preferences::TextureMagFilter)};
-              modelRenderer->render(renderFunc);
+              modelRenderer->render(gl, shader.program(), renderFunc);
             }
           }
         }

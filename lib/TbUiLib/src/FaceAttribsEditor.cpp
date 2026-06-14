@@ -19,6 +19,7 @@
 
 #include "ui/FaceAttribsEditor.h"
 
+#include <QApplication>
 #include <QColorDialog>
 #include <QLabel>
 #include <QLineEdit>
@@ -49,6 +50,7 @@
 #include "ui/SpinControl.h"
 #include "ui/Splitter.h"
 #include "ui/UVEditor.h"
+#include "ui/UVViewHelper.h"
 #include "ui/ViewConstants.h"
 #include "ui/ViewUtils.h"
 
@@ -56,12 +58,48 @@
 
 #include "vm/vec_io.h" // IWYU pragma: keep
 
+#include <regex>
 #include <algorithm>
 #include <cmath>
 #include <string>
 
 namespace tb::ui
 {
+namespace
+{
+
+class ColorValidator : public QValidator
+{
+public:
+  State validate(QString& input, int&) const override
+  {
+    static const auto Pattern = std::regex{R"(^\s*(?:\d+\s*){0,3}$)"};
+
+    const auto str = input.toStdString();
+    return str.empty() || RgbB::parse(str).is_success() ? State::Acceptable
+           : std::regex_match(str, Pattern)             ? State::Intermediate
+                                                        : State::Invalid;
+  };
+};
+
+std::tuple<QList<int>, QStringList, QStringList> getFlags(
+  const std::vector<mdl::FlagConfig>& flags)
+{
+  auto values = QList<int>{};
+  auto names = QStringList{};
+  auto descriptions = QStringList{};
+
+  for (const auto& flag : flags)
+  {
+    values.push_back(flag.value);
+    names.push_back(QString::fromStdString(flag.name));
+    descriptions.push_back(QString::fromStdString(flag.description));
+  }
+
+  return {std::move(values), std::move(names), std::move(descriptions)};
+}
+
+} // namespace
 
 namespace
 {
@@ -88,10 +126,10 @@ bool isColorSwlOverride(const std::optional<Color>& color, const gl::SinEmbedded
   if (!color.has_value())
     return false;
   if (!swl)
-    return true; // no SWL reference — any explicit color is an override
+    return true; // no SWL reference � any explicit color is an override
 
   // Compare in 0-255 byte space with a 4-unit threshold per channel. Round-
-  // tripping a colour through (typed bytes → float → map file → float → bytes)
+  // tripping a colour through (typed bytes ? float ? map file ? float ? bytes)
   // has been observed to drift by up to 3 bytes per channel, so a difference
   // of <4 is treated as the SWL default. 4 stays below the ~5-byte threshold
   // where colour differences become visually perceptible, so genuine
@@ -118,12 +156,12 @@ void FaceAttribsScrollArea::resizeEvent(QResizeEvent*)
 }
 
 FaceAttribsEditor::FaceAttribsEditor(
-  MapDocument& document, gl::ContextManager& contextManager, QWidget* parent)
+  AppController& appController, MapDocument& document, QWidget* parent)
   : QWidget{parent}
   , m_document{document}
   , m_updateControlsSignalDelayer{new SignalDelayer{this}}
 {
-  createGui(contextManager);
+  createGui(appController);
   bindEvents();
   connectObservers();
   updateIncrements();
@@ -132,6 +170,38 @@ FaceAttribsEditor::FaceAttribsEditor(
 bool FaceAttribsEditor::cancelMouseDrag()
 {
   return m_uvEditor->cancelMouseDrag();
+}
+
+void FaceAttribsEditor::alignClicked()
+{
+  const auto policy = qApp->keyboardModifiers().testFlag(Qt::ShiftModifier)
+                        ? mdl::UvPolicy::prev
+                        : mdl::UvPolicy::next;
+
+  alignUV(m_document.map(), policy);
+}
+
+void FaceAttribsEditor::justifyClicked(const mdl::UvJustifyDirection uvJustifyDirection)
+{
+  const auto uvPolicy = qApp->keyboardModifiers().testFlag(Qt::ShiftModifier)
+                          ? mdl::UvPolicy::prev
+                          : mdl::UvPolicy::next;
+
+  justifyUV(m_document.map(), uvJustifyDirection, uvPolicy);
+}
+
+void FaceAttribsEditor::fitClicked(const mdl::UvFitDirection uvFitDirection)
+{
+  const auto uvPolicy = qApp->keyboardModifiers().testFlag(Qt::ShiftModifier)
+                          ? mdl::UvPolicy::prev
+                          : mdl::UvPolicy::next;
+
+  fitUV(m_document.map(), uvFitDirection, uvPolicy);
+}
+
+void FaceAttribsEditor::autoFitClicked()
+{
+  autoFitUV(m_document.map());
 }
 
 void FaceAttribsEditor::xOffsetChanged(const double value)
@@ -254,7 +324,7 @@ void FaceAttribsEditor::surfaceValueChanged(const double value)
   }
 }
 
-void FaceAttribsEditor::colorValueChanged(const QString& /* text */)
+void FaceAttribsEditor::colorValueChanged()
 {
   auto& map = m_document.map();
   if (!map.selection().hasAnyBrushFaces())
@@ -988,10 +1058,113 @@ static QWidget* createUnsetButtonLayout(QWidget* expandWidget, QWidget* button)
   return wrapper;
 }
 
-void FaceAttribsEditor::createGui(gl::ContextManager& contextManager)
+void FaceAttribsEditor::createGui(AppController& appController)
 {
-  m_uvEditor = new UVEditor{m_document, contextManager};
+  m_uvEditor = new UVEditor{appController, m_document};
 
+  auto* buttonsWidget = createButtonsWidget();
+  auto* faceAttribsWidget = createAttribsWidget();
+
+  auto* innerLayout = new QHBoxLayout{};
+  innerLayout->setContentsMargins(0, 0, 0, 0);
+  innerLayout->setSpacing(LayoutConstants::NarrowHMargin);
+  innerLayout->addWidget(buttonsWidget, 0);
+  innerLayout->addWidget(new BorderLine{BorderLine::Direction::Vertical});
+  innerLayout->addWidget(faceAttribsWidget, 1);
+
+  auto* outerLayout = new QVBoxLayout{};
+  outerLayout->setContentsMargins(0, 0, 0, 0);
+  outerLayout->setSpacing(0);
+  outerLayout->addWidget(m_uvEditor, 1);
+  outerLayout->addWidget(new BorderLine{});
+  outerLayout->addLayout(innerLayout);
+
+  setLayout(outerLayout);
+}
+
+QWidget* FaceAttribsEditor::createButtonsWidget()
+{
+  m_alignButton = createBitmapButton(
+    "AlignTexture.svg",
+    tr(R"(Align texture to face edges.
+Click again to cycle through edges.
+Hold %1 to cycle backwards.)")
+      .arg(nativeModifierLabel(Qt::SHIFT)),
+    this);
+  m_justifyUpButton = createBitmapButton(
+    "JustifyTextureUp.svg",
+    tr(R"(Justify texture to top edge.
+Click again to cycle through options.
+Hold %1 to cycle backwards.)")
+      .arg(nativeModifierLabel(Qt::SHIFT)),
+    this);
+  m_justifyDownButton = createBitmapButton(
+    "JustifyTextureDown.svg",
+    tr(R"(Justify texture to bottom edge.
+Click again to cycle through options.
+Hold %1 to cycle backwards.)")
+      .arg(nativeModifierLabel(Qt::SHIFT)),
+    this);
+  m_justifyLeftButton = createBitmapButton(
+    "JustifyTextureLeft.svg",
+    tr(R"(Justify texture to left edge.
+Click again to cycle through options.
+Hold %1 to cycle backwards.)")
+      .arg(nativeModifierLabel(Qt::SHIFT)),
+    this);
+  m_justifyRightButton = createBitmapButton(
+    "JustifyTextureRight.svg",
+    tr(
+      R"(Justify texture to right edge.
+Click again to cycle through options.
+Hold %1 to cycle backwards.)")
+      .arg(nativeModifierLabel(Qt::SHIFT)),
+    this);
+  m_fitHButton = createBitmapButton(
+    "FitTextureHorizontally.svg",
+    tr(
+      R"(Fit texture horizontally.
+Click again to cycle through options.
+Hold %1 to cycle backwards.)")
+      .arg(nativeModifierLabel(Qt::SHIFT)),
+    this);
+  m_fitVButton = createBitmapButton(
+    "FitTextureVertically.svg",
+    tr(R"(Fit texture vertically.
+Click again to cycle through options.
+Hold %1 to cycle backwards.)")
+      .arg(nativeModifierLabel(Qt::SHIFT)),
+    this);
+  m_autoFitButton =
+    createBitmapButton("AutoFitTexture.svg", tr("Fit texture to face."), this);
+
+  auto* innerLayout = new QGridLayout{};
+  innerLayout->addWidget(m_justifyUpButton, 0, 1);
+  innerLayout->addWidget(m_justifyLeftButton, 1, 0);
+  innerLayout->addWidget(m_autoFitButton, 1, 1);
+  innerLayout->addWidget(m_justifyRightButton, 1, 2);
+  innerLayout->addWidget(m_justifyDownButton, 2, 1);
+
+  innerLayout->addWidget(m_alignButton, 3, 0);
+  innerLayout->addWidget(m_fitHButton, 3, 1);
+  innerLayout->addWidget(m_fitVButton, 3, 2);
+
+  innerLayout->setContentsMargins(QMargins{0, 0, 0, 0});
+  innerLayout->setSpacing(LayoutConstants::NarrowHMargin);
+
+  auto* outerLayout = new QVBoxLayout{};
+  outerLayout->setContentsMargins(QMargins{0, 0, 0, 0});
+  outerLayout->addLayout(innerLayout);
+  outerLayout->addStretch(0);
+
+  auto* container = new QWidget{};
+  container->setLayout(outerLayout);
+  container->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+  return container;
+}
+
+QWidget* FaceAttribsEditor::createAttribsWidget()
+{
   auto* materialNameLabel = new QLabel{"Material"};
   setEmphasizedStyle(materialNameLabel);
   m_materialName = new QLabel{"none"};
@@ -1090,6 +1263,7 @@ void FaceAttribsEditor::createGui(gl::ContextManager& contextManager)
   m_colorRgbLabel->setVisible(false);
   m_colorRgbLabel->setStyleSheet("QLabel { color: gray; font-style: italic; }");
 
+  m_colorEditor->setProperty("error", false);
   m_colorUnsetButton = createBitmapButton("ResetUV.svg", tr("Unset color"));
 
   // Row: [R (flex)][G (flex)][B (flex)][square][RGB info label][X button]
@@ -1520,6 +1694,28 @@ void FaceAttribsEditor::createGui(gl::ContextManager& contextManager)
 void FaceAttribsEditor::bindEvents()
 {
   connect(
+    m_alignButton, &QAbstractButton::clicked, this, &FaceAttribsEditor::alignClicked);
+  connect(m_justifyUpButton, &QAbstractButton::clicked, [&]() {
+    justifyClicked(mdl::UvJustifyDirection::Up);
+  });
+  connect(m_justifyDownButton, &QAbstractButton::clicked, [&]() {
+    justifyClicked(mdl::UvJustifyDirection::Down);
+  });
+  connect(m_justifyLeftButton, &QAbstractButton::clicked, [&]() {
+    justifyClicked(mdl::UvJustifyDirection::Left);
+  });
+  connect(m_justifyRightButton, &QAbstractButton::clicked, [&]() {
+    justifyClicked(mdl::UvJustifyDirection::Right);
+  });
+  connect(m_fitHButton, &QAbstractButton::clicked, [&]() {
+    fitClicked(mdl::UvFitDirection::Horizontal);
+  });
+  connect(m_fitVButton, &QAbstractButton::clicked, [&]() {
+    fitClicked(mdl::UvFitDirection::Vertical);
+  });
+  connect(m_autoFitButton, &QAbstractButton::clicked, [&]() { autoFitClicked(); });
+
+  connect(
     m_xOffsetEditor,
     QOverload<double>::of(&QDoubleSpinBox::valueChanged),
     this,
@@ -1754,8 +1950,6 @@ void FaceAttribsEditor::bindEvents()
 
 void FaceAttribsEditor::connectObservers()
 {
-  auto& map = m_document.map();
-
   m_notifierConnection +=
     m_document.documentWasLoadedNotifier.connect([&] { refresh(); });
   m_notifierConnection +=
@@ -1763,7 +1957,7 @@ void FaceAttribsEditor::connectObservers()
   m_notifierConnection +=
     m_document.selectionDidChangeNotifier.connect([&](const auto&) { refresh(); });
   m_notifierConnection +=
-    map.grid().gridDidChangeNotifier.connect(this, &FaceAttribsEditor::updateIncrements);
+    m_document.gridDidChangeNotifier.connect(this, &FaceAttribsEditor::updateIncrements);
 }
 
 void FaceAttribsEditor::refresh()
@@ -1836,34 +2030,18 @@ void FaceAttribsEditor::updateControls()
 
   if (hasSurfaceFlags())
   {
-    showSurfaceFlagsEditor();
     const auto [values, labels, tooltips] = getSurfaceFlags();
     m_surfaceFlagsEditor->setFlags(values, labels, tooltips);
   }
-  else
-  {
-    hideSurfaceFlagsEditor();
-  }
 
+  setContentFlagsEditorVisible(hasContentFlags());
   if (hasContentFlags())
   {
-    showContentFlagsEditor();
     const auto [values, labels, tooltips] = getContentFlags();
     m_contentFlagsEditor->setFlags(values, labels, tooltips);
   }
-  else
-  {
-    hideContentFlagsEditor();
-  }
 
-  if (hasColorAttribs())
-  {
-    showColorAttribEditor();
-  }
-  else
-  {
-    hideColorAttribEditor();
-  }
+  setColorAttribEditorVisible(hasColorAttribs());
 
   // SiN
   if (hasSiNAttributes())
@@ -2094,6 +2272,15 @@ void FaceAttribsEditor::updateControls()
       sinExtPhongGroupMulti |= (sinExtPhongGroup != face.attributes().sinExtPhongGroup());
       hasSiNExtPhongGroup |= face.attributes().hasSiNExtPhongGroup();
     }
+
+    m_alignButton->setEnabled(true);
+    m_justifyUpButton->setEnabled(true);
+    m_justifyDownButton->setEnabled(true);
+    m_justifyLeftButton->setEnabled(true);
+    m_justifyRightButton->setEnabled(true);
+    m_fitHButton->setEnabled(true);
+    m_fitVButton->setEnabled(true);
+    m_autoFitButton->setEnabled(true);
 
     m_xOffsetEditor->setEnabled(true);
     m_yOffsetEditor->setEnabled(true);
@@ -2390,6 +2577,15 @@ void FaceAttribsEditor::updateControls()
   }
   else
   {
+    m_alignButton->setEnabled(false);
+    m_justifyUpButton->setEnabled(false);
+    m_justifyDownButton->setEnabled(false);
+    m_justifyLeftButton->setEnabled(false);
+    m_justifyRightButton->setEnabled(false);
+    m_fitHButton->setEnabled(false);
+    m_fitVButton->setEnabled(false);
+    m_autoFitButton->setEnabled(false);
+
     disableAndSetPlaceholder(m_xOffsetEditor, "n/a");
     disableAndSetPlaceholder(m_yOffsetEditor, "n/a");
     disableAndSetPlaceholder(m_xScaleEditor, "n/a");
@@ -2465,32 +2661,18 @@ bool FaceAttribsEditor::hasContentFlags() const
   return !gameInfo.gameConfig.faceAttribsConfig.contentFlags.flags.empty();
 }
 
-void FaceAttribsEditor::showSurfaceFlagsEditor()
+void FaceAttribsEditor::setSurfaceFlagsEditorVisible(const bool visible)
 {
-  m_surfaceValueLabel->show();
-  m_surfaceValueEditorLayout->show();
-  m_surfaceFlagsLabel->show();
-  m_surfaceFlagsEditorLayout->show();
+  m_surfaceValueLabel->setVisible(visible);
+  m_surfaceValueEditorLayout->setVisible(visible);
+  m_surfaceFlagsLabel->setVisible(visible);
+  m_surfaceFlagsEditorLayout->setVisible(visible);
 }
 
-void FaceAttribsEditor::showContentFlagsEditor()
+void FaceAttribsEditor::setContentFlagsEditorVisible(const bool visible)
 {
-  m_contentFlagsLabel->show();
-  m_contentFlagsEditorLayout->show();
-}
-
-void FaceAttribsEditor::hideSurfaceFlagsEditor()
-{
-  m_surfaceValueLabel->hide();
-  m_surfaceValueEditorLayout->hide();
-  m_surfaceFlagsLabel->hide();
-  m_surfaceFlagsEditorLayout->hide();
-}
-
-void FaceAttribsEditor::hideContentFlagsEditor()
-{
-  m_contentFlagsLabel->hide();
-  m_contentFlagsEditorLayout->hide();
+  m_contentFlagsLabel->setVisible(visible);
+  m_contentFlagsEditorLayout->setVisible(visible);
 }
 
 bool FaceAttribsEditor::hasColorAttribs() const
@@ -2499,10 +2681,10 @@ bool FaceAttribsEditor::hasColorAttribs() const
          || hasSiNAttributes();
 }
 
-void FaceAttribsEditor::showColorAttribEditor()
+void FaceAttribsEditor::setColorAttribEditorVisible(const bool visible)
 {
-  m_colorLabel->show();
-  m_colorEditorLayout->show();
+  m_colorLabel->setVisible(visible);
+  m_colorEditorLayout->setVisible(visible);
 }
 
 void FaceAttribsEditor::hideColorAttribEditor()

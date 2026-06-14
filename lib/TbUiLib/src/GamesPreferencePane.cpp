@@ -27,6 +27,7 @@
 #include <QFormLayout>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QStackedWidget>
 #include <QToolButton>
 #include <QWidget>
@@ -69,7 +70,6 @@ void GamesPreferencePane::createGui()
 {
   m_gameListBox = new GameListBox{m_appController};
   m_gameListBox->selectGame(0);
-  m_gameListBox->setMaximumWidth(220);
   m_gameListBox->setMinimumHeight(300);
 
   m_defaultPage = createEmptyWidget(tr("Select a game."));
@@ -104,13 +104,12 @@ void GamesPreferencePane::createGui()
   auto* layout = new QHBoxLayout{};
   layout->setContentsMargins(QMargins{});
   layout->setSpacing(0);
-  setLayout(layout);
-
   layout->addLayout(glbLayout);
   layout->addWidget(new BorderLine(BorderLine::Direction::Vertical));
   layout->addSpacing(LayoutConstants::MediumVMargin);
   layout->addLayout(stwLayout, 1);
 
+  createScrollableContent(layout);
   setMinimumWidth(600);
 
   connect(
@@ -149,12 +148,7 @@ void GamesPreferencePane::updateControls()
 
   if (const auto* selectedGameInfo = m_gameListBox->selectedGameInfo())
   {
-    if (m_currentGamePage && &m_currentGamePage->gameInfo() == selectedGameInfo)
-    {
-      // refresh the current page
-      m_currentGamePage->updateControls();
-    }
-    else
+    if (!m_currentGamePage || &m_currentGamePage->gameInfo() != selectedGameInfo)
     {
       // build a new current page
       delete m_currentGamePage;
@@ -170,6 +164,8 @@ void GamesPreferencePane::updateControls()
         this,
         &GamesPreferencePane::updateControls);
     }
+
+    m_currentGamePage->updateControls();
   }
   else
   {
@@ -341,11 +337,13 @@ void GamePreferencePane::updateControls()
   // Refresh tool paths from preferences
   for (const auto& [tool, toolPathEditor] : m_toolPathEditors)
   {
+    const auto toolPathBlocker = QSignalBlocker{toolPathEditor};
     const auto& toolPath = prefs.getPendingValue(tool->pathPreference);
     toolPathEditor->setText(pathAsQString(toolPath));
   }
 
   // Refresh game path
+  const auto gamePathBlocker = QSignalBlocker{m_gamePathText};
   const auto gamePath = prefs.getPendingValue(m_gameInfo.gamePathPreference);
   m_gamePathText->setText(pathAsQString(gamePath));
 }

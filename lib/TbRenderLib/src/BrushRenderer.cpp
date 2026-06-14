@@ -192,32 +192,32 @@ void BrushRenderer::invalidateMaterials(const std::vector<const gl::Material*>& 
 {
   const auto materialSet =
     std::unordered_set<const gl::Material*>{materials.begin(), materials.end()};
-  for (auto* brush : m_allBrushes)
+  for (auto* brushNode : m_allBrushes)
   {
-    for (const auto& face : brush->brush().faces())
+    for (const auto& face : brushNode->brush().faces())
     {
       if (materialSet.count(face.material()) > 0)
       {
-        brush->brushRendererBrushCache().invalidateVertexCache();
-        invalidateBrush(brush);
+        brushNode->brushRendererBrushCache().invalidateVertexCache();
+        invalidateBrush(*brushNode);
       }
     }
   }
 }
 
-void BrushRenderer::invalidateBrush(const mdl::BrushNode* brushNode)
+void BrushRenderer::invalidateBrush(const mdl::BrushNode& brushNode)
 {
   // skip brushes that are not in the renderer
-  if (m_allBrushes.find(brushNode) == std::end(m_allBrushes))
+  if (m_allBrushes.find(&brushNode) == std::end(m_allBrushes))
   {
-    contract_assert(m_brushInfo.find(brushNode) == std::end(m_brushInfo));
-    contract_assert(m_invalidBrushes.find(brushNode) == std::end(m_invalidBrushes));
+    contract_assert(m_brushInfo.find(&brushNode) == std::end(m_brushInfo));
+    contract_assert(m_invalidBrushes.find(&brushNode) == std::end(m_invalidBrushes));
     return;
   }
   // if it's not in the invalid set, put it in
-  if (m_invalidBrushes.insert(brushNode).second)
+  if (m_invalidBrushes.insert(&brushNode).second)
   {
-    removeBrushFromVbo(*brushNode);
+    removeBrushFromVbo(brushNode);
   }
 }
 
@@ -685,32 +685,32 @@ void BrushRenderer::validateBrush(const mdl::BrushNode& brushNode)
   }
 }
 
-void BrushRenderer::addBrush(const mdl::BrushNode* brushNode)
+void BrushRenderer::addBrush(const mdl::BrushNode& brushNode)
 {
   // i.e. insert the brush as "invalid" if it's not already present.
   // if it is present, its validity is unchanged.
-  if (m_allBrushes.insert(brushNode).second)
+  if (m_allBrushes.insert(&brushNode).second)
   {
-    contract_assert(m_brushInfo.find(brushNode) == std::end(m_brushInfo));
+    contract_assert(m_brushInfo.find(&brushNode) == std::end(m_brushInfo));
 
-    assertResult(m_invalidBrushes.insert(brushNode).second);
+    assertResult(m_invalidBrushes.insert(&brushNode).second);
   }
 }
 
-void BrushRenderer::removeBrush(const mdl::BrushNode* brushNode)
+void BrushRenderer::removeBrush(const mdl::BrushNode& brushNode)
 {
   // update m_brushValid
-  m_allBrushes.erase(brushNode);
+  m_allBrushes.erase(&brushNode);
 
-  if (m_invalidBrushes.erase(brushNode) > 0u)
+  if (m_invalidBrushes.erase(&brushNode) > 0u)
   {
     // invalid brushes are not in the VBO, so we can return  now.
-    contract_assert(m_brushInfo.find(brushNode) == std::end(m_brushInfo));
+    contract_assert(m_brushInfo.find(&brushNode) == std::end(m_brushInfo));
 
     return;
   }
 
-  removeBrushFromVbo(*brushNode);
+  removeBrushFromVbo(brushNode);
 }
 
 void BrushRenderer::removeBrushFromVbo(const mdl::BrushNode& brushNode)

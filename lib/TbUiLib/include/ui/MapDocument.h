@@ -21,7 +21,6 @@
 
 #include "Notifier.h"
 #include "NotifierConnection.h"
-#include "gl/ResourceId.h"
 #include "mdl/PointTrace.h"
 #include "ui/Action.h"
 
@@ -46,19 +45,21 @@ class LoggingHub;
 
 namespace gl
 {
+class ResourceId;
 class ResourceManager;
-}
+} // namespace gl
 
 namespace mdl
 {
-enum class MapFormat;
-
 class Autosaver;
 class Command;
 class Map;
 class Node;
 class PickResult;
 class UndoableCommand;
+
+enum class MapFormat;
+enum class VisualEffect;
 
 struct EnvironmentConfig;
 struct GameInfo;
@@ -75,7 +76,6 @@ namespace ui
 class ActionManager;
 class AsyncTaskRunner;
 class CachingLogger;
-class ViewEffectsService;
 
 struct PointFile
 {
@@ -132,6 +132,8 @@ public:
   Notifier<> modsWillChangeNotifier;
   Notifier<> modsDidChangeNotifier;
 
+  Notifier<mdl::VisualEffect> triggerVisualEffectNotifier;
+
   Notifier<> gridDidChangeNotifier;
 
   Notifier<mdl::Command&> commandDoNotifier;
@@ -163,8 +165,6 @@ private:
 
   std::optional<std::vector<Action>> m_cachedTagActions;
   std::optional<std::vector<Action>> m_cachedEntityDefinitionActions;
-
-  ViewEffectsService* m_viewEffectsService = nullptr;
 
   std::unique_ptr<render::MapRenderer> m_mapRenderer;
 
@@ -227,8 +227,6 @@ public: // accessors and such
 
   Logger& logger();
   void setTargetLogger(Logger* parentLogger);
-
-  void setViewEffectsService(ViewEffectsService* viewEffectsService);
 
 public: // tag and entity definition actions
   template <typename ActionVisitor>

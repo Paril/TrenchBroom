@@ -63,19 +63,23 @@ const EntityNodeBase* BrushNode::entity() const
 {
   return visitParent(
            kdl::overload(
-             [](const WorldNode* world) -> const EntityNodeBase* { return world; },
-             [](const EntityNode* entity) -> const EntityNodeBase* { return entity; },
-             [](auto&& thisLambda, const LayerNode* layer) -> const EntityNodeBase* {
-               return layer->visitParent(thisLambda).value_or(nullptr);
+             [](const WorldNode& worldNode) -> const EntityNodeBase* {
+               return &worldNode;
              },
-             [](auto&& thisLambda, const GroupNode* group) -> const EntityNodeBase* {
-               return group->visitParent(thisLambda).value_or(nullptr);
+             [](const EntityNode& entityNode) -> const EntityNodeBase* {
+               return &entityNode;
              },
-             [](auto&& thisLambda, const BrushNode* brush) -> const EntityNodeBase* {
-               return brush->visitParent(thisLambda).value_or(nullptr);
+             [](auto&& thisLambda, const LayerNode& layerNode) -> const EntityNodeBase* {
+               return layerNode.visitParent(thisLambda).value_or(nullptr);
              },
-             [](auto&& thisLambda, const PatchNode* patch) -> const EntityNodeBase* {
-               return patch->visitParent(thisLambda).value_or(nullptr);
+             [](auto&& thisLambda, const GroupNode& groupNode) -> const EntityNodeBase* {
+               return groupNode.visitParent(thisLambda).value_or(nullptr);
+             },
+             [](auto&& thisLambda, const BrushNode& brushNode) -> const EntityNodeBase* {
+               return brushNode.visitParent(thisLambda).value_or(nullptr);
+             },
+             [](auto&& thisLambda, const PatchNode& patchNode) -> const EntityNodeBase* {
+               return patchNode.visitParent(thisLambda).value_or(nullptr);
              }))
     .value_or(nullptr);
 }
@@ -153,15 +157,15 @@ static bool containsPatch(const Brush& brush, const PatchGrid& grid)
   return true;
 }
 
-bool BrushNode::contains(const Node* node) const
+bool BrushNode::contains(const Node& node) const
 {
-  return node->accept(kdl::overload(
-    [](const WorldNode*) { return false; },
-    [](const LayerNode*) { return false; },
-    [&](const GroupNode* group) { return m_brush.contains(group->logicalBounds()); },
-    [&](const EntityNode* entity) { return m_brush.contains(entity->logicalBounds()); },
-    [&](const BrushNode* brush) { return m_brush.contains(brush->brush()); },
-    [&](const PatchNode* patch) { return containsPatch(m_brush, patch->grid()); }));
+  return node.accept(kdl::overload(
+    [](const WorldNode&) { return false; },
+    [](const LayerNode&) { return false; },
+    [&](const GroupNode& group) { return m_brush.contains(group.logicalBounds()); },
+    [&](const EntityNode& entity) { return m_brush.contains(entity.logicalBounds()); },
+    [&](const BrushNode& brush) { return m_brush.contains(brush.brush()); },
+    [&](const PatchNode& patch) { return containsPatch(m_brush, patch.grid()); }));
 }
 
 static bool faceIntersectsEdge(
@@ -227,15 +231,15 @@ static bool intersectsPatch(const Brush& brush, const PatchGrid& grid)
   return false;
 }
 
-bool BrushNode::intersects(const Node* node) const
+bool BrushNode::intersects(const Node& node) const
 {
-  return node->accept(kdl::overload(
-    [](const WorldNode*) { return false; },
-    [](const LayerNode*) { return false; },
-    [&](const GroupNode* group) { return m_brush.intersects(group->logicalBounds()); },
-    [&](const EntityNode* entity) { return m_brush.intersects(entity->logicalBounds()); },
-    [&](const BrushNode* brush) { return m_brush.intersects(brush->brush()); },
-    [&](const PatchNode* patch) { return intersectsPatch(m_brush, patch->grid()); }));
+  return node.accept(kdl::overload(
+    [](const WorldNode&) { return false; },
+    [](const LayerNode&) { return false; },
+    [&](const GroupNode& group) { return m_brush.intersects(group.logicalBounds()); },
+    [&](const EntityNode& entity) { return m_brush.intersects(entity.logicalBounds()); },
+    [&](const BrushNode& brush) { return m_brush.intersects(brush.brush()); },
+    [&](const PatchNode& patch) { return intersectsPatch(m_brush, patch.grid()); }));
 }
 
 void BrushNode::clearSelectedFaces()
@@ -303,12 +307,12 @@ Node* BrushNode::doClone(const vm::bbox3d& /* worldBounds */) const
   return result.release();
 }
 
-bool BrushNode::doCanAddChild(const Node* /* child */) const
+bool BrushNode::doCanAddChild(const Node&) const
 {
   return false;
 }
 
-bool BrushNode::doCanRemoveChild(const Node* /* child */) const
+bool BrushNode::doCanRemoveChild(const Node&) const
 {
   return false;
 }
@@ -330,12 +334,12 @@ bool BrushNode::doSelectable() const
 
 void BrushNode::doAccept(NodeVisitor& visitor)
 {
-  visitor.visit(this);
+  visitor.visit(*this);
 }
 
 void BrushNode::doAccept(ConstNodeVisitor& visitor) const
 {
-  visitor.visit(this);
+  visitor.visit(*this);
 }
 
 void BrushNode::doPick(

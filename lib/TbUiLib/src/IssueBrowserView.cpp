@@ -140,8 +140,8 @@ void IssueBrowserView::updateIssues()
   const auto validators = map.worldNode().registeredValidators();
 
   auto issues = std::vector<const mdl::Issue*>{};
-  const auto collectIssues = [&](auto* node) {
-    for (auto* issue : node->issues(validators))
+  const auto collectIssues = [&](auto& node) {
+    for (auto* issue : node.issues(validators))
     {
       if (
         m_showHiddenIssues
@@ -153,24 +153,24 @@ void IssueBrowserView::updateIssues()
   };
 
   map.worldNode().accept(kdl::overload(
-    [&](auto&& thisLambda, mdl::WorldNode* worldNode) {
+    [&](auto&& thisLambda, mdl::WorldNode& worldNode) {
       collectIssues(worldNode);
-      worldNode->visitChildren(thisLambda);
+      worldNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, mdl::LayerNode* layerNode) {
+    [&](auto&& thisLambda, mdl::LayerNode& layerNode) {
       collectIssues(layerNode);
-      layerNode->visitChildren(thisLambda);
+      layerNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, mdl::GroupNode* groupNode) {
+    [&](auto&& thisLambda, mdl::GroupNode& groupNode) {
       collectIssues(groupNode);
-      groupNode->visitChildren(thisLambda);
+      groupNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, mdl::EntityNode* entityNode) {
+    [&](auto&& thisLambda, mdl::EntityNode& entityNode) {
       collectIssues(entityNode);
-      entityNode->visitChildren(thisLambda);
+      entityNode.visitChildren(thisLambda);
     },
-    [&](mdl::BrushNode* brushNode) { collectIssues(brushNode); },
-    [&](mdl::PatchNode* patchNode) { collectIssues(patchNode); }));
+    [&](mdl::BrushNode& brushNode) { collectIssues(brushNode); },
+    [&](mdl::PatchNode& patchNode) { collectIssues(patchNode); }));
 
   issues = kdl::vec_sort(std::move(issues), [](const auto* lhs, const auto* rhs) {
     return lhs->seqId() > rhs->seqId();

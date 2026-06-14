@@ -132,6 +132,12 @@ if (TB_ENABLE_PCH)
     <QMutexLocker>
     <QNtfsPermissionCheckGuard> 
     <QObject>
+    <QOpenGLBuffer>
+    <QOpenGLFunctions_2_1>
+    <QOpenGLFunctions>
+    <QOpenGLShaderProgram>
+    <QOpenGLTexture>
+    <QOpenGLWidget>
     <QPainter>
     <QPaintEvent>
     <QPalette>

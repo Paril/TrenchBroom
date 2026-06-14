@@ -21,6 +21,8 @@
 #include "kd/ranges/adjacent_view.h"
 
 #include <memory>
+#include <tuple>
+#include <type_traits>
 #include <vector>
 
 #include <catch2/catch_test_macros.hpp>
@@ -31,7 +33,7 @@ namespace kdl
 
 TEST_CASE("adjacent")
 {
-  using namespace Catch::Matchers;
+  using Catch::Matchers::RangeEquals;
 
   SECTION("properties")
   {
@@ -152,27 +154,66 @@ TEST_CASE("adjacent")
     }
   }
 
+  SECTION("move-only value types")
+  {
+    using move_only = std::unique_ptr<int>;
+
+    auto v = std::vector<move_only>{};
+    v.push_back(std::make_unique<int>(1));
+    v.push_back(std::make_unique<int>(2));
+
+    auto a = v | views::pairwise;
+
+    CHECK_THAT(
+      a,
+      RangeEquals(std::vector<std::tuple<move_only&, move_only&>>{
+        {v[0], v[1]},
+      }));
+  }
+
   SECTION("pairwise")
   {
     const auto v = std::vector<int>{1, 2, 3, 4};
     auto a = v | views::pairwise;
 
-    CHECK_THAT(a, RangeEquals(std::vector<std::tuple<int, int>>{{1, 2}, {2, 3}, {3, 4}}));
+    CHECK_THAT(
+      a,
+      RangeEquals(std::vector<std::tuple<int, int>>{
+        {1, 2},
+        {2, 3},
+        {3, 4},
+      }));
   }
 
-  SECTION("move-only values")
+  SECTION("size")
   {
-    auto v = std::vector<std::unique_ptr<int>>{};
-    v.push_back(std::make_unique<int>(1));
-    v.push_back(std::make_unique<int>(2));
-    v.push_back(std::make_unique<int>(3));
+    SECTION("base size greater than N")
+    {
+      const auto v = std::vector<int>{1, 2, 3, 4};
+      auto a = v | views::adjacent<3>;
+      CHECK(a.size() == 2);
+    }
 
-    CHECK_THAT(
-      v | views::adjacent<2>,
-      RangeEquals(std::vector<std::tuple<std::unique_ptr<int>&, std::unique_ptr<int>&>>{
-        {v[0], v[1]},
-        {v[1], v[2]},
-      }));
+    SECTION("base size equal to N")
+    {
+      const auto v = std::vector<int>{1, 2, 3};
+      auto a = v | views::adjacent<3>;
+      CHECK(a.size() == 1);
+    }
+
+    SECTION("base size less than N")
+    {
+      const auto v = std::vector<int>{1, 2};
+      auto a = v | views::adjacent<3>;
+      CHECK(a.size() == 0);
+    }
+
+    SECTION("empty base")
+    {
+      const auto v = std::vector<int>{};
+      auto a = v | views::adjacent<3>;
+      CHECK(a.size() == 0);
+    }
   }
 }
 

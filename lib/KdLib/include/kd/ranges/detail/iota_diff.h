@@ -23,7 +23,7 @@
 #include <iterator>
 #include <type_traits>
 
-namespace kdl
+namespace kdl::ranges
 {
 namespace detail
 {
@@ -78,4 +78,4 @@ public:
 template <typename I>
 using iota_diff_t = typename iota_diff<I>::type;
 
-} // namespace kdl
+} // namespace kdl::ranges

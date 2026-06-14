@@ -177,13 +177,13 @@ TEST_CASE("BrushNode")
     }, "some_material"}};
       // clang-format on
 
-      CHECK_FALSE(brushNode.contains(&patchNode));
+      CHECK_FALSE(brushNode.contains(patchNode));
 
       transformNode(patchNode, vm::translation_matrix(vm::vec3d{0, -8, 0}), worldBounds);
-      CHECK(brushNode.contains(&patchNode));
+      CHECK(brushNode.contains(patchNode));
 
       transformNode(patchNode, vm::translation_matrix(vm::vec3d{0, 0, 32}), worldBounds);
-      CHECK_FALSE(brushNode.contains(&patchNode));
+      CHECK_FALSE(brushNode.contains(patchNode));
     }
   }
 
@@ -209,34 +209,34 @@ TEST_CASE("BrushNode")
       }, "some_material"}};
       // clang-format on
 
-      CHECK(brushNode.intersects(&patchNode));
+      CHECK(brushNode.intersects(patchNode));
 
       SECTION("Brush contains patch")
       {
         transformNode(
           patchNode, vm::translation_matrix(vm::vec3d{0, -8, 0}), worldBounds);
-        CHECK(brushNode.intersects(&patchNode));
+        CHECK(brushNode.intersects(patchNode));
       }
 
       SECTION("Patch sticks out of top of brush")
       {
         transformNode(
           patchNode, vm::translation_matrix(vm::vec3d{0, -8, 32}), worldBounds);
-        CHECK(brushNode.intersects(&patchNode));
+        CHECK(brushNode.intersects(patchNode));
       }
 
       SECTION("Patch is above brush")
       {
         transformNode(
           patchNode, vm::translation_matrix(vm::vec3d{0, -8, 64}), worldBounds);
-        CHECK_FALSE(brushNode.intersects(&patchNode));
+        CHECK_FALSE(brushNode.intersects(patchNode));
       }
 
       SECTION("Patch doesn't touch brush, but bounds intersect")
       {
         transformNode(
           patchNode, vm::translation_matrix(vm::vec3d{0, 32, 0}), worldBounds);
-        CHECK_FALSE(brushNode.intersects(&patchNode));
+        CHECK_FALSE(brushNode.intersects(patchNode));
       }
 
       SECTION("Brush does not contain any grid points, but patch intersects")
@@ -248,7 +248,7 @@ TEST_CASE("BrushNode")
         {
           REQUIRE_FALSE(thinBrushNode.brush().containsPoint(point.position));
         }
-        CHECK(thinBrushNode.intersects(&patchNode));
+        CHECK(thinBrushNode.intersects(patchNode));
       }
     }
   }
@@ -856,8 +856,8 @@ TEST_CASE("BrushNode (Regression)", "[regression]")
     auto* pipe = static_cast<BrushNode*>(nodes.value().at(0)->children().at(0));
     auto* cube = static_cast<BrushNode*>(nodes.value().at(0)->children().at(1));
 
-    CHECK(pipe->intersects(cube));
-    CHECK(cube->intersects(pipe));
+    CHECK(pipe->intersects(*cube));
+    CHECK(cube->intersects(*pipe));
 
     kdl::col_delete_all(nodes.value());
   }

@@ -399,7 +399,7 @@ TEST_CASE("Map_Geometry")
       selectNodes(map, {brushNode});
 
       auto& vertexHandles = map.vertexHandles();
-      vertexHandles.addHandles(brushNode);
+      vertexHandles.addHandles(*brushNode);
       vertexHandles.select(std::vector<vm::vec3d>{
         {-32, -32, 32},
         {-32, 32, 32},
@@ -1332,7 +1332,7 @@ TEST_CASE("Map_Geometry")
     SECTION("Regression tests")
     {
       auto& map = fixture.load(
-        "fixture/test/mdl/Map/csgSubtractFailure.map", {.mapFormat = MapFormat::Valve});
+        "test/mdl/Map/csgSubtractFailure.map", {.mapFormat = MapFormat::Valve});
 
       REQUIRE(map.editorContext().currentLayer()->childCount() == 2);
       auto* subtrahendNode =
@@ -1367,7 +1367,7 @@ TEST_CASE("Map_Geometry")
   SECTION("csgHollow")
   {
     auto& map =
-      fixture.load("fixture/test/mdl/Map/csgHollow.map", {.mapFormat = MapFormat::Valve});
+      fixture.load("test/mdl/Map/csgHollow.map", {.mapFormat = MapFormat::Valve});
 
     REQUIRE(map.editorContext().currentLayer()->childCount() == 2);
     REQUIRE(!map.modified());

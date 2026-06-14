@@ -23,11 +23,12 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
+#include <QSignalBlocker>
 #include <QtGlobal>
 
 #include "PreferenceManager.h"
 #include "Preferences.h"
-#include "gl/GL.h"
+#include "gl/MiniGl.h"
 #include "ui/FormWithSectionsLayout.h"
 #include "ui/QStyleUtils.h"
 #include "ui/SliderWithLabel.h"
@@ -61,6 +62,13 @@ const auto FilterModes = std::array<FilterMode, 6>{
   FilterMode{GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, "Linear (mipmapped, interpolated)"},
 };
 
+std::optional<size_t> findFilterMode(const int minFilter, const int magFilter)
+{
+  return kdl::index_of(FilterModes, [&](const FilterMode& filterMode) {
+    return filterMode.minFilter == minFilter && filterMode.magFilter == magFilter;
+  });
+}
+
 constexpr int brightnessToUI(const float value)
 {
   return int(vm::round(100.0f * (value - 1.0f)));
@@ -89,11 +97,11 @@ void ViewPreferencePane::createGui()
   auto* layout = new QVBoxLayout{};
   layout->setContentsMargins(QMargins{});
   layout->setSpacing(0);
-
   layout->addSpacing(LayoutConstants::NarrowVMargin);
   layout->addWidget(viewPreferences, 1);
   layout->addSpacing(LayoutConstants::MediumVMargin);
-  setLayout(layout);
+
+  createScrollableContent(layout);
 }
 
 QWidget* ViewPreferencePane::createViewPreferences()
@@ -207,7 +215,6 @@ QWidget* ViewPreferencePane::createViewPreferences()
   layout->addSection("Fonts");
   layout->addRow("Renderer Font Size", m_rendererFontSizeCombo);
 
-  viewBox->setMinimumWidth(400);
   viewBox->setLayout(layout);
 
   return viewBox;
@@ -293,6 +300,23 @@ void ViewPreferencePane::doResetToDefaults()
 
 void ViewPreferencePane::updateControls()
 {
+  const auto layoutBlocker = QSignalBlocker{m_layoutCombo};
+  const auto link2DCamerasBlocker = QSignalBlocker{m_link2dCameras};
+  const auto brightnessBlocker = QSignalBlocker{m_brightnessSlider};
+  const auto gridAlphaBlocker = QSignalBlocker{m_gridAlphaSlider};
+  const auto fovBlocker = QSignalBlocker{m_fovSlider};
+
+  const auto filterModeBlocker = QSignalBlocker{m_filterModeCombo};
+
+  const auto showAxesBlocker = QSignalBlocker{m_showAxes};
+  const auto enableMsaaBlocker = QSignalBlocker{m_enableMsaa};
+  const auto themeBlocker = QSignalBlocker{m_themeCombo};
+
+  const auto materialBrowserIconSizeBlocker =
+    QSignalBlocker{m_materialBrowserIconSizeCombo};
+
+  const auto rendererFontSizeBlocker = QSignalBlocker{m_rendererFontSizeCombo};
+
   auto& prefs = PreferenceManager::instance();
 
   m_layoutCombo->setCurrentIndex(prefs.getPendingValue(Preferences::MapViewLayout));
@@ -302,11 +326,13 @@ void ViewPreferencePane::updateControls()
   m_gridAlphaSlider->setRatio(prefs.getPendingValue(Preferences::GridAlpha));
   m_fovSlider->setValue(int(prefs.getPendingValue(Preferences::CameraFov)));
 
-  const auto filterModeIndex = findFilterMode(
-                                 prefs.getPendingValue(Preferences::TextureMinFilter),
-                                 prefs.getPendingValue(Preferences::TextureMagFilter))
-                                 .value_or(-1);
-  m_filterModeCombo->setCurrentIndex(int(filterModeIndex));
+  if (
+    const auto filterModeIndex = findFilterMode(
+      prefs.getPendingValue(Preferences::TextureMinFilter),
+      prefs.getPendingValue(Preferences::TextureMagFilter)))
+  {
+    m_filterModeCombo->setCurrentIndex(int(*filterModeIndex));
+  }
 
   m_showAxes->setChecked(prefs.getPendingValue(Preferences::ShowAxes));
   m_enableMsaa->setChecked(prefs.getPendingValue(Preferences::EnableMSAA));
@@ -353,15 +379,7 @@ bool ViewPreferencePane::validate()
   return true;
 }
 
-std::optional<size_t> ViewPreferencePane::findFilterMode(
-  const int minFilter, const int magFilter) const
-{
-  return kdl::index_of(FilterModes, [&](const FilterMode& filterMode) {
-    return filterMode.minFilter == minFilter && filterMode.magFilter == magFilter;
-  });
-}
-
-int ViewPreferencePane::findThemeIndex(const QString& theme)
+int ViewPreferencePane::findThemeIndex(const QString& theme) const
 {
   return m_themeCombo->findText(theme);
 }
@@ -416,8 +434,9 @@ void ViewPreferencePane::enableMsaaChanged(const int state)
 
 void ViewPreferencePane::filterModeChanged(const int value)
 {
+  contract_assert(value < static_cast<int>(FilterModes.size()));
+
   const auto index = static_cast<size_t>(value);
-  contract_assert(index < FilterModes.size());
 
   const auto minFilter = FilterModes[index].minFilter;
   const auto magFilter = FilterModes[index].magFilter;

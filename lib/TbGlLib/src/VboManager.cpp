@@ -20,7 +20,7 @@
 #include "gl/VboManager.h"
 
 #include "Macros.h"
-#include "gl/GL.h"
+#include "gl/GlUtils.h"
 #include "gl/Vbo.h"
 
 #include <algorithm>
@@ -28,11 +28,13 @@
 
 namespace tb::gl
 {
+namespace
+{
 
 /**
  * e.g. GL_ARRAY_BUFFER or GL_ELEMENT_ARRAY_BUFFER
  */
-static GLenum typeToOpenGL(const VboType type)
+GLenum typeToOpenGL(const VboType type)
 {
   switch (type)
   {
@@ -44,7 +46,7 @@ static GLenum typeToOpenGL(const VboType type)
   }
 }
 
-static GLenum usageToOpenGL(const VboUsage usage)
+GLenum usageToOpenGL(const VboUsage usage)
 {
   switch (usage)
   {
@@ -56,31 +58,32 @@ static GLenum usageToOpenGL(const VboUsage usage)
   }
 }
 
+} // namespace
+
 // VboManager
 
-VboManager::VboManager(ShaderManager& shaderManager)
-  : m_shaderManager{shaderManager}
-{
-}
+VboManager::VboManager() = default;
+VboManager::~VboManager() = default;
 
-Vbo* VboManager::allocateVbo(VboType type, const size_t capacity, const VboUsage usage)
+std::unique_ptr<Vbo> VboManager::allocateVbo(
+  Gl& gl, VboType type, const size_t capacity, const VboUsage usage)
 {
-  auto result = std::make_unique<Vbo>(typeToOpenGL(type), capacity, usageToOpenGL(usage));
+  auto result =
+    std::make_unique<Vbo>(gl, typeToOpenGL(type), capacity, usageToOpenGL(usage));
 
   m_currentVboSize += capacity;
   m_currentVboCount++;
   m_peakVboCount = std::max(m_peakVboCount, m_currentVboCount);
 
-  return result.release();
+  return result;
 }
 
-void VboManager::destroyVbo(Vbo* vbo)
+void VboManager::destroyVbo(std::unique_ptr<Vbo> vbo)
 {
   m_currentVboSize -= vbo->capacity();
   m_currentVboCount--;
 
-  vbo->free();
-  delete vbo;
+  m_vbosToDestroy.push_back(std::move(vbo));
 }
 
 size_t VboManager::peakVboCount() const
@@ -98,9 +101,13 @@ size_t VboManager::currentVboSize() const
   return m_currentVboSize;
 }
 
-ShaderManager& VboManager::shaderManager()
+void VboManager::destroyPendingVbos(Gl& gl)
 {
-  return m_shaderManager;
+  for (auto& vbo : m_vbosToDestroy)
+  {
+    vbo->free(gl);
+  }
+  m_vbosToDestroy.clear();
 }
 
 } // namespace tb::gl

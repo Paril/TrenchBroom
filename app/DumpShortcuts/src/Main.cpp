@@ -18,6 +18,8 @@
  */
 
 #include <QApplication>
+#include <QCommandLineParser>
+#include <QFile>
 #include <QFileInfo>
 #include <QKeySequence>
 #include <QSettings>
@@ -33,6 +35,7 @@
 #include "ui/SystemPaths.h"
 
 #include <array>
+#include <memory>
 #include <tuple>
 
 namespace tb::ui
@@ -182,21 +185,51 @@ int main(int argc, char* argv[])
   QApplication::setOrganizationName("");
   QApplication::setOrganizationDomain("io.github.trenchbroom");
 
+  auto app = QApplication{argc, argv};
+
   PreferenceManager::createInstance(
     std::make_unique<QPreferenceStore>(pathAsQString(SystemPaths::preferenceFilePath())));
 
-  // QKeySequence requires that an application instance is created!
-  auto app = QApplication{argc, argv};
+  auto parser = QCommandLineParser{};
+  parser.setApplicationDescription("Dump TrenchBroom keyboard shortcuts as JavaScript.");
+  parser.addHelpOption();
+  parser.addPositionalArgument(
+    "output", "Write output to this file instead of stdout.", "output");
+  if (!parser.parse(app.arguments()))
+  {
+    QTextStream{stderr} << parser.errorText() << Qt::endl;
+    return 1;
+  }
+
+  const auto positionalArguments = parser.positionalArguments();
+  if (positionalArguments.size() > 1)
+  {
+    QTextStream{stderr} << "Too many positional arguments." << Qt::endl;
+    return 1;
+  }
+
+  auto outputFile = QFile{};
+  auto useFileOutput = false;
+  if (!positionalArguments.isEmpty())
+  {
+    outputFile.setFileName(positionalArguments.front());
+    if (!outputFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate))
+    {
+      return 1;
+    }
+    useFileOutput = true;
+  }
 
   auto actionManager = ActionManager{};
 
-  auto out = QTextStream{stdout};
-  printKeys(out);
-  printMenuShortcuts(actionManager, out);
-  printActionShortcuts(actionManager, out);
+  auto out = useFileOutput ? std::make_unique<QTextStream>(&outputFile)
+                           : std::make_unique<QTextStream>(stdout);
+  printKeys(*out);
+  printMenuShortcuts(actionManager, *out);
+  printActionShortcuts(actionManager, *out);
 
   PreferenceManager::destroyInstance();
 
-  out.flush();
-  return out.status() == QTextStream::Ok ? 0 : 1;
+  out->flush();
+  return out->status() == QTextStream::Ok ? 0 : 1;
 }

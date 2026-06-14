@@ -22,7 +22,9 @@
 #include <QBoxLayout>
 #include <QCloseEvent>
 #include <QDialogButtonBox>
+#include <QMessageBox>
 #include <QPushButton>
+#include <QScreen>
 #include <QStackedWidget>
 #include <QToolBar>
 #include <QToolButton>
@@ -42,10 +44,19 @@
 #include "ui/PreferencePane.h"
 #include "ui/ViewPreferencePane.h"
 
+#include <algorithm>
 #include <filesystem>
 
 namespace tb::ui
 {
+namespace
+{
+
+constexpr int PreferenceDialogMinWidth = 800;
+constexpr int PreferenceDialogMinHeight = 300;
+
+} // namespace
+
 enum class PreferenceDialog::PrefPane
 {
   First = 0,
@@ -68,8 +79,17 @@ PreferenceDialog::PreferenceDialog(
   setWindowTitle("Preferences");
   setWindowIconTB(this);
   createGui();
+  setMinimumSize(PreferenceDialogMinWidth, PreferenceDialogMinHeight);
   switchToPane(PrefPane::First);
   currentPane()->updateControls();
+
+  const auto preferredSize = initialDialogSize();
+  if (const auto* currentScreen = screen())
+  {
+    const auto availableSize = currentScreen->availableGeometry().size();
+    setMaximumSize(availableSize);
+    resize(preferredSize.boundedTo(availableSize));
+  }
 
   connectObservers();
 }
@@ -79,12 +99,34 @@ void PreferenceDialog::closeEvent(QCloseEvent* event)
   if (currentPane()->validate())
   {
     auto& prefs = PreferenceManager::instance();
-    if (!prefs.saveInstantly())
+    if (prefs.hasUnsavedChanges())
     {
-      prefs.discardChanges();
-    }
+      auto msgBox = QMessageBox{
+        QMessageBox::Question,
+        "Unsaved Preference Changes",
+        "You have unsaved preference changes. Would you like to save or discard them?",
+        QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+        this};
 
-    event->accept();
+      switch (msgBox.exec())
+      {
+      case QMessageBox::Save:
+        prefs.saveChanges();
+        event->accept();
+        break;
+      case QMessageBox::Discard:
+        prefs.discardChanges();
+        event->accept();
+        break;
+      default:
+        event->ignore();
+        break;
+      }
+    }
+    else
+    {
+      event->accept();
+    }
   }
   else
   {
@@ -128,32 +170,35 @@ void PreferenceDialog::createGui()
   m_stackedWidget->addWidget(new UpdatePreferencePane{m_appController});
 
   m_buttonBox = new QDialogButtonBox{
-    QDialogButtonBox::RestoreDefaults
-#if !defined __APPLE__
-      | QDialogButtonBox::Ok | QDialogButtonBox::Apply | QDialogButtonBox::Cancel
-#endif
-    ,
+    PreferenceManager::instance().saveInstantly()
+      ? QDialogButtonBox::RestoreDefaults
+      : QDialogButtonBox::RestoreDefaults | QDialogButtonBox::Ok | QDialogButtonBox::Apply
+          | QDialogButtonBox::Cancel,
     this};
 
   auto* resetButton = m_buttonBox->button(QDialogButtonBox::RestoreDefaults);
   connect(resetButton, &QPushButton::clicked, this, &PreferenceDialog::resetToDefaults);
 
-#if !defined __APPLE__
-  connect(m_buttonBox->button(QDialogButtonBox::Ok), &QPushButton::clicked, this, [&]() {
-    auto& prefs = PreferenceManager::instance();
-    prefs.saveChanges();
-    this->close();
-  });
-  connect(
-    m_buttonBox->button(QDialogButtonBox::Apply), &QPushButton::clicked, this, [&]() {
-      auto& prefs = PreferenceManager::instance();
-      prefs.saveChanges();
-    });
-  connect(
-    m_buttonBox->button(QDialogButtonBox::Cancel), &QPushButton::clicked, this, [&]() {
-      this->close();
-    });
-#endif
+  if (!PreferenceManager::instance().saveInstantly())
+  {
+    connect(
+      m_buttonBox->button(QDialogButtonBox::Ok), &QPushButton::clicked, this, [&]() {
+        auto& prefs = PreferenceManager::instance();
+        prefs.saveChanges();
+        this->close();
+      });
+    connect(
+      m_buttonBox->button(QDialogButtonBox::Apply), &QPushButton::clicked, this, [&]() {
+        auto& prefs = PreferenceManager::instance();
+        prefs.saveChanges();
+      });
+    connect(
+      m_buttonBox->button(QDialogButtonBox::Cancel), &QPushButton::clicked, this, [&]() {
+        auto& prefs = PreferenceManager::instance();
+        prefs.discardChanges();
+        this->close();
+      });
+  }
 
   auto* layout = new QVBoxLayout{};
   layout->setContentsMargins(0, 0, 0, 0);
@@ -166,6 +211,24 @@ void PreferenceDialog::createGui()
 #endif
   layout->addWidget(m_stackedWidget, 1);
   layout->addLayout(wrapDialogButtonBox(m_buttonBox));
+}
+
+QSize PreferenceDialog::initialDialogSize() const
+{
+  const auto numPanes = m_stackedWidget->count();
+  contract_assert(numPanes > 0);
+
+  const auto paneHeights =
+    std::views::iota(0, numPanes) | std::views::transform([&](const auto i) {
+      const auto* pane = static_cast<PreferencePane*>(m_stackedWidget->widget(i));
+      return pane->contentSizeHint().height();
+    });
+
+  const auto maxPaneHeight = *std::ranges::max_element(paneHeights);
+  const auto frameHeight = sizeHint().height() - m_stackedWidget->sizeHint().height();
+  const auto initialWidth = std::max(sizeHint().width(), PreferenceDialogMinWidth);
+  const auto initialHeight = frameHeight + maxPaneHeight;
+  return {initialWidth, initialHeight};
 }
 
 void PreferenceDialog::switchToPane(const PrefPane pane)

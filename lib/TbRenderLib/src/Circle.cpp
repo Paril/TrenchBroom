@@ -92,14 +92,18 @@ bool Circle::prepared() const
   return m_array.prepared();
 }
 
-void Circle::prepare(gl::VboManager& vboManager)
+void Circle::prepare(gl::Gl& gl, gl::VboManager& vboManager)
 {
-  m_array.prepare(vboManager);
+  m_array.prepare(gl, vboManager);
 }
 
-void Circle::render()
+void Circle::render(gl::Gl& gl, gl::ShaderProgram& currentProgram)
 {
-  m_array.render(m_filled ? gl::PrimType::TriangleFan : gl::PrimType::LineLoop);
+  if (m_array.setup(gl, currentProgram))
+  {
+    m_array.render(gl, m_filled ? gl::PrimType::TriangleFan : gl::PrimType::LineLoop);
+    m_array.cleanup(gl, currentProgram);
+  }
 }
 
 void Circle::init2D(

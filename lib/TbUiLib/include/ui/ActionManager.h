@@ -19,11 +19,7 @@
 
 #pragma once
 
-#include <QKeySequence>
-
 #include "Macros.h"
-#include "mdl/EntityDefinition.h"
-#include "mdl/Tag.h"
 #include "ui/Action.h"
 #include "ui/ActionMenu.h"
 
@@ -32,6 +28,12 @@
 #include <filesystem>
 #include <string>
 #include <vector>
+
+namespace tb::mdl
+{
+struct EntityDefinition;
+class SmartTag;
+} // namespace tb::mdl
 
 namespace tb::ui
 {

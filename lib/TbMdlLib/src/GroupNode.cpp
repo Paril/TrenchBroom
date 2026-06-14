@@ -121,17 +121,25 @@ void GroupNode::setEditState(const EditState editState)
 void GroupNode::setAncestorEditState(const EditState editState)
 {
   visitParent(kdl::overload(
-    [=](auto&& thisLambda, WorldNode* world) -> void { world->visitParent(thisLambda); },
-    [=](auto&& thisLambda, LayerNode* layer) -> void { layer->visitParent(thisLambda); },
-    [=](auto&& thisLambda, GroupNode* group) -> void {
-      group->setEditState(editState);
-      group->visitParent(thisLambda);
+    [=](auto&& thisLambda, WorldNode& worldNode) -> void {
+      worldNode.visitParent(thisLambda);
     },
-    [=](
-      auto&& thisLambda, EntityNode* entity) -> void { entity->visitParent(thisLambda); },
-    [=](auto&& thisLambda, BrushNode* brush) -> void { brush->visitParent(thisLambda); },
-    [=](
-      auto&& thisLambda, PatchNode* patch) -> void { patch->visitParent(thisLambda); }));
+    [=](auto&& thisLambda, LayerNode& layerNode) -> void {
+      layerNode.visitParent(thisLambda);
+    },
+    [=](auto&& thisLambda, GroupNode& groupNode) -> void {
+      groupNode.setEditState(editState);
+      groupNode.visitParent(thisLambda);
+    },
+    [=](auto&& thisLambda, EntityNode& entityNode) -> void {
+      entityNode.visitParent(thisLambda);
+    },
+    [=](auto&& thisLambda, BrushNode& brushNode) -> void {
+      brushNode.visitParent(thisLambda);
+    },
+    [=](auto&& thisLambda, PatchNode& patchNode) -> void {
+      patchNode.visitParent(thisLambda);
+    }));
 }
 
 void GroupNode::openAncestors()
@@ -195,20 +203,20 @@ bool checkRecursiveLinkedGroups(const Node& parentNode, const GroupNode& groupNo
 }
 } // namespace
 
-bool GroupNode::doCanAddChild(const Node* child) const
+bool GroupNode::doCanAddChild(const Node& child) const
 {
-  return child->accept(kdl::overload(
-    [](const WorldNode*) { return false; },
-    [](const LayerNode*) { return false; },
-    [&](const GroupNode* groupNode) {
-      return !checkRecursiveLinkedGroups(*this, *groupNode);
+  return child.accept(kdl::overload(
+    [](const WorldNode&) { return false; },
+    [](const LayerNode&) { return false; },
+    [&](const GroupNode& groupNode) {
+      return !checkRecursiveLinkedGroups(*this, groupNode);
     },
-    [](const EntityNode*) { return true; },
-    [](const BrushNode*) { return true; },
-    [](const PatchNode*) { return true; }));
+    [](const EntityNode&) { return true; },
+    [](const BrushNode&) { return true; },
+    [](const PatchNode&) { return true; }));
 }
 
-bool GroupNode::doCanRemoveChild(const Node* /* child */) const
+bool GroupNode::doCanRemoveChild(const Node&) const
 {
   return true;
 }
@@ -223,12 +231,12 @@ bool GroupNode::doShouldAddToSpacialIndex() const
   return false;
 }
 
-void GroupNode::doChildWasAdded(Node* /* node */)
+void GroupNode::doChildWasAdded(Node&)
 {
   nodePhysicalBoundsDidChange();
 }
 
-void GroupNode::doChildWasRemoved(Node* /* node */)
+void GroupNode::doChildWasRemoved(Node&)
 {
   nodePhysicalBoundsDidChange();
 }
@@ -274,12 +282,12 @@ void GroupNode::doFindNodesContaining(const vm::vec3d& point, std::vector<Node*>
 
 void GroupNode::doAccept(NodeVisitor& visitor)
 {
-  visitor.visit(this);
+  visitor.visit(*this);
 }
 
 void GroupNode::doAccept(ConstNodeVisitor& visitor) const
 {
-  visitor.visit(this);
+  visitor.visit(*this);
 }
 
 Node* GroupNode::doGetContainer()

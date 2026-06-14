@@ -19,8 +19,6 @@
 
 #pragma once
 
-#include <QFont>
-
 namespace tb::ui
 {
 namespace LayoutConstants
@@ -92,10 +90,5 @@ static constexpr int ToggleButtonStyle = 0;
 static constexpr int MinPreferenceLabelWidth = 100;
 static constexpr int HighlightBoxMargin = 5;
 } // namespace LayoutConstants
-
-namespace Fonts
-{
-QFont fixedWidthFont();
-}
 
 } // namespace tb::ui

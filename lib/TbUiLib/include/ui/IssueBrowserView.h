@@ -26,7 +26,6 @@
 
 #include <vector>
 
-class QWidget;
 class QTableView;
 
 namespace tb

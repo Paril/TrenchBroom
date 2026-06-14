@@ -120,18 +120,18 @@ Node* LayerNode::doClone(const vm::bbox3d&) const
   return result.release();
 }
 
-bool LayerNode::doCanAddChild(const Node* child) const
+bool LayerNode::doCanAddChild(const Node& child) const
 {
-  return child->accept(kdl::overload(
-    [](const WorldNode*) { return false; },
-    [](const LayerNode*) { return false; },
-    [](const GroupNode*) { return true; },
-    [](const EntityNode*) { return true; },
-    [](const BrushNode*) { return true; },
-    [](const PatchNode*) { return true; }));
+  return child.accept(kdl::overload(
+    [](const WorldNode&) { return false; },
+    [](const LayerNode&) { return false; },
+    [](const GroupNode&) { return true; },
+    [](const EntityNode&) { return true; },
+    [](const BrushNode&) { return true; },
+    [](const PatchNode&) { return true; }));
 }
 
-bool LayerNode::doCanRemoveChild(const Node* /* child */) const
+bool LayerNode::doCanRemoveChild(const Node&) const
 {
   return true;
 }
@@ -168,12 +168,12 @@ void LayerNode::doFindNodesContaining(const vm::vec3d& point, std::vector<Node*>
 
 void LayerNode::doAccept(NodeVisitor& visitor)
 {
-  visitor.visit(this);
+  visitor.visit(*this);
 }
 
 void LayerNode::doAccept(ConstNodeVisitor& visitor) const
 {
-  visitor.visit(this);
+  visitor.visit(*this);
 }
 
 void LayerNode::invalidateBounds()

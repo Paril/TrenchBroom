@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.12)
-
 add_library(TbBaseLib STATIC)
 
 target_sources(TbBaseLib
@@ -23,9 +21,16 @@ target_sources(TbBaseLib
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(TbBaseLib PRIVATE CompilerConfig PrecompileStdHeaders)
-target_link_libraries(TbBaseLib PRIVATE stduuid)
-target_link_libraries(TbBaseLib PUBLIC KdLib VmLib fmt::fmt-header-only)
+target_link_libraries(TbBaseLib 
+  PRIVATE 
+    CompilerConfig
+    PrecompileStdHeaders
+    stduuid
+  PUBLIC
+    fmt::fmt-header-only
+    KdLib
+    VmLib
+)
 
 add_subdirectory(test)
 add_subdirectory(test-utils)

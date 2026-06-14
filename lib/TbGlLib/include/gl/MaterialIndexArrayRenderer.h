@@ -25,7 +25,9 @@
 
 namespace tb::gl
 {
+class Gl;
 class MaterialRenderFunc;
+class ShaderProgram;
 class VboManager;
 
 class MaterialIndexArrayRenderer
@@ -42,8 +44,8 @@ public:
 
   bool empty() const;
 
-  void prepare(VboManager& vboManager);
-  void render(MaterialRenderFunc& func);
+  void prepare(Gl& gl, VboManager& vboManager);
+  void render(Gl& gl, ShaderProgram& currentProgram, MaterialRenderFunc& func);
 };
 
 } // namespace tb::gl

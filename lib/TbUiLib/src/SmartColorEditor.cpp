@@ -95,11 +95,11 @@ std::vector<QColor> collectColors(
   };
 
   auto colors = kdl::vector_set<QColor, decltype(cmp)>{cmp};
-  const auto visitEntityNode = [&](const auto* node) {
-    if (const auto* propertyValue = node->entity().property(propertyKey))
+  const auto visitEntityNode = [&](const auto& node) {
+    if (const auto* propertyValue = node.entity().property(propertyKey))
     {
       parseEntityColorPropertyValue(
-        node->entity().definition(), propertyKey, *propertyValue)
+        node.entity().definition(), propertyKey, *propertyValue)
         | kdl::transform([&](const auto entityColorProperty) {
             colors.insert(toQColor(entityColorProperty.color));
           })
@@ -110,19 +110,19 @@ std::vector<QColor> collectColors(
   for (const auto* node : nodes)
   {
     node->accept(kdl::overload(
-      [&](auto&& thisLambda, const mdl::WorldNode* world) {
-        world->visitChildren(thisLambda);
-        visitEntityNode(world);
+      [&](auto&& thisLambda, const mdl::WorldNode& worldNode) {
+        worldNode.visitChildren(thisLambda);
+        visitEntityNode(worldNode);
       },
-      [](auto&& thisLambda, const mdl::LayerNode* layer) {
-        layer->visitChildren(thisLambda);
+      [](auto&& thisLambda, const mdl::LayerNode& layerNode) {
+        layerNode.visitChildren(thisLambda);
       },
-      [](auto&& thisLambda, const mdl::GroupNode* group) {
-        group->visitChildren(thisLambda);
+      [](auto&& thisLambda, const mdl::GroupNode& groupNode) {
+        groupNode.visitChildren(thisLambda);
       },
-      [&](const mdl::EntityNode* entity) { visitEntityNode(entity); },
-      [](const mdl::BrushNode*) {},
-      [](const mdl::PatchNode*) {}));
+      [&](const mdl::EntityNode& entity) { visitEntityNode(entity); },
+      [](const mdl::BrushNode&) {},
+      [](const mdl::PatchNode&) {}));
   }
 
   return colors.get_data();

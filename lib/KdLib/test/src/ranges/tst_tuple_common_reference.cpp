@@ -20,6 +20,10 @@
 
 #include "kd/ranges/detail/tuple_common_reference.h" // IWYU pragma: keep
 
+#include <concepts>
+#include <tuple>
+#include <type_traits>
+
 #include <catch2/catch_test_macros.hpp>
 
 namespace kdl::ranges

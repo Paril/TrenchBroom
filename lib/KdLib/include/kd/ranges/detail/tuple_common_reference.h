@@ -20,13 +20,14 @@
 
 #pragma once
 
-#include <tuple>
-#include <type_traits>
-
-// This file must not be included when compiling with C++23 or later because the std
+// This file is unnecessary when compiling with C++23 or later because the std
 // library already contains a working implementation of std::basic_common_reference for
 // tuple-likes.
-static_assert(__cplusplus == 202002L);
+
+#if __cplusplus == 202002L
+
+#include <tuple>
+#include <type_traits>
 
 namespace kdl::ranges::detail
 {
@@ -84,3 +85,5 @@ struct basic_common_reference<TTuple, UTuple, TQual, UQual>
 };
 
 } // namespace std
+
+#endif

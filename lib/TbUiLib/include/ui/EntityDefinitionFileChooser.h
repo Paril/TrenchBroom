@@ -24,7 +24,6 @@
 #include "NotifierConnection.h"
 
 class QPushButton;
-class QListWidget;
 class QLabel;
 
 namespace tb::ui

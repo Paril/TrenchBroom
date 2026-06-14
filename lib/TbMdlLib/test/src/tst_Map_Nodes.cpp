@@ -17,6 +17,7 @@
  along with TrenchBroom. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Observer.h"
 #include "gl/MaterialManager.h"
 #include "mdl/BrushNode.h"
 #include "mdl/CatchConfig.h"
@@ -40,6 +41,7 @@
 #include "mdl/PatchNode.h"
 #include "mdl/TestFactory.h"
 #include "mdl/TestUtils.h"
+#include "mdl/VisualEffect.h"
 #include "mdl/WorldNode.h"
 
 #include "kd/overload.h"
@@ -182,7 +184,7 @@ TEST_CASE("Map_Nodes")
         deselectAll(map);
 
         using CreateNode = std::function<Node*(const Map&)>;
-        CreateNode createNode = GENERATE_COPY(
+        const auto createNode = GENERATE_COPY(
           CreateNode{[](const auto&) -> Node* { return new EntityNode{Entity{}}; }},
           CreateNode{[](const auto& m) -> Node* { return createBrushNode(m); }},
           CreateNode{[](const auto&) -> Node* { return createPatchNode(); }});
@@ -194,23 +196,23 @@ TEST_CASE("Map_Nodes")
 
         auto* linkedNode = linkedGroupNode->children().back();
         linkedNode->accept(kdl::overload(
-          [](const WorldNode*) {},
-          [](const LayerNode*) {},
-          [](const GroupNode*) {},
-          [&](const EntityNode* linkedEntityNode) {
+          [](const WorldNode&) {},
+          [](const LayerNode&) {},
+          [](const GroupNode&) {},
+          [&](const EntityNode& linkedEntityNode) {
             const auto* originalEntityNode = dynamic_cast<EntityNode*>(nodeToAdd);
             REQUIRE(originalEntityNode);
-            CHECK(originalEntityNode->entity() == linkedEntityNode->entity());
+            CHECK(originalEntityNode->entity() == linkedEntityNode.entity());
           },
-          [&](const BrushNode* linkedBrushNode) {
+          [&](const BrushNode& linkedBrushNode) {
             const auto* originalBrushNode = dynamic_cast<BrushNode*>(nodeToAdd);
             REQUIRE(originalBrushNode);
-            CHECK(originalBrushNode->brush() == linkedBrushNode->brush());
+            CHECK(originalBrushNode->brush() == linkedBrushNode.brush());
           },
-          [&](const PatchNode* linkedPatchNode) {
+          [&](const PatchNode& linkedPatchNode) {
             const auto* originalPatchNode = dynamic_cast<PatchNode*>(nodeToAdd);
             REQUIRE(originalPatchNode);
-            CHECK(originalPatchNode->patch() == linkedPatchNode->patch());
+            CHECK(originalPatchNode->patch() == linkedPatchNode.patch());
           }));
 
         map.undoCommand();
@@ -312,6 +314,18 @@ TEST_CASE("Map_Nodes")
       CHECK(entityClone->parent() == layerNode1);
       CHECK(layerNode1->childCount() == 2);
       CHECK(map.editorContext().currentLayer() == layerNode2);
+    }
+
+    SECTION("Duplicating nodes triggers a visual effect")
+    {
+      auto triggerVisualEffect = Observer<VisualEffect>{map.triggerVisualEffectNotifier};
+
+      auto* entityNode = createPointEntity(map, pointEntityDefinition, {0, 0, 0});
+      selectNodes(map, {entityNode});
+      duplicateSelectedNodes(map);
+
+      CHECK(
+        triggerVisualEffect.notifications == std::vector{VisualEffect::FlashSelection});
     }
 
     SECTION("Nodes duplicated in a hidden layer become visible")
@@ -850,7 +864,7 @@ TEST_CASE("Map_Nodes")
       auto* brushNode = createBrushNode(map);
 
       using CreateNode = std::function<Node*(const Map&)>;
-      CreateNode createNode = GENERATE_COPY(
+      const auto createNode = GENERATE_COPY(
         CreateNode{[](const auto&) -> Node* { return new EntityNode{Entity{}}; }},
         CreateNode{[](const auto& m) -> Node* { return createBrushNode(m); }},
         CreateNode{[](const auto&) -> Node* { return createPatchNode(); }});
@@ -973,7 +987,7 @@ TEST_CASE("Map_Nodes")
     SECTION("Update material usage counts")
     {
       deselectAll(map);
-      setEntityProperty(map, EntityPropertyKeys::Wad, "fixture/test/mdl/Map/cr8_czg.wad");
+      setEntityProperty(map, EntityPropertyKeys::Wad, "test/mdl/Map/cr8_czg.wad");
 
       constexpr auto MaterialName = "bongs2";
       const auto* material = map.materialManager().material(MaterialName);

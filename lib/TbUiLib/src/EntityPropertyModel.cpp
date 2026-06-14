@@ -40,6 +40,7 @@
 #include "mdl/Map.h"
 #include "mdl/Map_Entities.h"
 #include "mdl/ModelUtils.h"
+#include "mdl/NodeIndex.h"
 #include "mdl/PropertyDefinition.h"
 #include "mdl/WorldNode.h"
 #include "ui/ImageUtils.h"
@@ -385,19 +386,19 @@ std::vector<std::string> getAllPropertyKeys(const mdl::Map& map)
   };
 
   map.worldNode().accept(kdl::overload(
-    [&](auto&& thisLambda, const mdl::WorldNode* worldNode) {
-      addEntityKeys(*worldNode);
-      worldNode->visitChildren(thisLambda);
+    [&](auto&& thisLambda, const mdl::WorldNode& worldNode) {
+      addEntityKeys(worldNode);
+      worldNode.visitChildren(thisLambda);
     },
-    [](auto&& thisLambda, const mdl::LayerNode* layerNode) {
-      layerNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, const mdl::LayerNode& layerNode) {
+      layerNode.visitChildren(thisLambda);
     },
-    [](auto&& thisLambda, const mdl::GroupNode* groupNode) {
-      groupNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, const mdl::GroupNode& groupNode) {
+      groupNode.visitChildren(thisLambda);
     },
-    [&](const mdl::EntityNode* entityNode) { addEntityKeys(*entityNode); },
-    [](const mdl::BrushNode*) {},
-    [](const mdl::PatchNode*) {}));
+    [&](const mdl::EntityNode& entityNode) { addEntityKeys(entityNode); },
+    [](const mdl::BrushNode&) {},
+    [](const mdl::PatchNode&) {}));
 
   // also add keys from all loaded entity definitions
   for (const auto& entityDefinition : map.entityDefinitionManager().definitions())
@@ -419,8 +420,8 @@ std::vector<std::string> getAllValuesForPropertyKeys(
   auto result = kdl::vector_set<std::string>();
   for (const auto& key : propertyKeys)
   {
-    for (const auto* entityNode :
-         map.findNodes<mdl::EntityNodeBase>(fmt::format("{}%*", key)))
+    for (const auto* entityNode : map.findNodes<mdl::EntityNodeBase>(
+           fmt::format("{}%*", mdl::NodeIndex::escapePattern(key))))
     {
       const auto values =
         entityNode->entity().numberedProperties(key)
@@ -457,17 +458,17 @@ std::vector<std::string> getAllValuesForPropertyValueTypes(const mdl::Map& map)
 {
   auto result = kdl::vector_set<std::string>();
   map.worldNode().accept(kdl::overload(
-    [](auto&& thisLambda, const mdl::WorldNode* worldNode) {
-      worldNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, const mdl::WorldNode& worldNode) {
+      worldNode.visitChildren(thisLambda);
     },
-    [](auto&& thisLambda, const mdl::LayerNode* layerNode) {
-      layerNode->visitChildren(thisLambda);
+    [](auto&& thisLambda, const mdl::LayerNode& layerNode) {
+      layerNode.visitChildren(thisLambda);
     },
-    [&](auto&& thisLambda, const mdl::GroupNode* groupNode) {
-      groupNode->visitChildren(thisLambda);
+    [&](auto&& thisLambda, const mdl::GroupNode& groupNode) {
+      groupNode.visitChildren(thisLambda);
     },
-    [&](const mdl::EntityNode* entityNode) {
-      if (const auto* entityDefinition = entityNode->entity().definition())
+    [&](const mdl::EntityNode& entityNode) {
+      if (const auto* entityDefinition = entityNode.entity().definition())
       {
         auto propertyValues =
           entityDefinition->propertyDefinitions
@@ -476,7 +477,7 @@ std::vector<std::string> getAllValuesForPropertyValueTypes(const mdl::Map& map)
                 std::holds_alternative<ValueType>(propertyDefinition.valueType) || ...);
             })
           | std::views::transform([&](const auto& propertyDefinition) {
-              return entityNode->entity().property(propertyDefinition.key);
+              return entityNode.entity().property(propertyDefinition.key);
             })
           | std::views::filter(
             [](const auto* propertyValue) { return propertyValue != nullptr; })
@@ -486,8 +487,8 @@ std::vector<std::string> getAllValuesForPropertyValueTypes(const mdl::Map& map)
         result.insert(propertyValues.begin(), propertyValues.end());
       }
     },
-    [&](const mdl::BrushNode*) {},
-    [&](const mdl::PatchNode*) {}));
+    [&](const mdl::BrushNode&) {},
+    [&](const mdl::PatchNode&) {}));
 
   // remove the empty string
   result.erase("");
