@@ -182,7 +182,11 @@ private:
 
   QLabel* m_colorLabel = nullptr;
   QWidget* m_colorEditorLayout = nullptr;
-  QLineEdit* m_colorEditor = nullptr;
+  QLineEdit* m_colorEditorR = nullptr;
+  QLineEdit* m_colorEditorG = nullptr;
+  QLineEdit* m_colorEditorB = nullptr;
+  QAbstractButton* m_colorSquare = nullptr;
+  QLabel* m_colorRgbLabel = nullptr;
   QAbstractButton* m_colorUnsetButton = nullptr;
 
   SignalDelayer* m_updateControlsSignalDelayer = nullptr;
@@ -205,6 +209,7 @@ private:
   void contentFlagChanged(size_t index, int value, int setFlag, int mixedFlag);
   void surfaceValueChanged(double value);
   void colorValueChanged(const QString& text);
+  void openColorPicker();
 
   void surfaceFlagsUnset();
   void contentFlagsUnset();

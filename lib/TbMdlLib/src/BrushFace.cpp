@@ -437,6 +437,14 @@ SurfaceData getDefaultSurfaceData(const gl::Material* material)
         float(q2Defaults->value),
       };
     }
+    if (const auto* sinDefaults = std::get_if<gl::SinEmbeddedDefaults>(&defaults))
+    {
+      return {
+        sinDefaults->contents,
+        sinDefaults->flags,
+        float(sinDefaults->value),
+      };
+    }
   }
   return {0, 0, 0.0f};
 }
