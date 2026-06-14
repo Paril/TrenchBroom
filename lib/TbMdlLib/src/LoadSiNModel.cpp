@@ -409,9 +409,9 @@ Result<EntityModelData> loadSiNModel(
           {
             auto split =
               kdl::str_split(tokenizer.nextToken(SiNDefToken::String).data(), ",");
-            x = atof(split[0].c_str());
-            y = atof(split[1].c_str());
-            z = atof(split[2].c_str());
+            x = (float) atof(split[0].c_str());
+            y = (float) atof(split[1].c_str());
+            z = (float) atof(split[2].c_str());
           }
           else
           {

@@ -79,7 +79,7 @@ ModelSpecification convertToModel(el::EvaluationContext& context, const el::Valu
       {
           if (surf.skin(i)->name() == skin.stringValue(context))
           {
-              skinIndex = i;
+              skinIndex = (int) i;
               break;
           }
       }

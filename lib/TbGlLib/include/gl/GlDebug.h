@@ -210,6 +210,8 @@ public:
 
   const GLubyte* getString(GLenum name) override;
   GLenum getError() override;
+
+  void generateMipmap(const GLenum texture) override;
 };
 
 } // namespace tb::gl

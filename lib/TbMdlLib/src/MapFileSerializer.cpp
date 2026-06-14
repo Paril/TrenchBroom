@@ -291,16 +291,18 @@ static void writeSiNKeyValues(
 {
   // can't be constexpr sadly
   const auto& attribs = face.attributes();
-
+  
+  const gl::SinEmbeddedDefaults* swl = nullptr;
+#if 0
   // SiN compilers do not read SWL defaults at compile time, so any attribute
   // that the SWL provides but the face does not explicitly override must still
   // be written to the map file. Look up the embedded SWL defaults so we can
   // fall back to them for unset face attributes.
-  const gl::SinEmbeddedDefaults* swl = nullptr;
   if (const auto* tex = gl::getTexture(face.material()))
   {
     swl = std::get_if<gl::SinEmbeddedDefaults>(&tex->embeddedDefaults());
   }
+#endif
 
   // Resolve a float optional: face override takes priority, then SWL default.
   auto resolveF = [swl](const std::optional<float>& v, float swlVal) -> std::optional<float> {

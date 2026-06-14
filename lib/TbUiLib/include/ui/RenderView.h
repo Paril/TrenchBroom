@@ -28,7 +28,7 @@
 
 #include <string>
 
-class QOpenGLFunctions_2_1;
+class QOpenGLFunctions_3_0;
 
 namespace tb
 {
@@ -100,7 +100,7 @@ private:
   void clearBackground(gl::Gl& gl);
   void renderFocusIndicator(gl::Gl& gl);
 
-  QOpenGLFunctions_2_1& glFunctions();
+  QOpenGLFunctions_3_0& glFunctions();
 
 protected:
   // called by initializeGL by default

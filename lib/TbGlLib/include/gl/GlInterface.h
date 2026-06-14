@@ -206,6 +206,8 @@ public:
 
   virtual const GLubyte* getString(GLenum name) = 0;
   virtual GLenum getError() = 0;
+
+  virtual void generateMipmap(GLenum texture) = 0;
 };
 
 } // namespace tb::gl

@@ -20,13 +20,13 @@
 #pragma once
 
 class QOpenGLContext;
-class QOpenGLFunctions_2_1;
+class QOpenGLFunctions_3_0;
 
 #include <string_view>
 
 namespace tb::ui
 {
 
-QOpenGLFunctions_2_1& getGlFunctions(std::string_view callSite, QOpenGLContext* context);
+QOpenGLFunctions_3_0& getGlFunctions(std::string_view callSite, QOpenGLContext* context);
 
 } // namespace tb::ui

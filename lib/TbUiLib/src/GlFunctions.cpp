@@ -20,7 +20,7 @@
 #include "ui/GlFunctions.h"
 
 #include <QOpenGLContext>
-#include <QOpenGLFunctions_2_1>
+#include <QOpenGLFunctions_3_0>
 #include <QOpenGLVersionFunctionsFactory>
 #include <QSurfaceFormat>
 
@@ -91,10 +91,10 @@ void logGlFunctionFactoryFailure(std::string_view callSite, QOpenGLContext* cont
 
 } // namespace
 
-QOpenGLFunctions_2_1& getGlFunctions(std::string_view callSite, QOpenGLContext* context)
+QOpenGLFunctions_3_0& getGlFunctions(std::string_view callSite, QOpenGLContext* context)
 {
   if (
-    auto* functions = QOpenGLVersionFunctionsFactory::get<QOpenGLFunctions_2_1>(context))
+    auto* functions = QOpenGLVersionFunctionsFactory::get<QOpenGLFunctions_3_0>(context))
   {
     return *functions;
   }

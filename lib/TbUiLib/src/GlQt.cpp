@@ -19,12 +19,12 @@
 
 #include "ui/GlQt.h"
 
-#include <QOpenGLFunctions_2_1>
+#include <qopenglfunctions_3_0.h>
 
 namespace tb::ui
 {
 
-GlQt::GlQt(QOpenGLFunctions_2_1& gl)
+GlQt::GlQt(QOpenGLFunctions_3_0& gl)
   : m_gl{gl}
 {
 }
@@ -575,6 +575,11 @@ const GLubyte* GlQt::getString(const GLenum name)
 GLenum GlQt::getError()
 {
   return m_gl.glGetError();
+}
+
+void GlQt::generateMipmap(GLenum texture)
+{
+  return m_gl.glGenerateMipmap(texture);
 }
 
 } // namespace tb::ui

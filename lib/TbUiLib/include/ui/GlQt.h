@@ -21,7 +21,7 @@
 
 #include "gl/GlInterface.h"
 
-class QOpenGLFunctions_2_1;
+class QOpenGLFunctions_3_0;
 
 namespace tb::ui
 {
@@ -29,10 +29,10 @@ namespace tb::ui
 class GlQt : public gl::Gl
 {
 private:
-  QOpenGLFunctions_2_1& m_gl;
+  QOpenGLFunctions_3_0& m_gl;
 
 public:
-  explicit GlQt(QOpenGLFunctions_2_1& gl);
+  explicit GlQt(QOpenGLFunctions_3_0& gl);
 
   void clear(GLbitfield mask) override;
   void clearColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha) override;
@@ -212,6 +212,8 @@ public:
 
   const GLubyte* getString(GLenum name) override;
   GLenum getError() override;
+
+  void generateMipmap(GLenum texture) override;
 };
 
 } // namespace tb::ui

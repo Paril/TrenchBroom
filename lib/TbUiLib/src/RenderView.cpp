@@ -21,7 +21,7 @@
 
 #include <QDateTime>
 #include <QOpenGLContext>
-#include <QOpenGLFunctions_2_1>
+#include <QOpenGLFunctions_3_0>
 #include <QPalette>
 #include <QTimer>
 #include <QWidget>
@@ -322,7 +322,7 @@ void RenderView::renderFocusIndicator(gl::Gl& gl)
   }
 }
 
-QOpenGLFunctions_2_1& RenderView::glFunctions()
+QOpenGLFunctions_3_0& RenderView::glFunctions()
 {
   return getGlFunctions("RenderView::glFunctions", context());
 }

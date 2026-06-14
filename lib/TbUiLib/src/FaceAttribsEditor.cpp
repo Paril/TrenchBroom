@@ -43,6 +43,7 @@
 #include "mdl/UpdateBrushFaceAttributes.h"
 #include "mdl/WorldNode.h"
 #include "ui/BitmapButton.h"
+#include "ui/BorderLine.h"
 #include "ui/FlagsPopupEditor.h"
 #include "ui/MapDocument.h"
 #include "ui/QStyleUtils.h"
@@ -126,7 +127,7 @@ bool isColorSwlOverride(const std::optional<Color>& color, const gl::SinEmbedded
   if (!color.has_value())
     return false;
   if (!swl)
-    return true; // no SWL reference — any explicit color is an override
+    return true; // no SWL reference - any explicit color is an override
 
   // Compare in 0-255 byte space with a 4-unit threshold per channel. Round-
   // tripping a colour through (typed bytes ? float ? map file ? float ? bytes)
@@ -402,7 +403,7 @@ void FaceAttribsEditor::openColorPicker()
     m_colorEditorR->setText(QString::number(chosen.redF(), 'g', 8));
     m_colorEditorG->setText(QString::number(chosen.greenF(), 'g', 8));
     m_colorEditorB->setText(QString::number(chosen.blueF(), 'g', 8));
-    colorValueChanged({});
+    colorValueChanged();
   }
 }
 
@@ -1262,8 +1263,10 @@ QWidget* FaceAttribsEditor::createAttribsWidget()
   m_colorRgbLabel = new QLabel{};
   m_colorRgbLabel->setVisible(false);
   m_colorRgbLabel->setStyleSheet("QLabel { color: gray; font-style: italic; }");
-
-  m_colorEditor->setProperty("error", false);
+  
+  m_colorEditorR->setProperty("error", false);
+  m_colorEditorG->setProperty("error", false);
+  m_colorEditorB->setProperty("error", false);
   m_colorUnsetButton = createBitmapButton("ResetUV.svg", tr("Unset color"));
 
   // Row: [R (flex)][G (flex)][B (flex)][square][RGB info label][X button]
@@ -1689,6 +1692,7 @@ QWidget* FaceAttribsEditor::createAttribsWidget()
   outerLayout->addWidget(m_splitter);
 
   setLayout(outerLayout);
+  return faceAttribsWidget;
 }
 
 void FaceAttribsEditor::bindEvents()
@@ -1756,11 +1760,11 @@ void FaceAttribsEditor::bindEvents()
     this,
     &FaceAttribsEditor::contentFlagChanged);
   connect(
-    m_colorEditorR, &QLineEdit::editingFinished, this, [this]() { colorValueChanged({}); });  //uses editingFinished instead of textEdited so it doesn't submit early
+    m_colorEditorR, &QLineEdit::editingFinished, this, [this]() { colorValueChanged(); });  //uses editingFinished instead of textEdited so it doesn't submit early
   connect(
-    m_colorEditorG, &QLineEdit::editingFinished, this, [this]() { colorValueChanged({}); });  //uses editingFinished instead of textEdited so it doesn't submit early
+    m_colorEditorG, &QLineEdit::editingFinished, this, [this]() { colorValueChanged(); });  //uses editingFinished instead of textEdited so it doesn't submit early
   connect(
-    m_colorEditorB, &QLineEdit::editingFinished, this, [this]() { colorValueChanged({}); });  //uses editingFinished instead of textEdited so it doesn't submit early
+    m_colorEditorB, &QLineEdit::editingFinished, this, [this]() { colorValueChanged(); });  //uses editingFinished instead of textEdited so it doesn't submit early
   connect(m_colorSquare, &QAbstractButton::clicked, this, &FaceAttribsEditor::openColorPicker);
   connect(
     m_surfaceValueUnsetButton,
@@ -2687,12 +2691,6 @@ void FaceAttribsEditor::setColorAttribEditorVisible(const bool visible)
   m_colorEditorLayout->setVisible(visible);
 }
 
-void FaceAttribsEditor::hideColorAttribEditor()
-{
-  m_colorLabel->hide();
-  m_colorEditorLayout->hide();
-}
-
 // SiN
 bool FaceAttribsEditor::hasSiNAttributes() const
 {
@@ -2784,26 +2782,6 @@ void FaceAttribsEditor::hideSiNAttribEditor()
   m_surfaceSiNExtPhongGroupLabel->hide();
   m_surfaceSiNExtPhongGroupEditorLayout->hide();
 }
-
-namespace
-{
-std::tuple<QList<int>, QStringList, QStringList> getFlags(
-  const std::vector<mdl::FlagConfig>& flags)
-{
-  auto values = QList<int>{};
-  auto names = QStringList{};
-  auto descriptions = QStringList{};
-
-  for (const auto& flag : flags)
-  {
-    values.push_back(flag.value);
-    names.push_back(QString::fromStdString(flag.name));
-    descriptions.push_back(QString::fromStdString(flag.description));
-  }
-
-  return {std::move(values), std::move(names), std::move(descriptions)};
-}
-} // namespace
 
 std::tuple<QList<int>, QStringList, QStringList> FaceAttribsEditor::getSurfaceFlags()
   const

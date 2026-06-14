@@ -654,4 +654,9 @@ GLenum GlDebug::getError()
   return m_gl.getError();
 }
 
+void GlDebug::generateMipmap(const GLenum texture)
+{
+  glAssert(m_gl.generateMipmap(texture));
+}
+
 } // namespace tb::gl

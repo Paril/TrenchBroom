@@ -89,9 +89,9 @@ Result<void> SiNPakFileSystem::doReadDirectory()
       for (size_t i = 0; i < numfiles; i++) {
         size_t filepos = reader.readSize<uint64_t>();
         size_t filelen = reader.readSize<uint32_t>();
-        size_t nameofs = reader.readSize<uint32_t>();
+        size_t filenameofs = reader.readSize<uint32_t>();
 
-        const auto entryPath = std::filesystem::path{kdl::str_to_lower(std::string_view{namebuffer.data() + nameofs, strlen(namebuffer.data() + nameofs)})};
+        const auto entryPath = std::filesystem::path{kdl::str_to_lower(std::string_view{namebuffer.data() + filenameofs, strlen(namebuffer.data() + filenameofs)})};
         
         auto entryFile_ = std::static_pointer_cast<File>(
           std::make_shared<FileView>(m_file, filepos, filelen));
