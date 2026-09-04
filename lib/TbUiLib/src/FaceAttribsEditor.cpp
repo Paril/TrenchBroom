@@ -111,6 +111,8 @@ namespace
 // when a face carries no per-face override for a given token.
 const gl::SinEmbeddedDefaults* materialSinEmbeddedDefaults(const mdl::BrushFace& face)
 {
+  return nullptr;
+
   if (const auto* texture = gl::getTexture(face.material()))
   {
     const auto& defaults = texture->embeddedDefaults();
@@ -124,6 +126,8 @@ const gl::SinEmbeddedDefaults* materialSinEmbeddedDefaults(const mdl::BrushFace&
 // A color that matches the SWL default (within tolerance) is not an override.
 bool isColorSwlOverride(const std::optional<Color>& color, const gl::SinEmbeddedDefaults* swl)
 {
+  return true;
+
   if (!color.has_value())
     return false;
   if (!swl)
@@ -2365,7 +2369,7 @@ void FaceAttribsEditor::updateControls()
       }
       else
       {
-        const auto rgbf = colorValue->to<RgbF>();
+        const auto rgbf = colorValue.has_value() ? colorValue->to<RgbF>() : RgbF{0.0f, 0.0f, 0.0f};
         const auto fv = rgbf.values();
         const auto fr = std::get<0>(fv);
         const auto fg = std::get<1>(fv);
@@ -2379,7 +2383,7 @@ void FaceAttribsEditor::updateControls()
         setColorSquare(fr, fg, fb);
 
         // Companion label: 0-255 byte equivalent, grey italic.
-        const auto rgbb = colorValue->to<RgbB>();
+        const auto rgbb = colorValue.has_value() ? colorValue->to<RgbB>() : RgbB{0, 0, 0};
         const auto bv = rgbb.values();
         m_colorRgbLabel->setText(
           QString{"(%1 %2 %3) RGB"}
